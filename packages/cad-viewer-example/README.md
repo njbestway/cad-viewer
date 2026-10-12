@@ -95,7 +95,7 @@ The build runs `vue-tsc`, then copies parser workers and `viewer-runtime.iife.js
 | Format | Notes |
 |--------|--------|
 | **DXF** | Built-in parser in `@mlightcad/data-model` |
-| **DWG** | Optional `@mlightcad/libredwg-converter` (GPL) — registered by this example |
+| **DWG** | `@mlightcad/acad-rust-converter` (acadrust, MPL-2.0, copyleft-free) — registered by this example |
 
 ## What this example demonstrates
 
@@ -109,7 +109,7 @@ Integration patterns useful when embedding `@mlightcad/cad-viewer` in your own V
 | Custom i18n | `AcApI18n.mergeLocaleMessage('en' \| 'zh', messages)` in `@create` (`src/locale/`) |
 | Custom commands | `AcApDocManager.instance.commandManager.addCommand(…)` — see `quit` / `exit` in `src/commands/` |
 | Upload flow | Reactive store + conditional render: upload screen until `selectedFile` is set |
-| Workers & runtime | `vite-plugin-static-copy` copies MTEXT worker, LibreDWG worker/wasm, and `viewer-runtime.iife.js` |
+| Workers & runtime | `vite-plugin-static-copy` copies MTEXT worker, acad-rust parser worker/wasm, and `viewer-runtime.iife.js` |
 | Export plugins | Declared in `package.json`; `@mlightcad/cad-viewer` registers them via `@mlightcad/cad-*-plugin/register` on bootstrap |
 
 Minimal host wiring in `App.vue`:

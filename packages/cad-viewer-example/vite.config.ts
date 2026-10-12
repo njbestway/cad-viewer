@@ -8,9 +8,9 @@ import { visualizer } from 'rollup-plugin-visualizer'
 import vue from '@vitejs/plugin-vue'
 import { examplePeerPackageAliases, exampleRollupOutput } from '../vite-config/pluginRollupOutput'
 import {
-  LIBREDWG_CONVERTER_PACKAGE,
-  LIBREDWG_PARSER_WASM_FILE,
-  LIBREDWG_PARSER_WORKER_FILE,
+  ACADRUST_CONVERTER_PACKAGE,
+  ACADRUST_PARSER_WORKER_FILE,
+  ACADRUST_WASM_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '../../tools/worker-assets.mjs'
 
@@ -160,13 +160,13 @@ export default defineConfig(({ command, mode }) => {
     )
   )
 
-  const libredwgDist = `./node_modules/${LIBREDWG_CONVERTER_PACKAGE}/dist`
-  const libredwgWasmSrc = resolve(
+  const acadRustDist = `./node_modules/${ACADRUST_CONVERTER_PACKAGE}/dist`
+  const acadRustWasmSrc = resolve(
     __dirname,
     'node_modules',
-    LIBREDWG_CONVERTER_PACKAGE,
+    ACADRUST_CONVERTER_PACKAGE,
     'dist',
-    LIBREDWG_PARSER_WASM_FILE
+    ACADRUST_WASM_FILE
   )
   const mtextWorkerSrc = linkLocalMtextRenderer
     ? LOCAL_MTEXT_RENDERER_WORKER
@@ -183,14 +183,14 @@ export default defineConfig(({ command, mode }) => {
           rename: { stripBase: true }
         },
         {
-          src: `${libredwgDist}/${LIBREDWG_PARSER_WORKER_FILE}`,
+          src: `${acadRustDist}/${ACADRUST_PARSER_WORKER_FILE}`,
           dest: 'assets',
           rename: { stripBase: true }
         },
-        ...(existsSync(libredwgWasmSrc)
+        ...(existsSync(acadRustWasmSrc)
           ? [
               {
-                src: `${libredwgDist}/${LIBREDWG_PARSER_WASM_FILE}`,
+                src: `${acadRustDist}/${ACADRUST_WASM_FILE}`,
                 dest: 'assets',
                 rename: { stripBase: true }
               }

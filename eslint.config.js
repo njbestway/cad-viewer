@@ -36,6 +36,16 @@ export default [
     }
   },
   {
+    // Node build/tooling scripts (tools/*.mjs, package scripts/*.mjs) run in
+    // Node, not the browser, so they need Node globals (process, __dirname...).
+    files: ["**/*.{mjs,cjs}"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      }
+    }
+  },
+  {
     plugins: {
       // key "simple-import-sort" is the plugin namespace
       "simple-import-sort": pluginSimpleImportSort

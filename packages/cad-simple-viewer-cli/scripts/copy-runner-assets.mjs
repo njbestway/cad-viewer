@@ -2,10 +2,11 @@ import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import {
-  LIBREDWG_CONVERTER_PACKAGE,
-  LIBREDWG_PARSER_WASM_FILE,
-  LIBREDWG_PARSER_WORKER_FILE,
+  ACADRUST_CONVERTER_PACKAGE,
+  ACADRUST_PARSER_WORKER_FILE,
+  ACADRUST_WASM_FILE,
   MTEXT_RENDERER_PACKAGE,
   MTEXT_RENDERER_WORKER_FILE
 } from '../../../tools/worker-assets.mjs'
@@ -53,14 +54,14 @@ function copyIfExists(from, to) {
 
 mkdirSync(workersDir, { recursive: true })
 
-const libredwgDist = join(pkgRoot(LIBREDWG_CONVERTER_PACKAGE), 'dist')
+const acadRustDist = join(pkgRoot(ACADRUST_CONVERTER_PACKAGE), 'dist')
 copy(
-  join(libredwgDist, LIBREDWG_PARSER_WORKER_FILE),
-  join(workersDir, LIBREDWG_PARSER_WORKER_FILE)
+  join(acadRustDist, ACADRUST_PARSER_WORKER_FILE),
+  join(workersDir, ACADRUST_PARSER_WORKER_FILE)
 )
 copyIfExists(
-  join(libredwgDist, LIBREDWG_PARSER_WASM_FILE),
-  join(workersDir, LIBREDWG_PARSER_WASM_FILE)
+  join(acadRustDist, ACADRUST_WASM_FILE),
+  join(workersDir, ACADRUST_WASM_FILE)
 )
 copy(
   join(pkgRoot(MTEXT_RENDERER_PACKAGE), 'dist', MTEXT_RENDERER_WORKER_FILE),

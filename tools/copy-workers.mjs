@@ -5,13 +5,13 @@
  *   node tools/copy-workers.mjs
  *   → copies mtext worker into ./dist
  *   → copies proprietary dwg workers when that package is available
- *   → does NOT copy LibreDWG (GPL) — hosts/examples must depend on
- *     @mlightcad/libredwg-converter and copy those assets themselves
+ *   → does NOT copy acadrust — hosts/examples must depend on
+ *     @mlightcad/acad-rust-converter and copy those assets themselves
  *
  * Consumer (examples):
  *   node tools/copy-workers.mjs dist/workers
  *   → copies *-worker.js from @mlightcad/cad-simple-viewer/dist
- *   → copies LibreDWG worker + wasm from @mlightcad/libredwg-converter when present
+ *   → copies acadrust worker + wasm from @mlightcad/acad-rust-converter when present
  */
 import {
   copyFileSync,
@@ -22,13 +22,14 @@ import {
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
+
 import {
+  ACADRUST_CONVERTER_PACKAGE,
+  ACADRUST_PARSER_WORKER_FILE,
+  ACADRUST_WASM_FILE,
   DWG_CONVERTER_PACKAGE,
   DWG_PARSER_MAIN_FILE,
   DWG_PARSER_WORKER_FILE,
-  LIBREDWG_CONVERTER_PACKAGE,
-  LIBREDWG_PARSER_WASM_FILE,
-  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_PACKAGE,
   MTEXT_RENDERER_WORKER_FILE
 } from './worker-assets.mjs'
@@ -91,6 +92,22 @@ function copyOptionalWorker(pkgName, workerFile, outDir) {
   copyIfExists(join(root, 'dist', workerFile), join(outDir, workerFile))
 }
 
+/**
+ * Like {@link copyOptionalWorker}, but treats the asset as mandatory once the
+ * package is installed. Used for the acadrust worker + wasm pair: they deploy
+ * as an atomic set, and a half-copy (worker present, sibling wasm missing) only
+ * surfaces as a runtime `acad-rust_bg.wasm` 404. Fail the build instead. A host
+ * that does not depend on the package at all is still skipped cleanly.
+ */
+function copyWhenPackagePresent(pkgName, file, outDir) {
+  const root = tryPkgRoot(pkgName)
+  if (!root) {
+    console.log(`Skipped (package not found): ${pkgName}`)
+    return
+  }
+  copy(join(root, 'dist', file), join(outDir, file))
+}
+
 function copyProducerWorkers() {
   const outDir = join(packageRoot, 'dist')
   mkdirSync(outDir, { recursive: true })
@@ -103,15 +120,17 @@ function copyProducerWorkers() {
   )
 }
 
-function copyLibreDwgAssets(outDir) {
-  copyOptionalWorker(
-    LIBREDWG_CONVERTER_PACKAGE,
-    LIBREDWG_PARSER_WORKER_FILE,
+function copyAcadRustAssets(outDir) {
+  // acadrust is the default open-source DWG path: when a host depends on the
+  // converter, both the worker and its sibling wasm must land together.
+  copyWhenPackagePresent(
+    ACADRUST_CONVERTER_PACKAGE,
+    ACADRUST_PARSER_WORKER_FILE,
     outDir
   )
-  copyOptionalWorker(
-    LIBREDWG_CONVERTER_PACKAGE,
-    LIBREDWG_PARSER_WASM_FILE,
+  copyWhenPackagePresent(
+    ACADRUST_CONVERTER_PACKAGE,
+    ACADRUST_WASM_FILE,
     outDir
   )
 }
@@ -140,8 +159,8 @@ function copyFromCadSimpleViewer(destRelativePath) {
     copy(join(srcDir, name), join(outDir, name))
   }
 
-  // LibreDWG is host-owned; copy when the example depends on the converter.
-  copyLibreDwgAssets(outDir)
+  // acadrust is host-owned; copy when the example depends on the converter.
+  copyAcadRustAssets(outDir)
 }
 
 if (destRelative) {

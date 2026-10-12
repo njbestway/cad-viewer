@@ -84,27 +84,31 @@ The `LockAndFade` isolation keyword matches AutoCAD naming but the viewer **lock
 
 The viewer ships an MTEXT layout worker. DXF is parsed by the built-in converter
 in `@mlightcad/data-model` (no separate worker). **DWG support is opt-in**: this
-package does not depend on or register `@mlightcad/libredwg-converter` (GPL).
-Hosts that need DWG must add that dependency (or another converter), deploy its
-worker (+ wasm) assets, register the converter, and optionally pass
-`webworkerFileUrls.dwgParser` for readiness checks.
+package does not depend on or register any copyleft DWG converter. Hosts that
+need DWG must add a converter dependency, deploy its worker (+ wasm) assets,
+register the converter, and optionally pass `webworkerFileUrls.dwgParser` for
+readiness checks.
+
+The recommended open-source converter is `@mlightcad/acad-rust-converter` —
+acadrust (Rust/WASM) transcoding DWG → DXF under the **MPL-2.0** license, whose
+file-level copyleft does not propagate to your app:
 
 ```typescript
 import {
+  ACADRUST_PARSER_WORKER_FILE,
   AcApDocManager,
-  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 import {
   AcDbDatabaseConverterManager,
   AcDbFileType
 } from '@mlightcad/data-model'
-import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
+import { AcDbAcadRustConverter } from '@mlightcad/acad-rust-converter'
 
-const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
 AcDbDatabaseConverterManager.instance.register(
   AcDbFileType.DWG,
-  new AcDbLibreDwgConverter({
+  new AcDbAcadRustConverter({
     convertByEntityType: false,
     useWorker: true,
     parserWorkerUrl: dwgParserUrl
@@ -128,6 +132,24 @@ const manager = AcApDocManager.createInstance({ webworkerFileUrls: workerUrls })
 if (!(await manager.areWorkersReady())) {
   throw new Error('CAD worker scripts are missing or blocked')
 }
+```
+
+Using the legacy `@mlightcad/libredwg-converter` (GPL-3.0) instead has the same
+shape — swap the import and the worker-file constant:
+
+```typescript
+import { LIBREDWG_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
+import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
+
+const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+AcDbDatabaseConverterManager.instance.register(
+  AcDbFileType.DWG,
+  new AcDbLibreDwgConverter({
+    convertByEntityType: false,
+    useWorker: true,
+    parserWorkerUrl: dwgParserUrl
+  })
+)
 ```
 
 `areWorkersReady()` and `checkWebworkerReadiness()` use HEAD requests internally. Successful URL probes are cached for the current page lifecycle; failures are not cached at the probe layer, so a transient network error can succeed on a later `areWorkersReady()` call. After each check, `manager.workersReady` is `true` or `false` (`null` only before the first check). Only URLs you pass are probed — `dwgParser` is skipped when omitted.

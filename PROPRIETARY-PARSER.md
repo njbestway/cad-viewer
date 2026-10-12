@@ -127,17 +127,17 @@ For a complete working sample (authentication, worker assets, registration, and 
 
 ## GPL Compliance
 
-The default cad-viewer DWG loading path uses GPL-3.0 packages:
+The example packages' default open-source DWG path is now `@mlightcad/acad-rust-converter` (acadrust, **MPL-2.0**) — a copyleft-free converter whose file-level license does not propagate to your application. The legacy GPL-3.0 path is:
 
 | Package | License | Role |
 |---------|---------|------|
-| `libredwg-web` / `@mlightcad/libredwg-converter` | GPL-3.0 | DWG parsing |
+| `libredwg-web` / `@mlightcad/libredwg-converter` | GPL-3.0 | DWG parsing (legacy) |
 
 DXF loading uses the built-in MIT parser in `@mlightcad/data-model` and does not require the proprietary parser.
 
-If you **replace the LibreDWG converter** with the proprietary parser and **remove those GPL dependencies** from your build, your application can rely on the **MIT-licensed** cad-viewer stack only (`data-model`, `cad-simple-viewer`, renderers, plugins, etc.).
+If you **replace the LibreDWG converter** — with either the proprietary parser or the copyleft-free `@mlightcad/acad-rust-converter` — and **remove those GPL dependencies** from your build, your application can rely on the **MIT-licensed** cad-viewer stack (`data-model`, `cad-simple-viewer`, renderers, plugins, etc.) without GPL propagation.
 
-**You can fully remove GPL packages from your dependency graph** — including LibreDWG-related packages — so that **no GPL code is distributed** to your customers, provided you use the proprietary parser for all DWG ingestion.
+**You can fully remove GPL packages from your dependency graph** — including LibreDWG-related packages — so that **no GPL code is distributed** to your customers, provided you use the proprietary parser or the acadrust converter for all DWG ingestion. The acadrust (MPL-2.0) route additionally requires retaining the license notices and giving recipients access to the acadrust source; see `packages/acad-rust-converter/LICENSE` and `packages/acad-rust-converter/NOTICE`.
 
 ---
 

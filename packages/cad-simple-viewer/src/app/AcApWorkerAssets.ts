@@ -22,6 +22,19 @@ export const LIBREDWG_PARSER_WORKER_FILE = 'libredwg-parser-worker.js'
  */
 export const LIBREDWG_PARSER_WASM_FILE = 'libredwg-web.wasm'
 
+/**
+ * acadrust (MPL-2.0) DWG parser worker from `@mlightcad/acad-rust-converter`.
+ * Copyleft-free DWG path; not shipped or registered by this MIT package —
+ * host opt-in only.
+ */
+export const ACADRUST_PARSER_WORKER_FILE = 'acad-rust-parser-worker.js'
+
+/**
+ * acadrust wasm sibling of {@link ACADRUST_PARSER_WORKER_FILE}.
+ * Must be deployed next to the worker (wasm is not inlined).
+ */
+export const ACADRUST_WASM_FILE = 'acad-rust_bg.wasm'
+
 /** MTEXT layout/shaping worker from `@mlightcad/mtext-renderer`. */
 export const MTEXT_RENDERER_WORKER_FILE = 'mtext-renderer-worker.js'
 
@@ -39,6 +52,9 @@ export const DWG_PARSER_MAIN_FILE = 'dwg-parser-main.js'
 
 /** npm package that ships {@link LIBREDWG_PARSER_WORKER_FILE}. */
 export const LIBREDWG_CONVERTER_PACKAGE = '@mlightcad/libredwg-converter'
+
+/** npm package that ships {@link ACADRUST_PARSER_WORKER_FILE}. */
+export const ACADRUST_CONVERTER_PACKAGE = '@mlightcad/acad-rust-converter'
 
 /** npm package that ships {@link MTEXT_RENDERER_WORKER_FILE}. */
 export const MTEXT_RENDERER_PACKAGE = '@mlightcad/mtext-renderer'

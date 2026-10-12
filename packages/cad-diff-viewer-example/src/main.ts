@@ -1,12 +1,12 @@
 import { AcApDiffViewer } from '@mlightcad/cad-diff-viewer'
 import {
+  ACADRUST_PARSER_WORKER_FILE,
   AcApI18n,
   type AcApLocale,
-  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 
-import { registerLibreDwgConverter } from './registerLibreDwg'
+import { registerAcadRustConverter } from './registerAcadRust'
 
 /** Picks an {@link AcApLocale} from `navigator.language`. */
 function detectLocale(): AcApLocale {
@@ -27,8 +27,8 @@ if (!host) {
   throw new Error('Diff viewer demo markup is missing')
 }
 
-const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
-registerLibreDwgConverter(dwgParserUrl)
+const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
+registerAcadRustConverter(dwgParserUrl)
 
 new AcApDiffViewer({
   container: host,

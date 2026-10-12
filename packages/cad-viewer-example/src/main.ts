@@ -1,16 +1,16 @@
 import 'element-plus/dist/index.css'
 
-import { LIBREDWG_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
+import { ACADRUST_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
 import { i18n } from '@mlightcad/cad-viewer'
 import ElementPlus from 'element-plus'
 import { createApp } from 'vue'
 
 import App from './App.vue'
-import { registerLibreDwgConverter } from './registerLibreDwg'
+import { registerAcadRustConverter } from './registerAcadRust'
 
 const initApp = () => {
-  // Opt into GPL DWG support before the viewer mounts.
-  registerLibreDwgConverter(`./assets/${LIBREDWG_PARSER_WORKER_FILE}`)
+  // Opt into copyleft-free DWG support (acadrust / MPL-2.0) before the viewer mounts.
+  registerAcadRustConverter(`./assets/${ACADRUST_PARSER_WORKER_FILE}`)
 
   const app = createApp(App)
   // Required when Vite aliases `@mlightcad/ui-components` to source: those SFCs

@@ -6,6 +6,7 @@ import {
 } from '@mlightcad/cad-simple-ui-plugin'
 import { acuiRegisterSimpleUiPlugin } from '@mlightcad/cad-simple-ui-plugin/register'
 import {
+  ACADRUST_PARSER_WORKER_FILE,
   acapAppendLinkedText,
   type AcApDataSourceMenuItem,
   AcApDocManager,
@@ -21,7 +22,6 @@ import {
   AcUiFileOpenPanel,
   eventBus,
   layoutBackgroundColorFromRgb,
-  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 import {
@@ -43,7 +43,7 @@ import { setupFileSidebarResize } from './fileSidebarResize'
 import { getGoogleDriveEnvConfig } from './googleDriveEnv'
 import { getOneDriveEnvConfig } from './onedriveEnv'
 import { registerLazyPlugins } from './register'
-import { registerLibreDwgConverter } from './registerLibreDwg'
+import { registerAcadRustConverter } from './registerAcadRust'
 
 // Isolate this example's prefs from cad-viewer-example on localhost.
 AcApSettingManager.configure({
@@ -905,8 +905,8 @@ class CadViewerApp {
       // Prefer main-thread MTEXT by default (less peak memory). Pass `?worker=1`
       // with openprof, or rely on worker mode only when explicitly requested.
       const useWorkers = openProf ? isWorkerOpenMode() : false
-      const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
-      registerLibreDwgConverter(dwgParserUrl)
+      const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
+      registerAcadRustConverter(dwgParserUrl)
       AcApDocManager.createInstance({
         container: this.container,
         busyIndicatorHost: this.viewerPane,

@@ -15,6 +15,7 @@ import {
   AcDbRay,
   AcDbRenderingCache,
   AcDbSysVarManager,
+  AcDbText,
   AcDbViewport,
   AcDbXline,
   AcGeBox2d,
@@ -33,6 +34,7 @@ import {
   AcTrGlyphEntity,
   AcTrGroup,
   AcTrHtmlTransientManager,
+  AcTrMText,
   AcTrMTextRenderer,
   AcTrRenderer,
   AcTrViewportView,
@@ -2480,9 +2482,53 @@ export class AcTrView2d extends AcEdBaseView {
   getDrawingExtents(): AcGeBox2d | undefined {
     const sceneBox = this._scene.box
     if (sceneBox && !sceneBox.isEmpty()) {
+      // Pure query: no camera side effects. The orthographic depth window is
+      // kept in sync by the render loop (`animate` -> `syncDepthRangeToScene`),
+      // so framing paths that only read the XY box don't perturb near/far.
       return AcTrGeometryUtil.threeBox3dToGeBox2d(sceneBox)
     }
     return undefined
+  }
+
+  /**
+   * Fallback depth net, NOT the primary way entity elevation is handled.
+   * Tilted TEXT/MTEXT anchors are flattened to z = 0 at the source
+   * (`AcTrMText.toPlanViewMTextData`), matching the rest of the plan renderer:
+   * hatch and linework batches also sit at z = 0 and stack via `renderOrder`,
+   * not the depth buffer. Only genuinely 3D content — 3D solids, survey /
+   * point-cloud data, layers authored with a real ELEVATION — should exercise
+   * this path.
+   *
+   * The 2D view frames on XY only, but the orthographic camera still clips by
+   * depth, so a rare far-out elevation would otherwise vanish with its XY
+   * on-screen. The band is measured relative to the camera plane and only ever
+   * *grows* past the defaults (near<=0.1, far>=1000) beyond a tolerance, so
+   * ordinary flat drawings keep their tight, high-precision window and depth
+   * layering is unaffected. We deliberately do not lean on this to carry text:
+   * widening near/far toward huge absolute elevations dilutes the 24-bit depth
+   * buffer by ~span / 2^24 units per step, which is exactly why text is
+   * flattened instead.
+   */
+  private syncDepthRangeToScene(sceneBox: THREE.Box3): void {
+    const camera = this.internalCamera as THREE.OrthographicCamera | undefined
+    if (!camera || camera.isOrthographicCamera !== true) return
+    // Depth distances are measured from the camera plane (relative), so the
+    // band tracks the geometry without depending on an absolute origin.
+    const camZ = camera.position.z
+    const margin = Math.max(1, (sceneBox.max.z - sceneBox.min.z) * 0.05)
+    const neededNear = Math.min(0.1, camZ - sceneBox.max.z - margin)
+    const neededFar = Math.max(1000, camZ - sceneBox.min.z + margin)
+    // Grow-only with a tolerance, so incremental batch adds that nudge
+    // sceneBox.z by a hair don't recompute the projection matrix every frame.
+    const tol = Math.max(1, Math.abs(neededFar - neededNear) * 1e-6)
+    const near =
+      neededNear < camera.near - tol ? neededNear : Math.min(0.1, camera.near)
+    const far =
+      neededFar > camera.far + tol ? neededFar : Math.max(1000, camera.far)
+    if (camera.near === near && camera.far === far) return
+    camera.near = near
+    camera.far = far
+    camera.updateProjectionMatrix()
   }
 
   /**
@@ -2883,6 +2929,13 @@ export class AcTrView2d extends AcEdBaseView {
   private animate = () => {
     this._rafId = requestAnimationFrame(this.animate)
 
+    // Sole driver of the orthographic depth window: keep near/far covering the
+    // scene's (rare, non-text) elevation span every frame so far-out entities
+    // are never clipped, independent of which framing path ran. Queries like
+    // getDrawingExtents stay side-effect free (see syncDepthRangeToScene).
+    const sceneBox = this._scene.box
+    if (sceneBox && !sceneBox.isEmpty()) this.syncDepthRangeToScene(sceneBox)
+
     this.events.renderFrame.dispatch({
       render: this._renderer,
       camera: this.internalCamera
@@ -3157,7 +3210,28 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   private drawEntity(entity: AcDbEntity, delay?: boolean) {
-    return entity.worldDraw(this._renderer, delay) as AcTrEntity | null
+    const threeEntity = entity.worldDraw(
+      this._renderer,
+      delay
+    ) as AcTrEntity | null
+    // The data-model flattens text extrusion into a 2D plan-view rotation, so a
+    // text authored in a tilted 3D plane loses its tilt before reaching the
+    // renderer. Hand the source normal (and reading direction / OCS rotation) to
+    // the display object so it can restore the true 3D orientation. Bound to the
+    // concrete AcTrMText type (not a duck-typed structural cast) so the method
+    // signature is compile-checked against the real class and cannot silently
+    // drift; TEXT and MTEXT both render through AcTrMText.
+    if (
+      threeEntity instanceof AcTrMText &&
+      (entity instanceof AcDbText || entity instanceof AcDbMText)
+    ) {
+      threeEntity.setWorldOrientation(
+        entity.normal,
+        entity.rotation,
+        entity instanceof AcDbMText ? entity.direction : undefined
+      )
+    }
+    return threeEntity
   }
 
   /**

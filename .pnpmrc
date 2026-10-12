@@ -1,3 +1,5 @@
 strict-peer-dependencies=true
 auto-install-peers=true
 link-workspace-packages=true
+# Scope routing only — the global `registry`/`store-dir` were removed (see
+# .npmrc): they are machine/region specific and must not be committed.

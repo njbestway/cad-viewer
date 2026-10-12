@@ -221,11 +221,13 @@ CAD-Viewer 针对复杂图纸渲染进行了多项优化，可在保持高帧率
 
 ## 已知问题
 
-默认的开源 DWG 方案基于 [LibreDWG](https://github.com/LibreDWG/libredwg)，通过可选的 `@mlightcad/libredwg-converter` 包提供。它可以处理不少图纸，但支持的 entity 类型仍然比较少，WASM bundle 体积更大、启动更慢、内存占用更高，解析大型 DWG 时还可能出现内存溢出；另外，对于闭源商业产品还需要考虑 GPL license 的传导问题。`@mlightcad/cad-simple-viewer` **默认不依赖、也不注册**该 converter — 宿主应用（参见各 example 包）需自行显式接入。
+默认的开源 DWG 方案为 [`@mlightcad/acad-rust-converter`](./packages/acad-rust-converter/README.md)，基于 [acadrust](https://github.com/hakanaktt/acadrust) — 纯 Rust 编译为 WebAssembly，采用 **MPL-2.0** 授权。它是旧版 GPL-3.0 `@mlightcad/libredwg-converter` 的无著佐权（copyleft-free）替代：其文件级 copyleft **不会**传导到你的应用，因此闭源商业产品也能在不承担 GPL 义务的前提下解析 DWG。各 example 包通过在 worker 中将 DWG 转码为 DXF、再交由内置的 MIT 解析器处理，默认将其注册到 `AcDbFileType.DWG`。`@mlightcad/cad-simple-viewer` 本身仍**不依赖、也不注册**任何 DWG converter — 宿主应用需自行显式接入。
+
+旧的 [LibreDWG](https://github.com/LibreDWG/libredwg) 解析器（`@mlightcad/libredwg-converter`）作为 GPL-3.0 方案仍然可用，但已不再是推荐的开源路径：它支持的 entity 类型较少、WASM bundle 体积更大、启动更慢、内存占用更高，解析大型 DWG 时还可能内存溢出，并存在 GPL 传导问题。
 
 如果你需要更好的兼容性、更低的内存占用、更大的文件支持，或者更清晰的商业授权方案，请查看我们的 [**专有 DWG 解析器**](./PROPRIETARY-PARSER.zh-CN.md)。
 
-| 项目 | 基于 LibreDWG 的解析器 | 专有 DWG 解析器 |
+| 项目 | 基于 LibreDWG 的解析器（旧版，GPL） | 专有 DWG 解析器 |
 |------|-------------------------|------------------|
 | 支持的 entities | 类型较少 | 覆盖更广 |
 | Bundle 体积 | ~13 MB | ~437 KB |
@@ -455,7 +457,7 @@ CAD-Viewer 针对复杂图纸渲染进行了多项优化，可在保持高帧率
 
 cad-viewer monorepo 主体采用 [MIT](LICENSE) 授权。
 
-DXF 加载使用 `@mlightcad/data-model` 中内置的 MIT 解析器。DWG 加载为**按需接入（opt-in）**：`@mlightcad/cad-simple-viewer` 不依赖 GPL 的 LibreDWG 包。若宿主需要开源 DWG 支持，需自行添加 `@mlightcad/libredwg-converter`（GPL-3.0）、部署其 worker 与 wasm，并注册 converter。若您交付闭源产品且无法向客户分发 GPL 代码，请改用 [**专有 DWG 解析器**](./PROPRIETARY-PARSER.zh-CN.md)。
+DXF 加载使用 `@mlightcad/data-model` 中内置的 MIT 解析器。DWG 加载为**按需接入（opt-in）**：`@mlightcad/cad-simple-viewer` 不依赖任何著佐权（copyleft）的 DWG 包。若需开源 DWG 支持，请优先使用 [`@mlightcad/acad-rust-converter`](./packages/acad-rust-converter/README.md) — 基于 acadrust（**MPL-2.0**，文件级 copyleft，不会传导到你的应用），各 example 包已默认注册它 — 部署其 worker 与 wasm 并注册 converter 即可。若你能分发 GPL 代码，旧版 `@mlightcad/libredwg-converter`（GPL-3.0）仍可用。若您交付闭源产品且无法向客户分发 GPL 代码，请使用无著佐权的 acadrust converter，或改用 [**专有 DWG 解析器**](./PROPRIETARY-PARSER.zh-CN.md)。
 
 → **专有解析器说明：** [PROPRIETARY-PARSER.zh-CN.md](./PROPRIETARY-PARSER.zh-CN.md)（支持范围、授权条款、价格、集成方式、GPL 合规、支持维护）
 

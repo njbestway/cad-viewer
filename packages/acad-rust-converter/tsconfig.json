@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./lib",
+    "baseUrl": "./src"
+  },
+  "include": ["src"],
+  "//": "worker.ts is bundled by vite (esbuild) and imports the generated wasm glue outside rootDir, so it is excluded from the tsc lib build.",
+  "exclude": ["src/worker.ts"]
+}

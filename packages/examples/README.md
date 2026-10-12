@@ -24,7 +24,7 @@ A full-featured CAD viewer application built with Vue.js and Element Plus.
 - Vue 3 with Composition API
 - Element Plus UI components
 - UnoCSS for styling
-- LibreDWG for DWG file support
+- acadrust (`@mlightcad/acad-rust-converter`, MPL-2.0) for DWG file support
 
 ### 2. CAD Simple Viewer Demo (`/cad-simple-viewer/`)
 A minimal, lightweight CAD viewer focusing on core functionality.
@@ -39,7 +39,7 @@ A minimal, lightweight CAD viewer focusing on core functionality.
 **Technology Stack:**
 - Vanilla TypeScript
 - Canvas-based rendering
-- LibreDWG WebAssembly
+- acadrust WebAssembly (MPL-2.0, copyleft-free)
 - Modern ES2020+ features
 
 ### 3. CAD Diff Viewer (`/cad-diff-viewer/`)
