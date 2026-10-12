@@ -77,7 +77,13 @@
               :disabled="readonly || scope.row.isDraft"
               :title="t('main.toolPalette.layerManager.layerList.on')"
               :aria-label="t('main.toolPalette.layerManager.layerList.on')"
-              @click.stop="emitChange(scope.row, 'on', !scope.row.isOn)"
+              @click.stop="
+                emitChange(
+                  scope.row as MlLayerTableRow,
+                  'on',
+                  !scope.row.isOn
+                )
+              "
             >
               <span
                 class="ml-layer-table-state-icon"
@@ -106,7 +112,13 @@
               :disabled="readonly || scope.row.isDraft"
               :title="t('main.toolPalette.layerManager.layerList.freeze')"
               :aria-label="t('main.toolPalette.layerManager.layerList.freeze')"
-              @click.stop="emitChange(scope.row, 'frozen', !scope.row.isFrozen)"
+              @click.stop="
+                emitChange(
+                  scope.row as MlLayerTableRow,
+                  'frozen',
+                  !scope.row.isFrozen
+                )
+              "
             >
               <span
                 class="ml-layer-table-state-icon"
@@ -136,7 +148,13 @@
               :disabled="readonly || scope.row.isDraft"
               :title="t('main.toolPalette.layerManager.layerList.lock')"
               :aria-label="t('main.toolPalette.layerManager.layerList.lock')"
-              @click.stop="emitChange(scope.row, 'locked', !scope.row.isLocked)"
+              @click.stop="
+                emitChange(
+                  scope.row as MlLayerTableRow,
+                  'locked',
+                  !scope.row.isLocked
+                )
+              "
             >
               <span
                 class="ml-layer-table-state-icon"
@@ -167,7 +185,11 @@
               :title="t('main.toolPalette.layerManager.layerList.plot')"
               :aria-label="t('main.toolPalette.layerManager.layerList.plot')"
               @click.stop="
-                emitChange(scope.row, 'plottable', !scope.row.isPlottable)
+                emitChange(
+                  scope.row as MlLayerTableRow,
+                  'plottable',
+                  !scope.row.isPlottable
+                )
               "
             >
               <span
@@ -197,14 +219,14 @@
               'ml-layer-table-color-cell--disabled':
                 readonly || scope.row.isDraft
             }"
-            @click.stop="openColorPicker(scope.row)"
+            @click.stop="openColorPicker(scope.row as MlLayerTableRow)"
           >
             <span
               class="ml-layer-table-color-swatch"
               :style="{ backgroundColor: scope.row.cssColor }"
             />
             <span class="ml-layer-table-color-name">
-              {{ formatLayerColorName(scope.row) }}
+              {{ formatLayerColorName(scope.row as MlLayerTableRow) }}
             </span>
           </div>
         </template>
@@ -235,7 +257,7 @@
             <MlLineTypeSelect
               ref="linetypeSelectRef"
               :model-value="scope.row.linetype"
-              @change="onLinetypeCommit(scope.row, $event)"
+              @change="onLinetypeCommit(scope.row as MlLayerTableRow, $event)"
               @visible-change="onEditorVisibleChange"
             />
           </div>
@@ -243,7 +265,7 @@
             v-else
             type="button"
             class="ml-layer-table-cell ml-layer-table-text-cell ml-layer-table-edit-trigger"
-            @click.stop="beginEdit(scope.row, 'linetype')"
+            @click.stop="beginEdit(scope.row as MlLayerTableRow, 'linetype')"
           >
             {{ scope.row.linetype }}
           </button>
@@ -277,7 +299,7 @@
               :placeholder="
                 t('main.toolPalette.layerManager.layerList.lineWeightDefault')
               "
-              @change="onLineWeightCommit(scope.row, $event)"
+              @change="onLineWeightCommit(scope.row as MlLayerTableRow, $event)"
               @visible-change="onEditorVisibleChange"
             />
           </div>
@@ -285,7 +307,7 @@
             v-else
             type="button"
             class="ml-layer-table-cell ml-layer-table-text-cell ml-layer-table-edit-trigger"
-            @click.stop="beginEdit(scope.row, 'lineWeight')"
+            @click.stop="beginEdit(scope.row as MlLayerTableRow, 'lineWeight')"
           >
             {{ formatLineWeightLabel(scope.row.lineWeight) }}
           </button>
@@ -313,7 +335,11 @@
               :value="scope.row.transparency"
               @click.stop
               @change="
-                emitChange(scope.row, 'transparency', inputEventValue($event))
+                emitChange(
+                  scope.row as MlLayerTableRow,
+                  'transparency',
+                  inputEventValue($event)
+                )
               "
             />
           </div>
@@ -341,7 +367,11 @@
               :value="scope.row.description"
               @click.stop
               @change="
-                emitChange(scope.row, 'description', inputEventValue($event))
+                emitChange(
+                  scope.row as MlLayerTableRow,
+                  'description',
+                  inputEventValue($event)
+                )
               "
             />
           </div>
@@ -481,7 +511,7 @@ const handleToggleAll = (isOn: string | number | boolean) => {
   emit('toggle-all-on', Boolean(isOn))
 }
 
-const handleCurrentRowChange = (row: MlLayerTableRow | undefined) => {
+const handleCurrentRowChange = (row: MlLayerTableRow | null) => {
   // Ignore null clears from table data refreshes; keep the last explicit selection.
   if (row && !row.isDraft) {
     emit('update:selectedLayerName', row.name)

@@ -771,7 +771,7 @@ function handleColorChange(color: AcCmColor | undefined) {
   markDirty()
 }
 
-function handleRowChange(row: AttributeRow | undefined) {
+function handleRowChange(row: AttributeRow | null) {
   selectAttributeRow(row)
 }
 
@@ -784,7 +784,7 @@ function handleRowClick(row: AttributeRow) {
   selectAttributeRow(row)
 }
 
-function selectAttributeRow(row: AttributeRow | undefined) {
+function selectAttributeRow(row: AttributeRow | null) {
   if (!row) return
   if (row.objectId === selectedObjectId.value) return
   commitTextFormToRow()

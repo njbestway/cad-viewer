@@ -49,7 +49,7 @@
           <div class="ml-cell-container">
             <div :class="['ml-cell-label', { 'ml-group-row': row.isGroup }]">
               <strong v-if="row.isGroup">{{ entityPropName(row.name) }}</strong>
-              <span v-else>{{ getPropertyName(row) }}</span>
+              <span v-else>{{ getPropertyName(row as MlDisplayPropertyRow) }}</span>
             </div>
           </div>
         </template>
@@ -70,22 +70,22 @@
               />
               <span
                 v-else
-                :title="formatDisplayValue(row)"
+                :title="formatDisplayValue(row as MlDisplayPropertyRow)"
                 class="ml-readonly-value"
-                @dblclick="copyReadonlyValue(row)"
+                @dblclick="copyReadonlyValue(row as MlDisplayPropertyRow)"
               >
-                {{ formatDisplayValue(row) }}
+                {{ formatDisplayValue(row as MlDisplayPropertyRow) }}
               </span>
             </template>
 
             <!-- ===== Editable ===== -->
             <template v-else>
               <ml-hatch-pattern-dropdown
-                v-if="isHatchPatternField(row)"
+                v-if="isHatchPatternField(row as MlDisplayPropertyRow)"
                 :model-value="String(row.accessor.get() ?? '')"
                 @update:modelValue="
                   (v: string) => {
-                    onPropertyChange(row, v)
+                    onPropertyChange(row as MlDisplayPropertyRow, v)
                   }
                 "
               />
@@ -93,7 +93,10 @@
               <el-select
                 v-else-if="row.type === 'enum'"
                 :model-value="row.accessor.get()"
-                @change="(v: string | number) => onPropertyChange(row, v)"
+                @change="
+                  (v: string | number) =>
+                    onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
               >
                 <el-option
                   v-for="opt in row.options || []"
@@ -106,13 +109,18 @@
               <ml-color-dropdown
                 v-else-if="row.type === 'color'"
                 :model-value="row.accessor.get()"
-                @color-change="(v: AcCmColor) => onPropertyChange(row, v)"
+                @color-change="
+                  (v: AcCmColor) => onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
               />
 
               <el-switch
                 v-else-if="row.type === 'boolean'"
                 :model-value="row.accessor.get()"
-                @change="(v: boolean) => onPropertyChange(row, v)"
+                @change="
+                  (v: string | number | boolean) =>
+                    onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
               />
 
               <el-input-number
@@ -124,11 +132,11 @@
                 :step="1"
                 :precision="0"
                 @change="
-                  (v: number) => {
+                  (v: number | undefined) => {
                     if (row.__isArrayIndex) {
                       row.accessor.set?.(v)
                     } else {
-                      onPropertyChange(row, v)
+                      onPropertyChange(row as MlDisplayPropertyRow, v)
                     }
                   }
                 "
@@ -140,13 +148,18 @@
                 :model-value="row.accessor.get()"
                 :step="0.1"
                 :precision="3"
-                @change="(v: number) => onPropertyChange(row, v)"
+                @change="
+                  (v: number | undefined) =>
+                    onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
               />
 
               <el-input
                 v-else
                 :model-value="row.accessor.get()"
-                @input="(v: string) => onPropertyChange(row, v)"
+                @input="
+                  (v: string) => onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
               />
             </template>
           </div>

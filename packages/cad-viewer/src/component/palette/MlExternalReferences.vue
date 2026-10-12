@@ -81,13 +81,16 @@
                 <el-checkbox
                   :model-value="row.visible"
                   :aria-label="t('main.toolPalette.missingResources.visible')"
-                  @change="(v: CheckboxValueType) => handleXrefVisibility(row, v)"
+                  @change="
+                    (v: CheckboxValueType) =>
+                      handleXrefVisibility(row as ExternalRefRow, v)
+                  "
                 />
                 <el-button
                   link
                   type="danger"
                   size="small"
-                  @click="handleUnloadXref(row)"
+                  @click="handleUnloadXref(row as ExternalRefRow)"
                 >
                   {{ t('main.toolPalette.missingResources.unload') }}
                 </el-button>
@@ -98,7 +101,7 @@
                   type="primary"
                   size="small"
                   :title="t('main.toolPalette.missingResources.browse')"
-                  @click="handleBrowseXref(row)"
+                  @click="handleBrowseXref(row as ExternalRefRow)"
                 >
                   ...
                 </el-button>
@@ -106,7 +109,7 @@
                   link
                   type="primary"
                   size="small"
-                  @click="handleUrlXref(row)"
+                  @click="handleUrlXref(row as ExternalRefRow)"
                 >
                   {{ t('main.toolPalette.missingResources.fromUrl') }}
                 </el-button>
@@ -120,7 +123,7 @@
                 >
                   <span
                     class="ml-external-references__replace-name"
-                    @click.stop="handleBrowseImage(row)"
+                    @click.stop="handleBrowseImage(row as ExternalRefRow)"
                   >
                     {{ row.replacementName }}
                   </span>
@@ -131,7 +134,7 @@
                   type="primary"
                   size="small"
                   :title="t('main.toolPalette.missingResources.replace')"
-                  @click.stop="handleBrowseImage(row)"
+                  @click.stop="handleBrowseImage(row as ExternalRefRow)"
                 >
                   ...
                 </el-button>
@@ -376,7 +379,7 @@ watch(
   { immediate: true }
 )
 
-const handleCurrentChange = (row: ExternalRefRow | undefined) => {
+const handleCurrentChange = (row: ExternalRefRow | null) => {
   selectedKey.value = row?.key ?? null
 }
 
