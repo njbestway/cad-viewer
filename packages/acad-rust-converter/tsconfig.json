@@ -6,6 +6,6 @@
     "baseUrl": "./src"
   },
   "include": ["src"],
-  "//": "worker.ts is bundled by vite (esbuild) and imports the generated wasm glue outside rootDir, so it is excluded from the tsc lib build.",
-  "exclude": ["src/worker.ts"]
+  "//": "worker.ts and main-thread.ts are bundled by vite (esbuild) and import the generated wasm glue outside rootDir, so they are excluded from the tsc lib build.",
+  "exclude": ["src/worker.ts", "src/main-thread.ts"]
 }

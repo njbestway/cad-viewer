@@ -25,6 +25,7 @@ import { dirname, join, resolve } from 'node:path'
 
 import {
   ACADRUST_CONVERTER_PACKAGE,
+  ACADRUST_MAIN_THREAD_FILE,
   ACADRUST_PARSER_WORKER_FILE,
   ACADRUST_WASM_FILE,
   DWG_CONVERTER_PACKAGE,
@@ -122,7 +123,9 @@ function copyProducerWorkers() {
 
 function copyAcadRustAssets(outDir) {
   // acadrust is the default open-source DWG path: when a host depends on the
-  // converter, both the worker and its sibling wasm must land together.
+  // converter, the worker and its sibling wasm must land together (atomic pair:
+  // a half-copy only surfaces as a runtime wasm 404, so copyWhenPackagePresent
+  // hard-fails).
   copyWhenPackagePresent(
     ACADRUST_CONVERTER_PACKAGE,
     ACADRUST_PARSER_WORKER_FILE,
@@ -133,6 +136,16 @@ function copyAcadRustAssets(outDir) {
     ACADRUST_WASM_FILE,
     outDir
   )
+  // The main-thread transcoder is an optional escape hatch (only used when a
+  // host sets `useWorker: false`), so copy it opportunistically rather than
+  // failing builds that never exercise it.
+  const root = tryPkgRoot(ACADRUST_CONVERTER_PACKAGE)
+  if (root) {
+    copyIfExists(
+      join(root, 'dist', ACADRUST_MAIN_THREAD_FILE),
+      join(outDir, ACADRUST_MAIN_THREAD_FILE)
+    )
+  }
 }
 
 function copyFromCadSimpleViewer(destRelativePath) {

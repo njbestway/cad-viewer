@@ -8,14 +8,17 @@ obligations that prevent closed-source commercial distribution.
 
 ## How it works (Architecture A — MVP)
 
-1. `AcDbAcadRustConverter.read(dwgBytes, db, options)` sends the DWG bytes to a
-   Web Worker running the acadrust WASM.
-2. The worker calls `dwg_to_dxf(bytes)` (Rust) and returns **ASCII DXF** bytes.
+1. `AcDbAcadRustConverter.read(dwgBytes, db, options)` transcodes the DWG bytes
+   with the acadrust WASM. By default this runs in a Web Worker; set
+   `useWorker: false` to run the same WASM on the main thread (see below).
+2. The WASM calls `dwg_to_dxf(bytes)` (Rust) and returns **ASCII DXF** bytes.
 3. The converter delegates to the MIT `AcDbNativeDxfConverter` from
    `@mlightcad/data-model`, which streams the DXF into the `AcDbDatabase`.
 
-No GPL code is linked, and the WASM stays in the worker — it never enters the
-main bundle.
+No GPL code is linked. The worker is a **performance and memory** choice — it
+keeps a multi-second parse off the UI thread and lets the WASM heap be reclaimed
+— **not** a licensing one: acadrust is MPL-2.0, whose file-level copyleft imposes
+no runtime isolation, so a main-thread path is equally legitimate.
 
 A second WASM entry, `dwg_to_json(bytes)` (acadrust `serde`), is already exposed
 for a future **Architecture B**: native `process*()` mapping straight into
@@ -24,34 +27,65 @@ work is incremental and driven by real-world drawings.
 
 ## Usage
 
-Register the converter for `AcDbFileType.DWG`, exactly like the LibreDWG one:
+Register the converter for `AcDbFileType.DWG` with a single call. Point
+`assetBaseUrl` at the directory holding the deployed assets and the package
+derives the worker / wasm / main-thread URLs for you:
 
 ```ts
+import { registerAcadRustConverter } from '@mlightcad/acad-rust-converter'
+
+// One line wires up DWG support (Web Worker path, the default):
+registerAcadRustConverter({ assetBaseUrl: './workers/' })
+```
+
+For full control, construct the converter yourself and register it (e.g. to
+override individual asset URLs, or to parse without a worker):
+
+```ts
+import { AcDbAcadRustConverter } from '@mlightcad/acad-rust-converter'
 import {
   AcDbDatabaseConverterManager,
   AcDbFileType
 } from '@mlightcad/data-model'
-import { AcDbAcadRustConverter } from '@mlightcad/acad-rust-converter'
 
-export function registerAcadRustConverter(parserWorkerUrl: string): void {
-  AcDbDatabaseConverterManager.instance.register(
-    AcDbFileType.DWG,
-    new AcDbAcadRustConverter({ useWorker: true, parserWorkerUrl })
-  )
-}
+AcDbDatabaseConverterManager.instance.register(
+  AcDbFileType.DWG,
+  new AcDbAcadRustConverter({
+    // Explicit per-file URLs override `assetBaseUrl` for non-standard layouts:
+    parserWorkerUrl: './assets/acad-rust-parser-worker.js'
+  })
+)
 ```
+
+### Running without a Web Worker
+
+Hosts that cannot use a Web Worker (CSP `worker-src` restrictions, tiny
+embedders, or a harness that has no worker) can transcode on the main thread:
+
+```ts
+registerAcadRustConverter({ assetBaseUrl: './workers/', useWorker: false })
+```
+
+This dynamically imports `acad-rust-converter-main-thread.js` (a small ESM
+bundle that holds the parser glue, keeping it out of the main chunk) and fetches
+the sibling wasm. It is **browser-only** (resolves URLs against
+`document.baseURI`); the returned DXF is byte-for-byte identical to the worker
+path — the only difference is that parsing blocks the calling thread.
 
 ### Deployed assets
 
-Hosts must serve **two files** next to each other (this package copies them into
-`dist/`):
+The package emits three files into `dist/`; the two you deploy depends on the
+runtime you use:
 
 - `acad-rust-parser-worker.js` — the classic worker bundle (glue inlined).
-- `acad-rust_bg.wasm` — fetched by the worker relative to its own URL.
+- `acad-rust_bg.wasm` — fetched relative to whichever script loads it (worker or
+  main-thread module), so it must sit next to them.
+- `acad-rust-converter-main-thread.js` — the ESM main-thread transcoder, only
+  needed when `useWorker: false`.
 
-Point `parserWorkerUrl` at the worker (e.g. `./assets/acad-rust-parser-worker.js`)
-and copy the sibling `.wasm` into the same directory. See
-`packages/cad-viewer-example/vite.config.ts` for the `viteStaticCopy` wiring.
+Serve the worker + wasm as siblings for the default path (see
+`packages/cad-viewer-example/vite.config.ts` for the `viteStaticCopy` wiring);
+`tools/copy-workers.mjs` copies the main-thread module opportunistically.
 
 ## Build
 
@@ -72,9 +106,11 @@ pnpm --filter @mlightcad/acad-rust-converter build
 # + tsc                            (src → lib, ESM + .d.ts)
 # + vite build -c vite.config.main.ts    (dist/acad-rust-converter.js|.umd.cjs)
 # + vite build -c vite.config.worker.ts  (dist/acad-rust-parser-worker.js + acad-rust_bg.wasm)
+# + vite build -c vite.config.maint.ts   (dist/acad-rust-converter-main-thread.js)
 ```
 
-Useful sub-scripts: `build:wasm`, `build:main`, `build:worker`, `clean`.
+Useful sub-scripts: `build:wasm`, `build:main`, `build:worker`,
+`build:main-thread`, `clean`.
 
 ## License & compliance
 

@@ -41,7 +41,7 @@ class FakeWorker {
 }
 
 interface ConverterTestApi {
-  config: Record<string, unknown>
+  opts: Record<string, unknown>
   worker: FakeWorker | null
   nextRequestId: number
   pending: Map<number, unknown>
@@ -49,12 +49,12 @@ interface ConverterTestApi {
 }
 
 // Object.create skips the real constructor (which builds a native DXF converter),
-// so the worker-routing internals can be tested in isolation.
-function makeConverter(config: Record<string, unknown>): ConverterTestApi {
+// so the worker-routing / transcode-dispatch internals can be tested in isolation.
+function makeConverter(opts: Record<string, unknown>): ConverterTestApi {
   const converter = Object.create(
     AcDbAcadRustConverter.prototype
   ) as ConverterTestApi
-  converter.config = config
+  converter.opts = opts
   converter.worker = null
   converter.nextRequestId = 1
   converter.pending = new Map()
@@ -78,12 +78,54 @@ describe('AcDbAcadRustConverter.transcodeDwgToDxf contract', () => {
     expect(FakeWorker.instances.length).toBe(0)
   })
 
-  it('rejects `useWorker: false` (acadrust WASM is worker-only)', async () => {
-    const converter = makeConverter({ parserWorkerUrl: WORKER_URL, useWorker: false })
+  it('takes the main-thread path when useWorker:false, needs asset URLs', async () => {
+    const converter = makeConverter({ useWorker: false })
     await expect(
       converter.transcodeDwgToDxf(new ArrayBuffer(8), 1000)
-    ).rejects.toThrow(/worker-only|useWorker: false/)
+    ).rejects.toThrow(/main-thread transcode needs/)
     expect(FakeWorker.instances.length).toBe(0)
+  })
+
+  it('main-thread path is browser-only when no document is available', async () => {
+    // assetBaseUrl resolves the module/wasm URLs, but the node test env has no
+    // document, so the browser-only guard fires before any dynamic import.
+    const converter = makeConverter({
+      useWorker: false,
+      assetBaseUrl: './workers/'
+    })
+    await expect(
+      converter.transcodeDwgToDxf(new ArrayBuffer(8), 1000)
+    ).rejects.toThrow(/browser-only/)
+    expect(FakeWorker.instances.length).toBe(0)
+  })
+
+  it('derives the worker URL from assetBaseUrl', async () => {
+    const converter = makeConverter({ assetBaseUrl: './workers' })
+    const pending = converter.transcodeDwgToDxf(new ArrayBuffer(8), 1000)
+    expect(FakeWorker.instances[0].url).toBe(
+      './workers/acad-rust-parser-worker.js'
+    )
+    FakeWorker.instances[0].emit({
+      type: 'result',
+      id: 1,
+      dxf: new ArrayBuffer(4)
+    })
+    await expect(pending).resolves.toBeInstanceOf(ArrayBuffer)
+  })
+
+  it('explicit parserWorkerUrl wins over assetBaseUrl', async () => {
+    const converter = makeConverter({
+      parserWorkerUrl: 'custom.js',
+      assetBaseUrl: './workers/'
+    })
+    const pending = converter.transcodeDwgToDxf(new ArrayBuffer(8), 1000)
+    expect(FakeWorker.instances[0].url).toBe('custom.js')
+    FakeWorker.instances[0].emit({
+      type: 'result',
+      id: 1,
+      dxf: new ArrayBuffer(4)
+    })
+    await expect(pending).resolves.toBeInstanceOf(ArrayBuffer)
   })
 
   it('creates the worker lazily, routes by id, and reuses it across reads', async () => {

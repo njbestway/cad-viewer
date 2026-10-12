@@ -16,8 +16,11 @@
  * protocol until a real consumer lands.
  *
  * The WASM binary is a *sibling* file (`acad-rust_bg.wasm`) fetched relative to
- * this worker's own URL, so hosts deploy exactly two assets — mirroring the
- * LibreDWG worker + wasm layout this package replaces.
+ * this worker's own URL, so the worker path deploys just the worker + wasm pair.
+ * Running the parser in a Worker is a performance/memory choice (the UI thread
+ * stays free and the wasm heap is reclaimable on teardown), not a licensing
+ * requirement — acadrust is MPL-2.0, whose file-level copyleft imposes no runtime
+ * isolation. See `src/main-thread.ts` for the `useWorker: false` main-thread path.
  *
  * This file is bundled by `vite.config.worker.ts` (esbuild) and excluded from
  * the tsc lib build, so the glue import needs no committed typings.

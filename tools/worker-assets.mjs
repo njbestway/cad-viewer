@@ -24,6 +24,13 @@ export const ACADRUST_PARSER_WORKER_FILE = 'acad-rust-parser-worker.js'
  */
 export const ACADRUST_WASM_FILE = 'acad-rust_bg.wasm'
 
+/**
+ * acadrust main-thread transcoder (ESM) — the `useWorker: false` escape hatch.
+ * Deployed next to {@link ACADRUST_WASM_FILE}, which it fetches by URL; copied
+ * alongside the worker so both runtimes stay available.
+ */
+export const ACADRUST_MAIN_THREAD_FILE = 'acad-rust-converter-main-thread.js'
+
 /** MTEXT layout/shaping worker from `@mlightcad/mtext-renderer`. */
 export const MTEXT_RENDERER_WORKER_FILE = 'mtext-renderer-worker.js'
 
