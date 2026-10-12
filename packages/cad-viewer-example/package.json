@@ -45,7 +45,7 @@
     "@mlightcad/pdf-renderer": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-viewer": "workspace:*",
-    "@mlightcad/data-model": "^1.15.4",
+    "@mlightcad/data-model": "^1.15.6",
     "@mlightcad/acad-rust-converter": "workspace:*",
     "@mlightcad/mtext-parser": "^1.5.3",
     "@mlightcad/mtext-renderer": "^0.13.3",
