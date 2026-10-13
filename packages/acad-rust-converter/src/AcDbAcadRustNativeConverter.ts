@@ -490,7 +490,8 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
     }
     return new AcadRustWorkerDocumentClient({
       workerUrl,
-      timeout: this.getParserWorkerTimeout(data, timeout)
+      timeout: this.getParserWorkerTimeout(data, timeout),
+      inputFormat: this.opts.inputFormat
     })
   }
 

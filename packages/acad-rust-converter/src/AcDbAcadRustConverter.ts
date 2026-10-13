@@ -78,6 +78,16 @@ export interface AcDbAcadRustConverterConfig extends AcDbDatabaseConverterConfig
    * tables only and is not yet the default.
    */
   architecture?: 'dxf' | 'native'
+  /**
+   * Input byte format fed to the acadrust WASM. Defaults to `'dwg'`.
+   * `'dxf'` routes a `.dxf` through the acadrust front end instead —
+   * Architecture A calls `dxf_to_dxf` (DXF -> CadDocument -> DXF) then the MIT
+   * DXF converter, and Architecture B calls `dxf_open` so the sectioned reader
+   * maps DXF -> CadDocument -> JSON -> DB. Used by the example's DXF benchmark
+   * to compare these against the built-in DXF reader; the main-thread path does
+   * not implement it (worker only).
+   */
+  inputFormat?: 'dwg' | 'dxf'
 }
 
 /**
@@ -160,17 +170,27 @@ export class AcDbAcadRustConverter extends AcDbDatabaseConverter<null> {
   }
 
   /**
-   * Run the WASM `dwg_to_dxf`, choosing worker vs main thread from
-   * `useWorker`. Both paths produce identical DXF bytes; the worker just keeps
-   * the parse off the UI thread and its heap reclaimable.
+   * Run the WASM `dwg_to_dxf` (or `dxf_to_dxf` for `inputFormat: 'dxf'`),
+   * choosing worker vs main thread from `useWorker`. Both paths produce
+   * identical DXF bytes; the worker just keeps the parse off the UI thread and
+   * its heap reclaimable.
    */
   private transcodeDwgToDxf(
     data: ArrayBuffer,
     timeout: number
   ): Promise<ArrayBuffer> {
-    return this.opts.useWorker === false
-      ? this.transcodeOnMainThread(data, timeout)
-      : this.transcodeViaWorker(data, timeout)
+    if (this.opts.useWorker === false) {
+      if (this.opts.inputFormat === 'dxf') {
+        return Promise.reject(
+          new Error(
+            'AcDbAcadRustConverter DXF input (inputFormat: \'dxf\') is worker-only; '
+              + 'the main-thread transcoder exposes just DWG. Use the worker path.'
+          )
+        )
+      }
+      return this.transcodeOnMainThread(data, timeout)
+    }
+    return this.transcodeViaWorker(data, timeout)
   }
 
   /** Resolve an asset URL: explicit per-file URL, else `assetBaseUrl` + file. */
@@ -232,7 +252,8 @@ export class AcDbAcadRustConverter extends AcDbDatabaseConverter<null> {
       // Copy before transfer so the caller's ArrayBuffer is not detached — a
       // reused worker may serve several concurrent reads.
       const payload = data.slice(0)
-      worker.postMessage({ id, kind: 'dwg-to-dxf', data: payload }, [payload])
+      const kind = this.opts.inputFormat === 'dxf' ? 'dxf-to-dxf' : 'dwg-to-dxf'
+      worker.postMessage({ id, kind, data: payload }, [payload])
     })
   }
 

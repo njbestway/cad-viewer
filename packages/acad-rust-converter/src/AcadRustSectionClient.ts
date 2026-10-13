@@ -83,6 +83,13 @@ export interface AcadRustWorkerClientOptions {
   workerUrl: string | URL
   /** Per-request timeout in ms (open is the slow one; sized accordingly). */
   timeout: number
+  /**
+   * Input byte format for `open`: `'dwg'` (default) posts the `open` kind
+   * (WASM `dwg_open`), `'dxf'` posts `dxf-open` (WASM `dxf_open`). Only the
+   * open call is format-sensitive; every later sectioned call is handle-scoped
+   * and identical for both.
+   */
+  inputFormat?: 'dwg' | 'dxf'
 }
 
 /**
@@ -102,8 +109,9 @@ export class AcadRustWorkerDocumentClient implements AcadRustDocumentClient {
   async open(data: ArrayBuffer): Promise<number> {
     // Copy before transfer so the caller's ArrayBuffer is never detached.
     const payload = data.slice(0)
+    const kind = this.options.inputFormat === 'dxf' ? 'dxf-open' : 'open'
     const result = await this.request(
-      { id: 0, kind: 'open', data: payload },
+      { id: 0, kind, data: payload },
       [payload]
     )
     if (result.handle == null) {

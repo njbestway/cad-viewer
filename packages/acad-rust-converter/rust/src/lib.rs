@@ -38,7 +38,7 @@
 //     name string (e.g. "AC1032"); `EntityType` is an externally-tagged serde
 //     enum, i.e. one JSON object whose single key is the variant name
 //     (e.g. `{"Line": {...}}`) - the TypeScript model mirrors exactly that.
-use acadrust::{CadDocument, DwgReader, DxfWriter};
+use acadrust::{CadDocument, DwgReader, DxfReader, DxfWriter};
 use std::cell::RefCell;
 use std::io::Cursor;
 use wasm_bindgen::prelude::*;
@@ -64,6 +64,23 @@ fn to_json<T: serde::Serialize>(context: &str, value: &T) -> Result<String, JsVa
 pub fn dwg_to_dxf(data: &[u8]) -> Result<Vec<u8>, JsValue> {
     let mut reader = DwgReader::from_stream(Cursor::new(data));
     let doc = reader.read().map_err(to_js("acadrust DWG read failed"))?;
+    DxfWriter::new(&doc)
+        .write_to_vec()
+        .map_err(to_js("acadrust DXF write failed"))
+}
+
+/// Architecture A, DXF-input variant (benchmark only): read DXF bytes into a
+/// `CadDocument` and re-emit ASCII DXF bytes. Analogous to [`dwg_to_dxf`] but
+/// with [`DxfReader`] as the front end, so a `.dxf` can be pushed through the
+/// acadrust pipeline (DXF -> CadDocument -> DXF -> the MIT TS DXF converter)
+/// for A/B timing against the built-in DXF reader. `DxfReader::from_reader`
+/// needs an owned `Read + Seek + 'static` source, hence the `to_vec` copy of
+/// the caller's slice (browsers give us an `ArrayBuffer` view, not a file).
+#[wasm_bindgen]
+pub fn dxf_to_dxf(data: &[u8]) -> Result<Vec<u8>, JsValue> {
+    let reader = DxfReader::from_reader(Cursor::new(data.to_vec()))
+        .map_err(to_js("acadrust DXF read failed"))?;
+    let doc = reader.read().map_err(to_js("acadrust DXF read failed"))?;
     DxfWriter::new(&doc)
         .write_to_vec()
         .map_err(to_js("acadrust DXF write failed"))
@@ -118,6 +135,27 @@ fn with_document<T>(
     })
 }
 
+/// Store a freshly parsed document in [`OPEN_DOCUMENTS`] (reusing a freed slot
+/// when possible) and return its handle. Shared by [`dwg_open`] and
+/// [`dxf_open`] so the sectioned read path is entirely format-agnostic once the
+/// `CadDocument` is resident.
+fn register_document(doc: CadDocument) -> u32 {
+    OPEN_DOCUMENTS.with(|slot| {
+        let mut docs = slot.borrow_mut();
+        let free = docs.iter().position(Option::is_none);
+        match free {
+            Some(index) => {
+                docs[index] = Some(doc);
+                index as u32
+            }
+            None => {
+                docs.push(Some(doc));
+                (docs.len() - 1) as u32
+            }
+        }
+    })
+}
+
 /// Parse DWG bytes, keep the resulting `CadDocument` alive in wasm memory, and
 /// return its handle for later `dwg_meta` / `dwg_section_json` /
 /// `dwg_entity_page` / `dwg_block_entity_page` / `dwg_close` calls.
@@ -125,21 +163,22 @@ fn with_document<T>(
 pub fn dwg_open(data: &[u8]) -> Result<u32, JsValue> {
     let mut reader = DwgReader::from_stream(Cursor::new(data));
     let doc = reader.read().map_err(to_js("acadrust DWG read failed"))?;
-    OPEN_DOCUMENTS.with(|slot| {
-        let mut docs = slot.borrow_mut();
-        let free = docs.iter().position(Option::is_none);
-        let handle = match free {
-            Some(index) => {
-                docs[index] = Some(doc);
-                index
-            }
-            None => {
-                docs.push(Some(doc));
-                docs.len() - 1
-            }
-        };
-        Ok(handle as u32)
-    })
+    Ok(register_document(doc))
+}
+
+/// DXF-input companion to [`dwg_open`] (benchmark only): parse DXF bytes into a
+/// `CadDocument` and register it under a handle. Every downstream sectioned
+/// call (`dwg_meta` / `dwg_section_json` / `dwg_entity_page` /
+/// `dwg_block_entity_page` / `dwg_close`) works unchanged, since it only ever
+/// sees the resident document, never its origin format. This is what lets
+/// Architecture-B map a `.dxf` straight from the acadrust `CadDocument` to the
+/// database (DXF -> CadDocument -> JSON -> DB) for A/B timing.
+#[wasm_bindgen]
+pub fn dxf_open(data: &[u8]) -> Result<u32, JsValue> {
+    let reader = DxfReader::from_reader(Cursor::new(data.to_vec()))
+        .map_err(to_js("acadrust DXF open failed"))?;
+    let doc = reader.read().map_err(to_js("acadrust DXF read failed"))?;
+    Ok(register_document(doc))
 }
 
 /// Release the document behind `handle`. The slot stays reserved (as `None`)

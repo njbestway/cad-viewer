@@ -12,7 +12,9 @@
  * protocol below are wired into this one worker and share the same wasm module:
  *
  *   main -> worker:  { id, kind: 'dwg-to-dxf', data }
+ *                    { id, kind: 'dxf-to-dxf', data }
  *                    { id, kind: 'open',    data }
+ *                    { id, kind: 'dxf-open', data }
  *                    { id, kind: 'meta',    handle }
  *                    { id, kind: 'section', handle, section }
  *                    { id, kind: 'page',    handle, offset, limit }
@@ -51,6 +53,8 @@ import {
   dwg_open,
   dwg_section_json,
   dwg_to_dxf,
+  dxf_open,
+  dxf_to_dxf,
   initSync
 } from '../wasm/pkg/acad_rust_converter.js'
 import {
@@ -68,7 +72,9 @@ const WASM_FILE = 'acad-rust_bg.wasm'
  */
 type WorkerRequest =
   | { id: number; kind: 'dwg-to-dxf'; data: ArrayBuffer }
+  | { id: number; kind: 'dxf-to-dxf'; data: ArrayBuffer }
   | { id: number; kind: 'open'; data: ArrayBuffer }
+  | { id: number; kind: 'dxf-open'; data: ArrayBuffer }
   | { id: number; kind: 'meta'; handle: number }
   | { id: number; kind: 'section'; handle: number; section: string }
   | { id: number; kind: 'page'; handle: number; offset: number; limit: number }
@@ -152,11 +158,23 @@ function toExactBuffer(bytes: Uint8Array): ArrayBuffer {
   return exact.buffer as ArrayBuffer
 }
 
-/** `dwg_open`/`dwg-to-dxf` need DWG bytes; every other kind needs a handle. */
+/**
+ * Data-carrying requests parse input bytes: `*-to-dxf`/`open` are DWG bytes,
+ * `dxf-to-dxf`/`dxf-open` are DXF bytes. Every other kind needs only a handle.
+ */
 function isDataRequest(
   request: WorkerRequest
-): request is { id: number; kind: 'dwg-to-dxf' | 'open'; data: ArrayBuffer } {
-  return request.kind === 'dwg-to-dxf' || request.kind === 'open'
+): request is {
+  id: number
+  kind: 'dwg-to-dxf' | 'dxf-to-dxf' | 'open' | 'dxf-open'
+  data: ArrayBuffer
+} {
+  return (
+    request.kind === 'dwg-to-dxf' ||
+    request.kind === 'dxf-to-dxf' ||
+    request.kind === 'open' ||
+    request.kind === 'dxf-open'
+  )
 }
 
 ctx.addEventListener('message', (event: MessageEvent) => {
@@ -168,24 +186,38 @@ ctx.addEventListener('message', (event: MessageEvent) => {
       if (isDataRequest(request)) {
         const { data } = request
         if (data == null) {
-          throw new Error('Missing request data (expected DWG bytes).')
+          throw new Error('Missing request data (expected DWG or DXF bytes).')
         }
         const input = new Uint8Array(data)
-        if (request.kind === 'dwg-to-dxf') {
-          ctx.postMessage(
-            {
-              type: 'result',
-              id,
-              dxf: toExactBuffer(dwg_to_dxf(input))
-            },
-            // The result carries no transferables other than the DXF buffer.
-            []
-          )
-          return
+        switch (request.kind) {
+          case 'dwg-to-dxf':
+            ctx.postMessage(
+              {
+                type: 'result',
+                id,
+                dxf: toExactBuffer(dwg_to_dxf(input))
+              },
+              // The result carries no transferables other than the DXF buffer.
+              []
+            )
+            return
+          case 'dxf-to-dxf':
+            ctx.postMessage(
+              {
+                type: 'result',
+                id,
+                dxf: toExactBuffer(dxf_to_dxf(input))
+              },
+              []
+            )
+            return
+          case 'open':
+            ctx.postMessage({ type: 'result', id, handle: dwg_open(input) })
+            return
+          case 'dxf-open':
+            ctx.postMessage({ type: 'result', id, handle: dxf_open(input) })
+            return
         }
-        // kind === 'open'
-        ctx.postMessage({ type: 'result', id, handle: dwg_open(input) })
-        return
       }
 
       // Remaining kinds are handle-scoped string/no-payload calls.
