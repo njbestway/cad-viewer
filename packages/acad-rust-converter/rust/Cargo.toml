@@ -13,16 +13,35 @@ license = "MPL-2.0"
 name = "acad_rust_converter"
 crate-type = ["cdylib", "rlib"]
 
+# Offline native-only fixture generator (see src/bin/dump_fixture.rs). Gated
+# behind a non-default feature so `cargo build --target
+# wasm32-unknown-unknown` (used by scripts/build-wasm.mjs) never tries to
+# compile it - it relies on `std::fs` and `DwgReader::from_file`, neither of
+# which exist on the wasm32-unknown-unknown target.
+[[bin]]
+name = "dump_fixture"
+path = "src/bin/dump_fixture.rs"
+required-features = ["dumper"]
+
+[features]
+dumper = ["dep:anyhow"]
+
 [dependencies]
 # Locked to the version validated in the Phase 0 spike (Gate 0). acadrust is
 # MPL-2.0 (file-level copyleft) and compiles cleanly for wasm32 because its
 # memmap2/rayon dependencies are gated behind cfg(not(target_arch = "wasm32")).
 acadrust = { version = "0.6.3", features = ["serde"] }
+# Needed directly (not just transitively via `acadrust`'s `serde` feature) to
+# name the `serde::Serialize` trait bound in `to_json`'s generic signature.
+serde = "1"
 # Pinned exactly so the generated JS glue schema matches the installed
 # `wasm-bindgen` CLI (0.2.126). A mismatch aborts wasm-bindgen with a schema
 # version error.
 wasm-bindgen = "=0.2.126"
 serde_json = "1"
+# Only used by the `dumper`-feature binary (ergonomic error chaining for its
+# many `fs`/`serde_json` calls); optional so it never links into the wasm.
+anyhow = { version = "1", optional = true }
 
 [profile.release]
 # Optimise for byte size: the wasm is shipped to browsers.

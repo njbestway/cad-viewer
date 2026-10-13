@@ -53,3 +53,7 @@ Thumbs.db
 .env.local
 .env.*.local
 spike
+samples
+.corpus
+**/tmp-*.*
+**/__tests__/

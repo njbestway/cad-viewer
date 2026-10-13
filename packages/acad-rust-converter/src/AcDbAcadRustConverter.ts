@@ -68,6 +68,16 @@ export interface AcDbAcadRustConverterConfig extends AcDbDatabaseConverterConfig
   mainThreadModuleUrl?: string | URL
   /** Explicit wasm URL for the main-thread path; wins over `assetBaseUrl`. */
   wasmUrl?: string | URL
+  /**
+   * Which conversion architecture to use for DWG. Defaults to `'dxf'`
+   * (Architecture A: acadrust `dwg_to_dxf` then the MIT native DXF converter).
+   * `'native'` selects Architecture B ({@link AcDbAcadRustNativeConverter}),
+   * which maps acadrust `CadDocument` sections straight into the database, with
+   * a transparent fallback to Architecture A if the native open/section path
+   * fails. See the Phase 4 plan; as of Slice 0 `'native'` populates header +
+   * tables only and is not yet the default.
+   */
+  architecture?: 'dxf' | 'native'
 }
 
 /**

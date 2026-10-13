@@ -8,12 +8,30 @@
  *   worker → main:  { type: 'result', id, dxf?: ArrayBuffer }
  *                   { type: 'error',  id?, message: string }
  *
- * Only the Architecture-A (`dwg-to-dxf`) path is wired into the production
- * worker. The Rust crate also exposes `dwg_to_json` (Architecture B, serde over
- * the whole document), but that is a Phase-4 native-mapping entry with no
- * caller yet; serializing a large drawing to one giant JSON string is a wasm
- * OOM footgun, so its branch is intentionally left out of the shipped request
- * protocol until a real consumer lands.
+ * Both the Architecture-A (`dwg-to-dxf`) and the Architecture-B sectioned
+ * protocol below are wired into this one worker and share the same wasm module:
+ *
+ *   main -> worker:  { id, kind: 'dwg-to-dxf', data }
+ *                    { id, kind: 'open',    data }
+ *                    { id, kind: 'meta',    handle }
+ *                    { id, kind: 'section', handle, section }
+ *                    { id, kind: 'page',    handle, offset, limit }
+ *                    { id, kind: 'block-page', handle, block, offset, limit }
+ *                    { id, kind: 'close',   handle }
+ *   worker -> main:  { type: 'result', id, dxf?, handle?, json? }
+ *                    { type: 'error',  id?, message: string }
+ *
+ * The sectioned (B) kinds back `AcDbAcadRustNativeConverter`: a DWG is opened
+ * once into a `CadDocument` that lives in wasm memory (`open` hands back a
+ * handle), then pulled apart section by section / page by page (`meta` /
+ * `section` / `page` / `block-page`) so a large drawing never materializes all
+ * its entities in one string — the whole-document `dwg_to_json` OOM footgun. The
+ * document is released with `close` when the conversion finishes.
+ *
+ * Rust exposes exactly one entry point per section discriminator; the `section`
+ * kind is validated against `ACADRUST_SECTION_KINDS` (the TS mirror of Rust's
+ * `SECTION_KINDS`) so an unknown kind fails fast here rather than throwing
+ * inside the wasm match arm.
  *
  * The WASM binary is a *sibling* file (`acad-rust_bg.wasm`) fetched relative to
  * this worker's own URL, so the worker path deploys just the worker + wasm pair.
@@ -25,21 +43,51 @@
  * This file is bundled by `vite.config.worker.ts` (esbuild) and excluded from
  * the tsc lib build, so the glue import needs no committed typings.
  */
-import { dwg_to_dxf, initSync } from '../wasm/pkg/acad_rust_converter.js'
+import {
+  dwg_block_entity_page,
+  dwg_close,
+  dwg_entity_page,
+  dwg_meta,
+  dwg_open,
+  dwg_section_json,
+  dwg_to_dxf,
+  initSync
+} from '../wasm/pkg/acad_rust_converter.js'
+import {
+  ACADRUST_SECTION_KINDS,
+  type AcadRustSectionKind
+} from './model/acadrust-model'
 
 /** Sibling wasm asset name (kept in sync with vite.config.worker.ts). */
 const WASM_FILE = 'acad-rust_bg.wasm'
 
-interface WorkerRequest {
-  id: number
-  kind: 'dwg-to-dxf'
-  data: ArrayBuffer
-}
+/**
+ * Worker request union. `dwg-to-dxf` is the single-shot Architecture-A path;
+ * the remaining kinds drive the Architecture-B handle lifecycle. `handle` is the
+ * opaque `u32` returned by `open` and threaded through every later call.
+ */
+type WorkerRequest =
+  | { id: number; kind: 'dwg-to-dxf'; data: ArrayBuffer }
+  | { id: number; kind: 'open'; data: ArrayBuffer }
+  | { id: number; kind: 'meta'; handle: number }
+  | { id: number; kind: 'section'; handle: number; section: string }
+  | { id: number; kind: 'page'; handle: number; offset: number; limit: number }
+  | {
+      id: number
+      kind: 'block-page'
+      handle: number
+      block: string
+      offset: number
+      limit: number
+    }
+  | { id: number; kind: 'close'; handle: number }
 
 interface WorkerResult {
   type: 'result'
   id: number
   dxf?: ArrayBuffer
+  handle?: number
+  json?: string
 }
 
 interface WorkerError {
@@ -88,34 +136,103 @@ function errorMessage(err: unknown): string {
   return String(err)
 }
 
+/** Narrow a wasm-bindgen Uint8Array to an exact, zero-offset ArrayBuffer. */
+function toExactBuffer(bytes: Uint8Array): ArrayBuffer {
+  // wasm-bindgen normally hands back a zero-offset, exact-length view, but a
+  // pooled/optimized buffer could expose a larger backing store. Re-slice unless
+  // the view spans the whole buffer, so the transferred ArrayBuffer holds
+  // *exactly* the bytes and the downstream decoder never reads trailing garbage
+  // or starts at a non-zero offset. `.buffer` is a plain ArrayBuffer (not a
+  // SharedArrayBuffer), so narrowing keeps the `dxf` field and transfer list
+  // both typed as `ArrayBuffer`.
+  const exact =
+    bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+      ? bytes
+      : bytes.slice()
+  return exact.buffer as ArrayBuffer
+}
+
+/** `dwg_open`/`dwg-to-dxf` need DWG bytes; every other kind needs a handle. */
+function isDataRequest(
+  request: WorkerRequest
+): request is { id: number; kind: 'dwg-to-dxf' | 'open'; data: ArrayBuffer } {
+  return request.kind === 'dwg-to-dxf' || request.kind === 'open'
+}
+
 ctx.addEventListener('message', (event: MessageEvent) => {
   const request = event.data as WorkerRequest
-  const { id, kind, data } = request ?? ({} as WorkerRequest)
+  const id = request?.id
   void (async () => {
     try {
-      if (data == null) {
-        throw new Error('Missing request data (expected DWG bytes).')
-      }
       await ensureInit()
-      const input = new Uint8Array(data)
-      if (kind === 'dwg-to-dxf') {
-        const dxf = dwg_to_dxf(input)
-        // wasm-bindgen normally hands back a zero-offset, exact-length view, but
-        // a pooled/optimized buffer could expose a larger backing store. Re-slice
-        // unless the view spans the whole buffer, so the transferred ArrayBuffer
-        // holds *exactly* the UTF-8/ASCII DXF bytes and the downstream DXF decoder
-        // never reads trailing garbage or starts at a non-zero offset.
-        const exact =
-          dxf.byteOffset === 0 && dxf.byteLength === dxf.buffer.byteLength
-            ? dxf
-            : dxf.slice()
-        // wasm-bindgen hands back a Uint8Array over a plain ArrayBuffer (not a
-        // SharedArrayBuffer); narrow `.buffer` so the `dxf` field and the
-        // transfer list both stay `ArrayBuffer`.
-        const buffer = exact.buffer as ArrayBuffer
-        ctx.postMessage({ type: 'result', id, dxf: buffer }, [buffer])
-      } else {
-        throw new Error(`Unknown request kind: ${String(kind)}`)
+      if (isDataRequest(request)) {
+        const { data } = request
+        if (data == null) {
+          throw new Error('Missing request data (expected DWG bytes).')
+        }
+        const input = new Uint8Array(data)
+        if (request.kind === 'dwg-to-dxf') {
+          ctx.postMessage(
+            {
+              type: 'result',
+              id,
+              dxf: toExactBuffer(dwg_to_dxf(input))
+            },
+            // The result carries no transferables other than the DXF buffer.
+            []
+          )
+          return
+        }
+        // kind === 'open'
+        ctx.postMessage({ type: 'result', id, handle: dwg_open(input) })
+        return
+      }
+
+      // Remaining kinds are handle-scoped string/no-payload calls.
+      const { handle } = request
+      switch (request.kind) {
+        case 'meta':
+          ctx.postMessage({ type: 'result', id, json: dwg_meta(handle) })
+          break
+        case 'section': {
+          const section = request.section as AcadRustSectionKind
+          if (!ACADRUST_SECTION_KINDS.includes(section)) {
+            throw new Error(`Unknown acad-rust section kind: ${String(section)}`)
+          }
+          ctx.postMessage({
+            type: 'result',
+            id,
+            json: dwg_section_json(handle, section)
+          })
+          break
+        }
+        case 'page':
+          ctx.postMessage({
+            type: 'result',
+            id,
+            json: dwg_entity_page(handle, request.offset, request.limit)
+          })
+          break
+        case 'block-page':
+          ctx.postMessage({
+            type: 'result',
+            id,
+            json: dwg_block_entity_page(
+              handle,
+              request.block,
+              request.offset,
+              request.limit
+            )
+          })
+          break
+        case 'close':
+          dwg_close(handle)
+          ctx.postMessage({ type: 'result', id })
+          break
+        default:
+          throw new Error(
+            `Unknown request kind: ${String((request as { kind?: string }).kind)}`
+          )
       }
     } catch (err) {
       ctx.postMessage({ type: 'error', id, message: errorMessage(err) })

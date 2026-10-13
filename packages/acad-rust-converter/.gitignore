@@ -3,3 +3,4 @@ rust/target/
 
 # wasm-bindgen generated glue + wasm (rebuilt by scripts/build-wasm.mjs).
 wasm/pkg/
+__tests__/
