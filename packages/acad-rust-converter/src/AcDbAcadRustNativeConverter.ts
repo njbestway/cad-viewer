@@ -2457,6 +2457,23 @@ function buildMTextEntity(m: AcadRustMTextPayload): AcDbMText {
   record.height = m.height
   record.width = m.rectangle_width ?? 0
   record.rotation = m.rotation ?? 0
+  // MTEXT render orientation: AcDbMText.subWorldDraw always forwards
+  // `directionVector: direction` to the mtext-renderer, and the renderer lets a
+  // non-zero direction override `rotation` (mtext-renderer finalizePlacement).
+  // `direction` defaults to (1,0,0), so leaving it unset flattens every rotated
+  // MTEXT back to horizontal. Carry acadrust's authoritative WCS reading vector
+  // (`dwg_x_direction`) when present, else derive it from `rotation` so the two
+  // agree — mirroring the built-in DXF reader, which sets direction from group 11.
+  const dir = m.dwg_x_direction
+  if (dir && dir.x * dir.x + dir.y * dir.y + dir.z * dir.z > 1e-12) {
+    record.direction = new AcGeVector3d(dir.x, dir.y, dir.z)
+  } else {
+    record.direction = new AcGeVector3d(
+      Math.cos(record.rotation),
+      Math.sin(record.rotation),
+      0
+    )
+  }
   if (m.style) {
     record.styleName = m.style
   }

@@ -1391,6 +1391,16 @@ export interface AcadRustMTextPayload {
   rectangle_width: number
   rectangle_height: number | null
   rotation: number
+  /**
+   * WCS reading (baseline) direction acadrust derives for DWG MTEXT — the text
+   * X-axis, equal to `(cos rotation, sin rotation, 0)` for planar text and the
+   * fully extrusion-transformed vector for tilted text. Present on the DWG wire,
+   * absent/null for DXF-sourced MTEXT (where the converter falls back to
+   * `rotation`). The data-model MTEXT renderer lets a non-zero `direction`
+   * override `rotation`, so this must be carried across or rotated MTEXT
+   * collapses back to horizontal.
+   */
+  dwg_x_direction?: AcadRustPoint3d | null
   style: string
   attachment_point: AcadRustAttachmentPoint
   drawing_direction: AcadRustDrawingDirection
