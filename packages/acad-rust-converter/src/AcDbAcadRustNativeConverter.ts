@@ -87,6 +87,7 @@ import {
   AcGeEllipseArc2d,
   AcGeLine2d,
   AcGeLoop2d,
+  AcGeMatrix3d,
   AcGePoint2d,
   AcGePoint3d,
   AcGePolyline2d,
@@ -1569,7 +1570,7 @@ function mapEntity(entity: AcadRustEntity, target: AcDbBlockTableRecord): boolea
         return false
       }
       const record = new AcDbCircle(
-        new AcGePoint3d(c.center.x, c.center.y, c.center.z),
+        ocsCenterToWcs(c.center, c.normal),
         c.radius,
         toVector(c.normal)
       )
@@ -1585,7 +1586,7 @@ function mapEntity(entity: AcadRustEntity, target: AcDbBlockTableRecord): boolea
         return false
       }
       const record = new AcDbArc(
-        new AcGePoint3d(a.center.x, a.center.y, a.center.z),
+        ocsCenterToWcs(a.center, a.normal),
         a.radius,
         a.start_angle,
         a.end_angle,
@@ -2218,6 +2219,32 @@ function applyCommon(entity: AcDbEntity, c: AcadRustEntityCommon): void {
 /** Convert an acadrust point/vector triple into a data-model vector. */
 function toVector(p: AcadRustPoint3d): AcGeVector3d {
   return new AcGeVector3d(p.x, p.y, p.z)
+}
+
+/**
+ * Convert an acadrust OCS center to WCS using its extrusion `normal`.
+ *
+ * acadrust keeps CIRCLE/ARC `center`/`normal` in OCS (DXF groups 10/20/30 read
+ * together with the 210/220/230 extrusion direction). The data-model
+ * `AcDbCircle`/`AcDbArc` constructors treat `center` as an already-WCS point and
+ * only use `normal` to orient the plane — they do NOT perform the OCS->WCS
+ * transform that the built-in DXF reader runs in `applyDxfInGeometry`. Passing
+ * the raw OCS center therefore mis-places every entity whose extrusion is not
+ * `+Z` (mirrored `-Z` or tilted normals), collapsing those circles/arcs off the
+ * top-view canvas. This is a byte-for-byte port of
+ * `acgeTransformOcsPointToWcsInto`, including its `+Z` identity fast path (which
+ * preserves the elevation `z`, so planar `+Z` circles are unchanged).
+ */
+function ocsCenterToWcs(center: AcadRustPoint3d, normal: AcadRustPoint3d): AcGePoint3d {
+  const out = new AcGePoint3d(center.x, center.y, center.z)
+  if (normal.x === 0 && normal.y === 0 && normal.z === 1) {
+    return out
+  }
+  return out.applyMatrix4(
+    new AcGeMatrix3d().setFromExtrusionDirection(
+      new AcGeVector3d(normal.x, normal.y, normal.z)
+    )
+  )
 }
 
 /**
