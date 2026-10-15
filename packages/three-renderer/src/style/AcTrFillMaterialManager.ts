@@ -268,8 +268,6 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
     threeSide: THREE.Side
   ): THREE.Material {
     const style = traits.fillType
-    const RATIO_FOR_NONDOT_PATTERN = 0.005
-    const RATIO_FOR_DOT_PATTERN = 0.05
 
     // Get a max size to be used for all patternLines, this value will be used during
     // glsl compile time, and it cannot be 0 (compile error) and cannot be 1 (run time warning).
@@ -281,8 +279,9 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       )
     })
 
-    let currentUniformCount = 0
-
+    // Pattern lines are uploaded via a float DataTexture (see
+    // createHatchPatternShaderMaterial), so there is no fragment-uniform
+    // budget truncating large user patterns (#743).
     const patternLines: AcTrPatternLine[] = []
     for (const hatchPatternLine of style.definitionLines) {
       const base = new THREE.Vector2(
@@ -319,30 +318,18 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       }
 
       const numberOfDashes = hatchPatternLine.dashLengths.length
-      // Indicates the dot pattern when the dashPatterns contain only 0 and negative numbers
-      let bDotPattern = true
-      // calculates the total length of the pattern
-      let length = 0
-      for (let i = 0; i < numberOfDashes; ++i) {
-        const value = hatchPatternLine.dashLengths[i]
-        if (value > 0) {
-          bDotPattern = false
-        }
-        length += Math.abs(value)
-      }
 
-      // TODO: because we cannot (or, it's kind of hard to) draw a dot, let's draw a short dash.
-      const ratio = bDotPattern
-        ? RATIO_FOR_DOT_PATTERN
-        : RATIO_FOR_NONDOT_PATTERN
-
+      // A dash length of 0 is AutoCAD's "dot" marker: a zero-length element
+      // that draws a small mark and consumes no along-line distance. Pass it
+      // through unchanged -- substituting a length here (as a fraction of
+      // the pattern's total length) turned dots into dashes that grew with
+      // pattern density (#728). The shader (`getPatternIndex` in
+      // AcTrHatchPatternShaders) gives zero-length entries a hittable,
+      // thickness-sized window so they still render.
       const dashLengths: number[] = []
       let patternLength = 0
       for (let i = 0; i < numberOfDashes; ++i) {
         dashLengths[i] = hatchPatternLine.dashLengths[i]
-        if (dashLengths[i] === 0) {
-          dashLengths[i] = ratio * length
-        }
         patternLength += Math.abs(dashLengths[i])
       }
 
@@ -361,25 +348,13 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
         patternLength
       )
 
-      const angle = hatchPatternLine.angle
-      const patternLine = {
-        angle,
+      patternLines.push({
+        angle: hatchPatternLine.angle,
         base,
         offset,
         dashLengths,
         patternLength
-      }
-
-      currentUniformCount += 4 // angle, base, offset, patternLength
-      currentUniformCount += maxPatternSegmentCount // dashLengths, consistent with HatchPatternShader
-      currentUniformCount += 4 // patternLength
-      if (currentUniformCount > this.options.maxFragmentUniforms) {
-        log.warn(
-          'There will be warning in fragment shader when number of uniforms exceeds 1024, so extra hatch line patterns are ignored here!'
-        )
-        break
-      }
-      patternLines.push(patternLine)
+      })
     }
 
     const material = createHatchPatternShaderMaterial(

@@ -8,8 +8,10 @@
 export * from './AcExSnapshotTypes'
 /** Gzip encode and decode for embedded snapshot payloads. */
 export * from './AcExSnapshotCompression'
-/** Compressed/base64 encode and decode for embedded snapshot payloads. */
+/** Compressed/base85 encode and decode for embedded snapshot payloads. */
 export * from './AcExSnapshotCodec'
+/** HTML-safe binary text encodings (base85 / legacy base64). */
+export * from './AcExHtmlBinaryText'
 /** Binary snapshot serialization used by {@link encodeSnapshot}. */
 export {
   decodeSnapshotBinary,
@@ -87,8 +89,10 @@ export {
 } from './AcExHtmlAccess'
 export {
   ACEX_EMBEDDED_CHUNK_ENCRYPTED_MIME,
+  ACEX_EMBEDDED_CHUNK_ENCRYPTED_MIME_BASE64,
   ACEX_EMBEDDED_CHUNK_HREF_ATTR,
   ACEX_EMBEDDED_CHUNK_MIME,
+  ACEX_EMBEDDED_CHUNK_MIME_BASE64,
   collectAcExEmbeddedChunkBytes,
   consumeAcExEmbeddedChunkFromDom,
   createAcExDomEmbeddedPackageFetch,
@@ -132,6 +136,7 @@ export {
   decodeChunkBinary,
   encodeChunkGzip,
   decodeChunkGzip,
+  decodeChunkPayload,
   ACEC_CHUNK_MAGIC,
   type AcExGeometryChunk
 } from './AcExChunkBinaryCodec'
@@ -165,6 +170,7 @@ export {
   decodeOsnapCatalogBinary,
   encodeOsnapCatalogGzip,
   decodeOsnapCatalogGzip,
+  decodeOsnapCatalogPayload,
   splitOsnapPrimitives,
   estimateOsnapPrimitiveBytes,
   ACEO_OSNAP_MAGIC,
@@ -183,8 +189,15 @@ export { AcApHtmlConvertor } from './AcApHtmlConvertor'
 export {
   type AcApHtmlExportFormat,
   type AcApHtmlExportOptions,
+  ACEX_DEFAULT_CHUNK_SIZE_MIB,
+  ACEX_MIN_CHUNK_SIZE_MIB,
+  ACEX_MAX_CHUNK_SIZE_MIB,
+  acexChunkSizeBytesToMiB,
+  acexChunkSizeMiBToBytes,
   captureAcApHtmlViewState,
-  resolveAcApHtmlExportOptions
+  clampAcApHtmlChunkSizeMiB,
+  resolveAcApHtmlExportOptions,
+  resolveAcApHtmlPackageBuildOptions
 } from './AcApHtmlExportOptions'
 export {
   type AcApHtmlPluginOptions,

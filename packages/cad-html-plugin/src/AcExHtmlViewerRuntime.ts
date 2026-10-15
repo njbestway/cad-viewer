@@ -5,7 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 
-import { decodeChunkGzip } from './AcExChunkBinaryCodec'
+import { decodeChunkPayload } from './AcExChunkBinaryCodec'
 import {
   AcExCommandSessionPanel,
   type AcExCommandSessionUiState
@@ -24,6 +24,7 @@ import {
   promptAcExHtmlAccessPassword,
   showAcExHtmlAccessExpired
 } from './AcExHtmlAccessGate'
+import { parseAcExHtmlBinaryEncoding } from './AcExHtmlBinaryText'
 import {
   acexHtmlIsPhoneLayout,
   setupAcExHtmlDrawerSheets
@@ -570,11 +571,15 @@ async function resolveSnapshotPayload(
       })
       pendingError = undefined
       try {
+        const encoding = parseAcExHtmlBinaryEncoding(
+          snapshotEl.getAttribute('type')
+        )
         return {
           payload: await decryptAcExHtmlSnapshotPayload(
             password,
             payload,
-            manifest.salt
+            manifest.salt,
+            encoding
           ),
           expiresAt
         }
@@ -677,7 +682,10 @@ async function startViewer(): Promise<void> {
       }
       expiresAt = resolved.expiresAt
       // Retain gzip so layouts can be rehydrated after CPU release on switch.
-      monolithicCompressed = snapshotPayloadToCompressedBytes(resolved.payload)
+      monolithicCompressed = snapshotPayloadToCompressedBytes(
+        resolved.payload,
+        snapshotEl.getAttribute('type') ?? undefined
+      )
       snapshot = decodeSnapshotFromCompressedBytes(monolithicCompressed)
       removeSnapshotElement(snapshotEl)
     } else {
@@ -1050,7 +1058,7 @@ async function startViewer(): Promise<void> {
         loaded: String(loadedChunks),
         total: String(chunks.length)
       })
-      const decoded = decodeChunkGzip(entry.bytes)
+      const decoded = decodeChunkPayload(entry.bytes)
       const lineStart = target.lineBatches.length
       const meshStart = target.meshBatches.length
       target.lineBatches.push(...decoded.lineBatches)

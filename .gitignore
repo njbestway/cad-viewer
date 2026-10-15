@@ -61,3 +61,6 @@ caddata
 # Local fork link: packages/mtext-renderer is a machine-specific junction to
 # the mtext-renderer dev repository (never commit it).
 /packages/mtext-renderer
+# Local open-time paint benches
+*.ts.bench-bak
+.bench-out/

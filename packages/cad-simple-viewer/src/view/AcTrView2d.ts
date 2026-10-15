@@ -68,6 +68,7 @@ import {
   AcEdSpatialQueryResultItem,
   AcEdSpatialQueryResultItemEx,
   AcEdViewMode,
+  AcEdViewportCoordinateMapper,
   eventBus,
   resolvePointerSelectionAction
 } from '../editor'
@@ -380,6 +381,27 @@ export class AcTrView2d extends AcEdBaseView {
   private _keyHandler: AcEdViewKeyHandler
   /** Removes iOS canvas long-press callout listeners registered in the constructor. */
   private _disposeCanvasTouchCallout: (() => void) | undefined
+  /** Removes mobile long-press box-selection gesture listeners. */
+  private _disposeMobileBoxGesture: (() => void) | undefined
+  /**
+   * Aborts canvas / document DOM listeners registered on this view.
+   * Custom singleton listeners are removed explicitly in {@link dispose}.
+   */
+  private readonly _viewDomAbort = new AbortController()
+  private _viewDisposed = false
+  /** Named listeners so dispose can detach from shared singletons. */
+  private _onFontNotFound?: (args: { fontName: string; count?: number }) => void
+  private _onFontLoaded?: (args?: { fontName?: string }) => void
+  private _onSysVarChanged?: (args: {
+    name: string
+    database?: AcDbDatabase
+  }) => void
+  private _onSettingsModified?: (args: { key: string; value: unknown }) => void
+  private _onLayoutSwitched?: (args: {
+    layout: AcDbLayout & { database?: object }
+  }) => void
+  private _onCommandWillStartHitTest?: () => void
+  private _onCommandEndedHitTest?: () => void
   /** Transient reading mode forces black linework on a white canvas. */
   private readonly _readingMode = new AcApReadingModeState({
     getCurrentBackgroundColor: () => this._renderer.currentBackgroundColor,
@@ -493,6 +515,15 @@ export class AcTrView2d extends AcEdBaseView {
    */
   private static readonly PROGRESSIVE_OPEN_PAINT_INTERVAL_MS = 2500
   /**
+   * Minimum interval between interactive non-progressive mid-open paints (ms)
+   * while convert / deferred glyphs run under "Rendering drawing ...".
+   * Longer than {@link PROGRESSIVE_OPEN_PAINT_INTERVAL_MS}: the overlay is
+   * semi-transparent (`rgba(0,0,0,0.45)`), but each paint still redraws the
+   * full scene and used to fire on every glyph completion. Headless
+   * (`cooperativeYield` false) skips these paints entirely.
+   */
+  private static readonly NON_PROGRESSIVE_OPEN_PAINT_INTERVAL_MS = 4000
+  /**
    * Max concurrent deferred glyph/INSERT geometry finalizers. Large drawings
    * enqueue thousands of jobs; keep this modest to limit peak JS heap during
    * open while retaining reasonable text throughput after convert finishes.
@@ -532,6 +563,11 @@ export class AcTrView2d extends AcEdBaseView {
     const container = mergedOptions.container ?? document.createElement('div')
     mergedOptions.container = container
     container.style.overflow = 'hidden'
+    // Allow focusing the container after canvas clicks so document-level
+    // shortcuts stay scoped to this viewer without stealing host-page focus.
+    if (!container.hasAttribute('tabindex')) {
+      container.tabIndex = -1
+    }
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -551,20 +587,31 @@ export class AcTrView2d extends AcEdBaseView {
     super(renderer.domElement, container)
     this._disposeCanvasTouchCallout = disposeCanvasTouchCallout
     const onProgressiveInput = () => this.noteProgressiveUserInput()
-    renderer.domElement.addEventListener('pointerdown', onProgressiveInput, {
+    // Pointer and wheel both claim shortcut focus so undo/erase still work
+    // after zooming without a prior click, without stealing focus from host
+    // inputs/textareas/contenteditable fields.
+    const onCanvasPointerDown = () => {
+      onProgressiveInput()
+      this.focusViewerForShortcuts()
+    }
+    const onCanvasWheel = () => {
+      onProgressiveInput()
+      this.focusViewerForShortcuts()
+    }
+    renderer.domElement.addEventListener('pointerdown', onCanvasPointerDown, {
       capture: true
     })
-    renderer.domElement.addEventListener('wheel', onProgressiveInput, {
+    renderer.domElement.addEventListener('wheel', onCanvasWheel, {
       capture: true,
       passive: true
     })
     this._disposeProgressiveInputWatch = () => {
       renderer.domElement.removeEventListener(
         'pointerdown',
-        onProgressiveInput,
+        onCanvasPointerDown,
         { capture: true }
       )
-      renderer.domElement.removeEventListener('wheel', onProgressiveInput, {
+      renderer.domElement.removeEventListener('wheel', onCanvasWheel, {
         capture: true
       })
     }
@@ -583,19 +630,21 @@ export class AcTrView2d extends AcEdBaseView {
     setAcTrDrawOrderZAllocator(() => this._renderer.allocateDrawOrderZ())
     const fontMapping = AcApSettingManager.instance.fontMapping
     this._renderer.setFontMapping(fontMapping)
-    this._renderer.events.fontNotFound.addEventListener(args => {
+    this._onFontNotFound = args => {
       eventBus.emit('font-not-found', {
         fontName: args.fontName,
         count: args.count ?? 0
       })
-    })
-    this._renderer.events.fontLoaded.addEventListener(args => {
+    }
+    this._onFontLoaded = args => {
       // Lazy load success clears FontManager.missedFonts; refresh status-bar state.
       eventBus.emit('missed-data-changed', {})
       // On-demand faces (e.g. style `malgun`) may finish after the first glyph
       // bake. Rebuild text so Hangul is not left as permanent '?'.
       this.scheduleGlyphRedrawAfterFontLoad(args?.fontName)
-    })
+    }
+    this._renderer.events.fontNotFound.addEventListener(this._onFontNotFound)
+    this._renderer.events.fontLoaded.addEventListener(this._onFontLoaded)
 
     this._scene = this.createScene()
     this._layerAppearance = new AcTrLayerAppearanceController(
@@ -609,8 +658,11 @@ export class AcTrView2d extends AcEdBaseView {
     // Initialize background color through setter to keep renderer/cursor in sync.
     this.backgroundColor =
       mergedOptions.background ?? ACGI_MODEL_SPACE_BACKGROUND
+    // During main-view construction the manager singleton is not published yet,
+    // so treat a missing manager as "this is the primary canvas".
     this._stats = this.createStats(
-      AcApSettingManager.instance.isShowStats && this.isActiveManagedView()
+      AcApSettingManager.instance.isShowStats &&
+        (AcApDocManager.tryGetInstance() == null || this.isActiveManagedView())
     )
 
     // Layout background sysvars drive the canvas clear colour and ACI-7
@@ -620,10 +672,12 @@ export class AcTrView2d extends AcEdBaseView {
     const sysVarManager = AcDbSysVarManager.instance()
     const modelBkVar = AcDbSystemVariables.MODELBKCOLOR.toLowerCase()
     const paperBkVar = AcDbSystemVariables.PAPERBKCOLOR.toLowerCase()
-    sysVarManager.events.sysVarChanged.addEventListener(args => {
+    this._onSysVarChanged = args => {
       const nameLower = args.name.toLowerCase()
       if (nameLower === modelBkVar || nameLower === paperBkVar) {
-        const isModelSpace = this.isModelSpaceLayout(args.database)
+        const database = args.database
+        if (!database) return
+        const isModelSpace = this.isModelSpaceLayout(database)
         const applies =
           (nameLower === modelBkVar && isModelSpace) ||
           (nameLower === paperBkVar && !isModelSpace)
@@ -631,16 +685,20 @@ export class AcTrView2d extends AcEdBaseView {
           return
         }
         this.applyCanvasBackground(
-          readLayoutBackgroundColor(args.database, isModelSpace)
+          readLayoutBackgroundColor(database, isModelSpace)
         )
       }
-    })
+    }
+    sysVarManager.events.sysVarChanged.addEventListener(this._onSysVarChanged)
 
-    AcApSettingManager.instance.events.modified.addEventListener(args => {
+    this._onSettingsModified = args => {
       if (args.key == 'isShowStats') {
         this.toggleStatsVisibility(this._stats, args.value as boolean)
       }
-    })
+    }
+    AcApSettingManager.instance.events.modified.addEventListener(
+      this._onSettingsModified
+    )
 
     let selectionStartWcs: AcGePoint2dLike | null = null
     let selectionStartCanvas: AcGePoint2dLike | null = null
@@ -771,55 +829,69 @@ export class AcTrView2d extends AcEdBaseView {
       selectionStartCanvas = null
     }
 
-    this.canvas.addEventListener('mousedown', e => {
-      if (e.button !== 0) return
-      if (!canHandleSelectionGesture()) return
-      if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
-        return
-      }
+    const viewDomSignal = this._viewDomAbort.signal
 
-      beginSelectionPreview(e.clientX, e.clientY)
-    })
+    this.canvas.addEventListener(
+      'mousedown',
+      e => {
+        if (e.button !== 0) return
+        if (!canHandleSelectionGesture()) return
+        if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
+          return
+        }
 
-    this.canvas.addEventListener('mousemove', e => {
-      if (!selectionStartWcs || !selectionPreviewEl || !selectionStartCanvas) {
-        return
-      }
-      if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
-        return
-      }
+        beginSelectionPreview(e.clientX, e.clientY)
+      },
+      { signal: viewDomSignal }
+    )
 
-      updateSelectionPreview(
-        e.clientX,
-        e.clientY,
-        this.getPointerSelectionAction(e)
-      )
-    })
+    this.canvas.addEventListener(
+      'mousemove',
+      e => {
+        if (!selectionStartWcs || !selectionPreviewEl || !selectionStartCanvas) {
+          return
+        }
+        if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
+          return
+        }
 
-    this.canvas.addEventListener('mouseup', e => {
-      if (this._gripManager.isDragging) {
-        resetSelectionDrag()
-        return
-      }
-      if (!selectionStartWcs || !selectionStartCanvas) return
-      if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
-        return
-      }
+        updateSelectionPreview(
+          e.clientX,
+          e.clientY,
+          this.getPointerSelectionAction(e)
+        )
+      },
+      { signal: viewDomSignal }
+    )
 
-      const endCanvas = this.viewportToCanvas({
-        x: e.clientX,
-        y: e.clientY
-      })
-      const action = this.getPointerSelectionAction(e)
-      finishSelection(
-        e.clientX,
-        e.clientY,
-        action,
-        this.isSelectionClick(selectionStartCanvas, endCanvas)
-      )
-    })
+    this.canvas.addEventListener(
+      'mouseup',
+      e => {
+        if (this._gripManager.isDragging) {
+          resetSelectionDrag()
+          return
+        }
+        if (!selectionStartWcs || !selectionStartCanvas) return
+        if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
+          return
+        }
 
-    acedAttachMobileBoxGesture({
+        const endCanvas = this.viewportToCanvas({
+          x: e.clientX,
+          y: e.clientY
+        })
+        const action = this.getPointerSelectionAction(e)
+        finishSelection(
+          e.clientX,
+          e.clientY,
+          action,
+          this.isSelectionClick(selectionStartCanvas, endCanvas)
+        )
+      },
+      { signal: viewDomSignal }
+    )
+
+    this._disposeMobileBoxGesture = acedAttachMobileBoxGesture({
       element: this.canvas,
       shouldStart: () => canHandleMobileBoxGesture(),
       setNavigationEnabled: enabled => {
@@ -848,68 +920,81 @@ export class AcTrView2d extends AcEdBaseView {
       }
     })
 
-    this.canvas.addEventListener('dblclick', e => {
-      if (e.button !== 0) return
-      if (!canHandleSelectionGesture()) return
-      if (!this.entitySelectionEnabled) return
-      if (AcApDocManager.instance.curDocument.openMode !== AcEdOpenMode.Write) {
-        return
-      }
-      void this.openPickedEntityEditor(e)
-    })
-    // When using OrbitControls in THREE.js, it attaches its own event listeners to the DOM elements,
-    // such as the canvas or the entire document. This can interfere with other event listeners you
-    // add, including the keydown event.
-    document.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (!this.isActiveManagedView()) return
-      this._keyHandler.handleKeyDown(e)
-    })
-    acdbHostApplicationServices().layoutManager.events.layoutSwitched.addEventListener(
-      args => {
-        if (!this.isActiveManagedView()) return
-        const layoutDb = (args.layout as { database?: { objectId?: string } })
-          .database
-        const currentDb = (
-          AcApDocManager as unknown as {
-            _instance?: { curDocument?: { database?: object } }
-          }
-        )._instance?.curDocument?.database
-        if (layoutDb && currentDb && layoutDb !== currentDb) {
+    this.canvas.addEventListener(
+      'dblclick',
+      e => {
+        if (e.button !== 0) return
+        if (!canHandleSelectionGesture()) return
+        if (!this.entitySelectionEnabled) return
+        if (
+          AcApDocManager.instance.curDocument.openMode !== AcEdOpenMode.Write
+        ) {
           return
         }
-        const btrId = args.layout.blockTableRecordId
-        // "First visit" is tracked separately from view existence because
-        // `addLayout` pre-creates an `AcTrLayoutView` for every layout in
-        // the DWG at load time — `_layoutViewManager.has(btrId)` is
-        // therefore `true` even for layouts the user has never focused
-        // on, and "first visit" computed from it would always be false.
-        // We use a dedicated set instead, marked here on first switch and
-        // also from `markLayoutAsInitialized` when the document opens
-        // straight into a layout (AcApDocManager has already framed it).
-        // Each AcTrLayoutView owns its own camera, so on subsequent
-        // visits the previous camera state is naturally restored and we
-        // must NOT zoom-to-fit again — that would be jarring and
-        // diverges from how AutoCAD preserves per-tab view state.
-        const isFirstVisit = !this._initializedLayouts.has(btrId)
-        this._initializedLayouts.add(btrId)
-
-        // Measurement HTML overlays are layout-scoped via `layoutId`.
-        // Switching layouts only updates visibility (see
-        // {@link AcTrHtmlTransientManager.setActiveLayoutId} from the
-        // `activeLayoutBtrId` setter below) — overlays are not deleted, so
-        // returning to a layout restores its measurements. Entity selection
-        // is intentionally **not** cleared here: it is entity-id-based and
-        // the same entity stays selected wherever it is rendered.
-        this.activeLayoutBtrId = btrId
-        this.createLayoutViewIfNeeded(btrId)
-        this.loadLayoutEntitiesIfNeeded(btrId)
-        this.refreshCanvasBackgroundForActiveLayout()
-        this._isDirty = true
-
-        if (isFirstVisit) {
-          this.applyInitialZoom(btrId, args.layout)
+        void this.openPickedEntityEditor(e)
+      },
+      { signal: viewDomSignal }
+    )
+    // When using OrbitControls in THREE.js, it attaches its own event listeners to the DOM elements,
+    // such as the canvas or the entire document. This can interfere with other event listeners you
+    // add, including the keydown event. Scope to this view's container so host-page shortcuts
+    // (and post-destroy key presses) are not captured.
+    document.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        if (!this.isActiveManagedView()) return
+        if (!this.isShortcutEventInsideViewer(e)) return
+        this._keyHandler.handleKeyDown(e)
+      },
+      { signal: viewDomSignal }
+    )
+    this._onLayoutSwitched = args => {
+      if (!this.isActiveManagedView()) return
+      const layoutDb = (args.layout as { database?: { objectId?: string } })
+        .database
+      const currentDb = (
+        AcApDocManager as unknown as {
+          _instance?: { curDocument?: { database?: object } }
         }
+      )._instance?.curDocument?.database
+      if (layoutDb && currentDb && layoutDb !== currentDb) {
+        return
       }
+      const btrId = args.layout.blockTableRecordId
+      // "First visit" is tracked separately from view existence because
+      // `addLayout` pre-creates an `AcTrLayoutView` for every layout in
+      // the DWG at load time — `_layoutViewManager.has(btrId)` is
+      // therefore `true` even for layouts the user has never focused
+      // on, and "first visit" computed from it would always be false.
+      // We use a dedicated set instead, marked here on first switch and
+      // also from `markLayoutAsInitialized` when the document opens
+      // straight into a layout (AcApDocManager has already framed it).
+      // Each AcTrLayoutView owns its own camera, so on subsequent
+      // visits the previous camera state is naturally restored and we
+      // must NOT zoom-to-fit again — that would be jarring and
+      // diverges from how AutoCAD preserves per-tab view state.
+      const isFirstVisit = !this._initializedLayouts.has(btrId)
+      this._initializedLayouts.add(btrId)
+
+      // Measurement HTML overlays are layout-scoped via `layoutId`.
+      // Switching layouts only updates visibility (see
+      // {@link AcTrHtmlTransientManager.setActiveLayoutId} from the
+      // `activeLayoutBtrId` setter below) — overlays are not deleted, so
+      // returning to a layout restores its measurements. Entity selection
+      // is intentionally **not** cleared here: it is entity-id-based and
+      // the same entity stays selected wherever it is rendered.
+      this.activeLayoutBtrId = btrId
+      this.createLayoutViewIfNeeded(btrId)
+      this.loadLayoutEntitiesIfNeeded(btrId)
+      this.refreshCanvasBackgroundForActiveLayout()
+      this._isDirty = true
+
+      if (isFirstVisit) {
+        this.applyInitialZoom(btrId, args.layout)
+      }
+    }
+    acdbHostApplicationServices().layoutManager.events.layoutSwitched.addEventListener(
+      this._onLayoutSwitched
     )
 
     this._css2dRenderer = new CSS2DRenderer()
@@ -962,12 +1047,18 @@ export class AcTrView2d extends AcEdBaseView {
     // This method is called after camera and render are created.
     // Children class can override this method to add its own logic
     this.setCursor(AcEdCorsorType.Crosshair)
-    this.editor.events.commandWillStart.addEventListener(() => {
+    this._onCommandWillStartHitTest = () => {
       this.htmlTransientManager.setHitTestEnabled(false)
-    })
-    this.editor.events.commandEnded.addEventListener(() => {
+    }
+    this._onCommandEndedHitTest = () => {
       this.htmlTransientManager.setHitTestEnabled(true)
-    })
+    }
+    this.editor.events.commandWillStart.addEventListener(
+      this._onCommandWillStartHitTest
+    )
+    this.editor.events.commandEnded.addEventListener(
+      this._onCommandEndedHitTest
+    )
   }
 
   /**
@@ -1127,7 +1218,9 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
-   * When false, entity convert skips cooperative yields (headless export).
+   * When false, entity convert skips cooperative yields and non-progressive
+   * mid-open WebGL paints (headless export). Interactive viewers keep this
+   * `true` so "Rendering drawing ..." can still refresh the canvas.
    */
   get cooperativeYield() {
     return this._cooperativeYield
@@ -1138,8 +1231,8 @@ export class AcTrView2d extends AcEdBaseView {
 
   /**
    * Open-convert counters for OPENPROF / palette (cooperative yields during
-   * convert, and mid-open paints when progressive rendering is enabled).
-   * Reset when progressive mode is enabled for an open.
+   * convert, and throttled mid-open paints). Reset when progressive mode is
+   * enabled for an open.
    */
   get progressiveOpenStats() {
     return {
@@ -1628,6 +1721,17 @@ export class AcTrView2d extends AcEdBaseView {
     const db = AcApDocManager.instance.curDocument.database
     const pending: AcDbEntity[] = []
 
+    // Open streams entities through `drainConvertQueue` and claims each id
+    // before the scene commit (deferred glyphs / INSERT text). Headless
+    // export used to scan here as soon as parse returned, while that drain
+    // was still running. Claimed ids are not in the scene yet, so they
+    // looked missing and `batchConvert({ forExport: true })` expanded them
+    // again — serially, because export convert does not defer glyph work.
+    // On a text-heavy drawing that second pass dominates wall time and
+    // leaves duplicate geometry in the snapshot. Wait until the open drain
+    // has claimed or committed every streamed entity, then skip those ids.
+    await this.drainConvertQueue()
+
     // Paper-space tabs the user never visited exist in the layout table but
     // may be missing from the scene until first switch. HTML export needs
     // every layout's geometry, so register those BTRs before collecting.
@@ -1652,7 +1756,7 @@ export class AcTrView2d extends AcEdBaseView {
       pending.push(
         ...this._entityDisplay.collectMissingEntitiesForExport(
           blockTableRecord,
-          objectId => this.hasEntity(objectId),
+          objectId => this.isEntityConvertScheduled(objectId),
           includeInvisibleLayers
         )
       )
@@ -1665,7 +1769,8 @@ export class AcTrView2d extends AcEdBaseView {
 
     // Open-time deferred glyph jobs may still be draining even when every
     // entity id is already present (or when nothing was missing for export).
-    const idle = await this.waitUntilIdle()
+    // Large drawings exceed the 60s default; match the CLI open-idle budget.
+    const idle = await this.waitUntilIdle(120_000)
     if (!idle) {
       log.warn(
         '[AcTrView2d] Timed out waiting for deferred geometry before export'
@@ -2126,6 +2231,27 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * @inheritdoc
+   */
+  getViewportCoordinateMapper(
+    viewportId: AcDbObjectId
+  ): AcEdViewportCoordinateMapper | undefined {
+    let vpView: AcTrViewportView | undefined
+    for (const candidate of this.activeLayoutView?.viewportViews ?? []) {
+      if (candidate.viewport.id === viewportId) {
+        vpView = candidate
+        break
+      }
+    }
+    if (!vpView) return undefined
+    return {
+      paperToModel: point => vpView.paperPointToModel(point),
+      modelToPaper: point => vpView.modelPointToPaper(point),
+      containsPaperPoint: point => vpView.containsPaperPoint(point)
+    }
+  }
+
+  /**
    * Resolves hits against the model-space layout for each viewport the
    * click drills through. Appends the matches into `results` (caller
    * sorts/dedups). Kept private and separate from `pick` so the main
@@ -2172,7 +2298,7 @@ export class AcTrView2d extends AcEdBaseView {
       modelHits.forEach(item => {
         if (!isEffectiveSpatialQueryHit(item)) return
         if (modelLayout.isIntersectWith(item.id, vpRaycaster)) {
-          results.push(item)
+          results.push({ ...item, viewportId: vpView.viewport.id })
         }
       })
     }
@@ -2451,6 +2577,17 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * True when an entity is already in the scene or claimed by an in-flight
+   * convert (including deferred glyph commits that have not called
+   * `addEntity` yet).
+   */
+  private isEntityConvertScheduled(objectId: AcDbObjectId): boolean {
+    const id = String(objectId ?? '')
+    if (!id) return false
+    return this.hasEntity(objectId) || this._claimedConvertObjectIds.has(id)
+  }
+
+  /**
    * @inheritdoc
    */
   getEntityVisible(objectId: AcDbObjectId) {
@@ -2603,6 +2740,18 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * Whether the layout has already been visited (or framed by the
+   * application layer), i.e. a switch to it will not run the first-visit
+   * auto zoom. Lets callers that frame a layout themselves (FIND) call
+   * {@link markLayoutAsInitialized} only when it is still needed.
+   *
+   * @param layoutBtrId Input the block table record id of the layout
+   */
+  isLayoutInitialized(layoutBtrId: AcDbObjectId) {
+    return this._initializedLayouts.has(layoutBtrId)
+  }
+
+  /**
    * Returns the 2D box of drawable geometry in the active layout.
    *
    * Uses {@link AcTrScene.box}, which is derived from batch geometry — not
@@ -2750,9 +2899,13 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
-   * @inheritdoc
+   * Invalidates in-flight progressive convert and empties convert / deferred
+   * queues without tearing down the renderer or DOM.
+   *
+   * Call before {@link AcApDocManager.destroy} tears down documents so
+   * in-flight commits do not keep reading the manager singleton.
    */
-  clear() {
+  abortConversion() {
     // Invalidate any in-flight progressive convert so it neither paints into
     // the cleared scene nor double-decrements the processing counter.
     this._convertEpoch++
@@ -2765,6 +2918,13 @@ export class AcTrView2d extends AcEdBaseView {
     this.cancelOpenLineworkFrame()
     this.resetDeferredGeometryQueue()
     this._entityProcessingIdleAt = 0
+  }
+
+  /**
+   * @inheritdoc
+   */
+  clear() {
+    this.abortConversion()
     this._scene.clear()
     this._renderer.resetDrawOrderZ()
     this._isDirty = true
@@ -2889,13 +3049,49 @@ export class AcTrView2d extends AcEdBaseView {
   /**
    * True when this view is the document manager's live canvas.
    * Satellite/preview views must ignore global shortcuts and layout switches.
+   * Returns false when no manager exists so post-destroy key handlers do not
+   * reach {@link AcApDocManager.instance}.
    */
   private isActiveManagedView(): boolean {
     const singleton = AcApDocManager as unknown as {
       _instance?: { curView?: AcTrView2d }
     }
     const current = singleton._instance?.curView
-    return current == null || current === this
+    return current != null && current === this
+  }
+
+  /**
+   * Moves keyboard focus into the viewer container after canvas interaction so
+   * document-level shortcuts stay scoped to this view.
+   *
+   * Skips host editable fields so wheel-over-canvas does not interrupt typing.
+   */
+  private focusViewerForShortcuts() {
+    const active = document.activeElement
+    if (active instanceof Node && this.container.contains(active)) {
+      return
+    }
+    if (
+      active instanceof HTMLElement &&
+      (active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.isContentEditable)
+    ) {
+      return
+    }
+    this.container.focus({ preventScroll: true })
+  }
+
+  /**
+   * True when the key event originated from (or is focused within) this view.
+   */
+  private isShortcutEventInsideViewer(e: KeyboardEvent): boolean {
+    const target = e.target
+    if (target instanceof Node && this.container.contains(target)) {
+      return true
+    }
+    const active = document.activeElement
+    return active instanceof Node && this.container.contains(active)
   }
 
   /**
@@ -3100,6 +3296,33 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * Interactive non-progressive open: dirty the canvas so {@link animate} can
+   * refresh under "Rendering drawing ...". Headless (`cooperativeYield`
+   * false) leaves this unset; the pool-drain / convert-end dirty is enough.
+   * {@link animate} applies {@link NON_PROGRESSIVE_OPEN_PAINT_INTERVAL_MS}.
+   */
+  private markInteractiveOpenDirty() {
+    if (this._progressiveRendering || !this._cooperativeYield) {
+      return
+    }
+    this._isDirty = true
+  }
+
+  /**
+   * True when this frame's WebGL paint should count toward OPENPROF mid-open
+   * paints and use the open-time throttle (unless the camera marked urgent).
+   */
+  private shouldCountMidOpenPaint(
+    stillLoading: boolean,
+    sceneBusy: boolean
+  ): boolean {
+    return (
+      (this._progressiveRendering && stillLoading) ||
+      (!this._progressiveRendering && this._cooperativeYield && sceneBusy)
+    )
+  }
+
+  /**
    * @inheritdoc
    */
   highlight(ids: AcDbObjectId[]) {
@@ -3152,19 +3375,81 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
-   * Releases canvas DOM listeners and stops the animation loop.
+   * Releases canvas DOM, WebGL context, convert work, and listeners.
    *
    * Call when this view will no longer be used (manager destroy / split
    * view teardown). Safe to call more than once.
    */
   dispose() {
+    if (this._viewDisposed) return
+    this._viewDisposed = true
+
+    // Stop convert before tearing down documents/singletons that commit paths read.
+    this.abortConversion()
+
     this._disposeCanvasTouchCallout?.()
     this._disposeCanvasTouchCallout = undefined
     this._disposeProgressiveInputWatch?.()
     this._disposeProgressiveInputWatch = undefined
+    this._disposeMobileBoxGesture?.()
+    this._disposeMobileBoxGesture = undefined
+    this._viewDomAbort.abort()
+
+    if (this._onFontNotFound) {
+      this._renderer.events.fontNotFound.removeEventListener(
+        this._onFontNotFound
+      )
+    }
+    if (this._onFontLoaded) {
+      this._renderer.events.fontLoaded.removeEventListener(this._onFontLoaded)
+    }
+    if (this._onSysVarChanged) {
+      AcDbSysVarManager.instance().events.sysVarChanged.removeEventListener(
+        this._onSysVarChanged
+      )
+    }
+    if (this._onSettingsModified) {
+      AcApSettingManager.instance.events.modified.removeEventListener(
+        this._onSettingsModified
+      )
+    }
+    if (this._onLayoutSwitched) {
+      acdbHostApplicationServices().layoutManager.events.layoutSwitched.removeEventListener(
+        this._onLayoutSwitched
+      )
+    }
+    if (this._onCommandWillStartHitTest) {
+      this.editor.events.commandWillStart.removeEventListener(
+        this._onCommandWillStartHitTest
+      )
+    }
+    if (this._onCommandEndedHitTest) {
+      this.editor.events.commandEnded.removeEventListener(
+        this._onCommandEndedHitTest
+      )
+    }
+
+    this._gripManager.dispose()
     this.clearFontLoadedRedrawTimer()
     this.cancelOpenLineworkFrame()
     this.stopAnimationLoop()
+
+    this.selectionSet.clear()
+    this.htmlTransientManager.dispose()
+    this._scene.clear()
+    this._renderer.dispose()
+    AcDbRenderingCache.instance.clear()
+
+    const webgl = this._renderer.internalRenderer
+    webgl.dispose()
+    webgl.forceContextLoss()
+
+    this.canvas.remove()
+    this._css2dRenderer.domElement.remove()
+    this._stats.dom.remove()
+
+    // Editor / command line / ResizeObserver (after canvas/CSS2D removed).
+    super.dispose()
   }
 
   /**
@@ -3234,32 +3519,41 @@ export class AcTrView2d extends AcEdBaseView {
     })
 
     const stillLoading = this._numOfEntitiesToProcess > 0
-    const deferRenderWhileLoading = stillLoading && !this._progressiveRendering
-    if (!this._isDirty && !this._htmlDirty && !stillLoading) return
+    const sceneBusy = stillLoading || this._pendingGeometryJobs > 0
+    // Headless non-progressive (`cooperativeYield` false): skip WebGL until
+    // idle. Export reads scene batches, not the framebuffer, and software
+    // WebGL + uncapped rAF spent most of open time rasterizing. Interactive
+    // non-progressive still paints under "Rendering drawing ..." — throttled
+    // below so each glyph completion does not redraw the full scene.
+    const deferRenderWhileLoading =
+      !this._progressiveRendering && !this._cooperativeYield && sceneBusy
+    if (!this._isDirty && !this._htmlDirty && !sceneBusy) {
+      return
+    }
     if (deferRenderWhileLoading) return
     if (!this._isDirty && !this._htmlDirty) return
 
-    // Progressive mid-open: throttle convert-driven paints only. Camera
-    // changes set `_progressivePaintUrgent` so pan/zoom still redraw now —
-    // throttling those made the canvas feel frozen after the overlay hid.
-    if (
-      this._progressiveRendering &&
-      stillLoading &&
-      this._isDirty &&
-      !this._progressivePaintUrgent
-    ) {
-      const now = performance.now()
-      if (
-        now - this._lastProgressivePaintAt <
-        AcTrView2d.PROGRESSIVE_OPEN_PAINT_INTERVAL_MS
-      ) {
+    // Mid-open throttle: progressive convert paints, and interactive
+    // non-progressive paints while the scene is still busy. Camera changes
+    // set `_progressivePaintUrgent` so pan/zoom still redraw now.
+    const countMidOpenPaint = this.shouldCountMidOpenPaint(
+      stillLoading,
+      sceneBusy
+    )
+    const throttleOpenPaint =
+      this._isDirty && !this._progressivePaintUrgent && countMidOpenPaint
+    if (throttleOpenPaint) {
+      const intervalMs = this._progressiveRendering
+        ? AcTrView2d.PROGRESSIVE_OPEN_PAINT_INTERVAL_MS
+        : AcTrView2d.NON_PROGRESSIVE_OPEN_PAINT_INTERVAL_MS
+      if (performance.now() - this._lastProgressivePaintAt < intervalMs) {
         return
       }
     }
 
     let needsRedraw = false
     if (this._isDirty) {
-      if (this._progressiveRendering && stillLoading) {
+      if (countMidOpenPaint) {
         this._progressivePaintCount++
         this._lastProgressivePaintAt = performance.now()
         this._progressivePaintUrgent = false
@@ -3905,9 +4199,15 @@ export class AcTrView2d extends AcEdBaseView {
       void job
         .run()
         .then(() => {
-          // Convert counter often hits 0 before fonts finish; without this,
-          // text added later never paints until the user pans/zooms.
-          if (job.epoch === this._convertEpoch) {
+          // Progressive: dirty every glyph (animate throttles paints).
+          // Interactive non-progressive: same, under a longer open-paint
+          // interval so "Rendering drawing ..." still shows progress.
+          // Headless non-progressive: skip — the pool-drain dirty below
+          // queues the single frame export/scripts need.
+          if (
+            job.epoch === this._convertEpoch &&
+            (this._progressiveRendering || this._cooperativeYield)
+          ) {
             this._isDirty = true
           }
         })
@@ -4082,8 +4382,9 @@ export class AcTrView2d extends AcEdBaseView {
     // is on. Otherwise a long sync convert blocks the main thread, the
     // progress overlay cannot poll `isProcessingEntities`, and Chromium may
     // treat the tab as hung ("Page Unresponsive" / kill) at the
-    // "Rendering drawing ..." stage. Mid-open WebGL paints remain gated by
-    // `progressive` / markProgressiveDirty below.
+    // "Rendering drawing ..." stage. Mid-open WebGL paints are gated by
+    // `progressive` / markProgressiveDirty, or markInteractiveOpenDirty
+    // when cooperative yields are on.
     //
     // Headless export sets cooperativeYield=false (or forExport) so convert
     // does not pay for setTimeout yields the CLI never needs.
@@ -4129,30 +4430,30 @@ export class AcTrView2d extends AcEdBaseView {
           continue
         }
 
-        // Interactive open can enqueue the same objectId twice (layout/chunk
-        // re-queue) while deferred glyph commit has not yet called addEntity.
-        // Re-expanding then appends a second batched slot → doubled TEXT labels.
-        // Claim the id as soon as convert starts so later passes skip it.
+        // Open and export can both observe the same id: the open drain claims
+        // it before deferred glyph commit calls addEntity, and export convert
+        // used to ignore that claim (`forExport`) and expand the block again.
+        // Claim as soon as convert starts so a later pass skips it. Skipping
+        // a claimed id is safe for export — off/frozen entities are not
+        // claimed when open skipped them, so they still convert here.
         const objectId = String(entity.objectId ?? '')
         let convertGen = 0
-        if (!options.forExport) {
-          if (
-            objectId &&
-            (this.hasEntity(objectId) ||
-              this._claimedConvertObjectIds.has(objectId))
-          ) {
-            // The border may already be in the scene from a pass that ran
-            // before the layout view existed. Still attach the viewport
-            // view; a second border is not drawn because we continue below.
-            if (entity instanceof AcDbViewport) {
-              this.attachViewportView(entity)
-            }
-            continue
+        if (
+          objectId &&
+          (this.hasEntity(objectId) ||
+            this._claimedConvertObjectIds.has(objectId))
+        ) {
+          // The border may already be in the scene from a pass that ran
+          // before the layout view existed. Still attach the viewport
+          // view; a second border is not drawn because we continue below.
+          if (entity instanceof AcDbViewport) {
+            this.attachViewportView(entity)
           }
-          if (objectId) {
-            this._claimedConvertObjectIds.add(objectId)
-            convertGen = this._entityConvertGeneration.get(objectId) ?? 0
-          }
+          continue
+        }
+        if (objectId) {
+          this._claimedConvertObjectIds.add(objectId)
+          convertGen = this._entityConvertGeneration.get(objectId) ?? 0
         }
 
         // Fast path: entities that declare a single batchable primitive append
@@ -4180,6 +4481,8 @@ export class AcTrView2d extends AcEdBaseView {
                     () => this.getDrawingExtents(),
                     i
                   )
+                } else {
+                  this.markInteractiveOpenDirty()
                 }
               }
             }
@@ -4198,7 +4501,14 @@ export class AcTrView2d extends AcEdBaseView {
         const threeEntity: AcTrEntity | null = this.drawEntity(entity, false)
         // Viewports may produce no border geometry (e.g. on a no-plot layer) while
         // still needing an AcTrViewportView for model content below.
-        if (!threeEntity && !(entity instanceof AcDbViewport)) continue
+        if (!threeEntity && !(entity instanceof AcDbViewport)) {
+          // Release the claim so a later export pass can retry; otherwise
+          // `forExport` claim checks would skip this id forever.
+          if (objectId) {
+            this._claimedConvertObjectIds.delete(objectId)
+          }
+          continue
+        }
 
         if (threeEntity) {
           threeEntity.objectId = entity.objectId
@@ -4281,6 +4591,8 @@ export class AcTrView2d extends AcEdBaseView {
                   () => this.getDrawingExtents(),
                   i
                 )
+              } else {
+                this.markInteractiveOpenDirty()
               }
             }
             if (deferGeometry) {
@@ -4312,6 +4624,10 @@ export class AcTrView2d extends AcEdBaseView {
           }
         }
       } catch (error) {
+        const failedId = String(entity.objectId ?? '')
+        if (failedId) {
+          this._claimedConvertObjectIds.delete(failedId)
+        }
         log.error(
           `[AcTrView2d] Failed to convert entity ${entity.objectId} (${entity.type}):`,
           error
@@ -4555,6 +4871,8 @@ export class AcTrView2d extends AcEdBaseView {
         this._progressiveOpenFit.afterGeometryBatch(() =>
           this.getDrawingExtents()
         )
+      } else {
+        this.markInteractiveOpenDirty()
       }
     } finally {
       this._convertPhaseMs.handleGroup += performance.now() - t0

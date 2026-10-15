@@ -3,10 +3,12 @@ import {
   ACADRUST_PARSER_WORKER_FILE,
   AcApI18n,
   type AcApLocale,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 
 import { registerAcadRustConverter } from './registerAcadRust'
+import { registerLibreDwgConverter } from './registerLibreDwg'
 
 /** Picks an {@link AcApLocale} from `navigator.language`. */
 function detectLocale(): AcApLocale {
@@ -27,8 +29,11 @@ if (!host) {
   throw new Error('Diff viewer demo markup is missing')
 }
 
-const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
-registerAcadRustConverter(dwgParserUrl)
+const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+registerLibreDwgConverter(dwgParserUrl)
+// Local fork: re-register the DWG slot with the copyleft-free acadrust
+// converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
+registerAcadRustConverter(`./workers/${ACADRUST_PARSER_WORKER_FILE}`)
 
 new AcApDiffViewer({
   container: host,

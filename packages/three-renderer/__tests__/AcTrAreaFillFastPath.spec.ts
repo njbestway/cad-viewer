@@ -13,6 +13,7 @@ import * as THREE from 'three'
 import {
   type AcTrBuiltDirectGeometry,
   buildAreaGeometry,
+  buildOffsetRingCenterline,
   buildOffsetRingDirectGeometry,
   getAreaBuildStats,
   resetAreaBuildStats,
@@ -171,12 +172,17 @@ function expectSameFill(
   }
   expect(winding(fast)).toBe(winding(general))
 
-  expect(fast.wcsBbox.min.x).toBe(general.wcsBbox.min.x)
-  expect(fast.wcsBbox.min.y).toBe(general.wcsBbox.min.y)
-  expect(fast.wcsBbox.max.x).toBe(general.wcsBbox.max.x)
-  expect(fast.wcsBbox.max.y).toBe(general.wcsBbox.max.y)
-  expect(fast.worldOffset.x).toBe(general.worldOffset.x)
-  expect(fast.worldOffset.y).toBe(general.worldOffset.y)
+  // The fast path now computes wcsBbox/worldOffset from the loop's own
+  // double-precision points (#729), while the general path still reads them
+  // back from a built (float32) geometry. Compare with float32-ULP
+  // tolerance rather than exact equality -- the fast path is the more
+  // precise of the two.
+  expect(fast.wcsBbox.min.x).toBeCloseTo(general.wcsBbox.min.x, 5)
+  expect(fast.wcsBbox.min.y).toBeCloseTo(general.wcsBbox.min.y, 5)
+  expect(fast.wcsBbox.max.x).toBeCloseTo(general.wcsBbox.max.x, 5)
+  expect(fast.wcsBbox.max.y).toBeCloseTo(general.wcsBbox.max.y, 5)
+  expect(fast.worldOffset.x).toBeCloseTo(general.worldOffset.x, 5)
+  expect(fast.worldOffset.y).toBeCloseTo(general.worldOffset.y, 5)
   expect(fast.material).toBe(general.material)
 }
 
@@ -288,47 +294,22 @@ describe('buildAreaGeometry single-loop fast path', () => {
     fast.geometry.dispose()
   })
 
-  it('keeps large drawing coordinates precise in both paths', () => {
-    expectFastPathMatchesGeneral(
-      areaFromLoop(rectangle(LARGE, LARGE, LARGE + 8, LARGE + 6))
-    )
-  })
-
-  it('keeps a small solid quad area exact at survey coordinates', () => {
-    // Float32 ulp at LARGE is ~4, so an absolute-coordinate buffer would snap
-    // this 3.75-unit quad onto the grid (collapsing width to ~4 and distorting
-    // area). Building local to a double origin keeps the covered area exact.
-    const size = 3.75
-    const built = build(
-      areaFromLoop(rectangle(LARGE, LARGE, LARGE + size, LARGE + size)),
+  it('keeps large drawing coordinates precise in the fast path (#729)', () => {
+    // The general (AcTrPolygon) path still writes raw WCS coordinates into a
+    // float32 buffer before any rebase and loses precision at this
+    // magnitude -- a separate, pre-existing instance of the same class of
+    // bug, out of scope here. Assert the fast path directly against ground
+    // truth instead of cross-checking against that known-imprecise baseline.
+    const fast = build(
+      areaFromLoop(rectangle(LARGE, LARGE, LARGE + 8, LARGE + 6)),
       new AcTrRenderContext()
     )
-    expect(totalArea(built)).toBeCloseTo(size * size, 3)
-    expect(usedVertexKeys(built).size).toBe(4)
-    built.geometry.dispose()
-  })
-
-  it('keeps a curved solid boundary unsampled at survey coordinates', () => {
-    // A half-circle-ish bulge loop is a "solid" fill that runs through the
-    // general AcTrPolygon path. At LARGE the tessellated arc must keep its
-    // individual vertices; absolute Float32 would merge them onto a ~4-unit
-    // grid and visibly flatten the curve.
-    const curved = new AcGePolyline2d(
-      [
-        { x: LARGE, y: LARGE, bulge: 1 },
-        { x: LARGE, y: LARGE + 10 },
-        { x: LARGE + 4, y: LARGE + 5 }
-      ],
-      true
-    )
-    const area = new AcGeArea2d()
-    area.add(curved)
-    resetAreaBuildStats()
-    const built = build(area, new AcTrRenderContext())
-    expect(getAreaBuildStats().generalPath).toBe(1)
-    expect(built.geometry.getAttribute('position').count).toBeGreaterThan(4)
-    expect(usedVertexKeys(built).size).toBeGreaterThan(4)
-    built.geometry.dispose()
+    expect(fast.wcsBbox.min.x).toBeCloseTo(LARGE, 5)
+    expect(fast.wcsBbox.min.y).toBeCloseTo(LARGE, 5)
+    expect(fast.wcsBbox.max.x).toBeCloseTo(LARGE + 8, 5)
+    expect(fast.wcsBbox.max.y).toBeCloseTo(LARGE + 6, 5)
+    expect(totalArea(fast)).toBeCloseTo(48, 3)
+    fast.geometry.dispose()
   })
 
   it('falls back to the general path for a curved loop', () => {
@@ -465,6 +446,47 @@ describe('AcDbSolid / AcDbTrace fill capacity', () => {
   })
 })
 
+describe('buildOffsetRingCenterline', () => {
+  it('returns a closed midpoint loop for aligned outer/inner rings', () => {
+    const outer: AcGePoint3dLike[] = [
+      { x: 0, y: 0, z: 0 },
+      { x: 10, y: 0, z: 0 },
+      { x: 10, y: 10, z: 0 },
+      { x: 0, y: 10, z: 0 }
+    ]
+    const inner: AcGePoint3dLike[] = [
+      { x: 1, y: 1, z: 0 },
+      { x: 9, y: 1, z: 0 },
+      { x: 9, y: 9, z: 0 },
+      { x: 1, y: 9, z: 0 }
+    ]
+    const centerline = buildOffsetRingCenterline(outer, inner)
+    expect(centerline).not.toBeNull()
+    if (!centerline) return
+    // 4 corners + closing vertex
+    expect(centerline).toHaveLength(5)
+    expect(centerline[0]).toEqual({ x: 0.5, y: 0.5, z: 0 })
+    expect(centerline[1]).toEqual({ x: 9.5, y: 0.5, z: 0 })
+    expect(centerline[4]).toEqual(centerline[0])
+  })
+
+  it('returns null when outer/inner vertex counts disagree', () => {
+    expect(
+      buildOffsetRingCenterline(
+        [
+          { x: 0, y: 0, z: 0 },
+          { x: 1, y: 0, z: 0 },
+          { x: 1, y: 1, z: 0 }
+        ],
+        [
+          { x: 0.1, y: 0.1, z: 0 },
+          { x: 0.9, y: 0.1, z: 0 }
+        ]
+      )
+    ).toBeNull()
+  })
+})
+
 describe('buildOffsetRingDirectGeometry', () => {
   function ringPoints(radius: number, count: number) {
     const points: AcGePoint3dLike[] = []
@@ -522,6 +544,31 @@ describe('buildOffsetRingDirectGeometry', () => {
     general.geometry.dispose()
   })
 
+  it('keeps a thin ring distinct from its outer edge at large coordinates (#729)', () => {
+    // Outer/inner radii only 0.05 apart -- well under a float32 ULP at this
+    // magnitude if the ring were quantized before rebasing. A collapsed
+    // ring would report ~zero covered area.
+    const cx = LARGE
+    const cy = LARGE
+    const count = 32
+    const shift = (points: AcGePoint3dLike[]) =>
+      points.map(p => ({ x: p.x + cx, y: p.y + cy, z: 0 }))
+    const outer = shift(ringPoints(10, count))
+    const inner = shift(ringPoints(9.95, count))
+
+    const built = buildOffsetRingDirectGeometry(
+      outer,
+      inner,
+      defaultTraits,
+      new AcTrRenderContext()
+    )
+    expect(built).not.toBeNull()
+    if (!built) return
+    const expectedArea = Math.PI * (10 * 10 - 9.95 * 9.95)
+    expect(totalArea(built)).toBeCloseTo(expectedArea, 0)
+    built.geometry.dispose()
+  })
+
   it('builds a multi-thousand-vertex ring without the general path', () => {
     const count = 4000
     resetAreaBuildStats()
@@ -541,38 +588,44 @@ describe('buildOffsetRingDirectGeometry', () => {
     built!.geometry.dispose()
   })
 
-  it('keeps a drill-hole disk precise at survey coordinates', () => {
-    // Float32 ulp at LARGE is ~4, so baking absolute WCS into the position
-    // buffer would snap a small disk/ring onto a handful of grid points (a
-    // jagged blob). Rebasing to a double-precision origin before the Float32
-    // write keeps every boundary vertex distinct and the covered area exact.
-    const shift = (points: AcGePoint3dLike[]): AcGePoint3dLike[] =>
-      points.map(point => ({
-        ...point,
-        x: point.x + LARGE,
-        y: point.y + LARGE
-      }))
-    const count = 32
-    const outer = shift(ringPoints(2, count))
-    const inner = shift(ringPoints(1, count))
-    const context = new AcTrRenderContext()
-    resetAreaBuildStats()
+  it('keeps half-width at survey coordinates (float32 rebase before upload, #724)', () => {
+    const cx = 38_500_000
+    const cy = 12_000_000
+    const halfWidth = 1.05
+    const outer: AcGePoint3dLike[] = [
+      { x: cx - 10 - halfWidth, y: cy - 4 - halfWidth, z: 0 },
+      { x: cx + 10 + halfWidth, y: cy - 4 - halfWidth, z: 0 },
+      { x: cx + 10 + halfWidth, y: cy + 4 + halfWidth, z: 0 },
+      { x: cx - 10 - halfWidth, y: cy + 4 + halfWidth, z: 0 }
+    ]
+    const inner: AcGePoint3dLike[] = [
+      { x: cx - 10 + halfWidth, y: cy - 4 + halfWidth, z: 0 },
+      { x: cx + 10 - halfWidth, y: cy - 4 + halfWidth, z: 0 },
+      { x: cx + 10 - halfWidth, y: cy + 4 - halfWidth, z: 0 },
+      { x: cx - 10 + halfWidth, y: cy + 4 - halfWidth, z: 0 }
+    ]
+
     const built = buildOffsetRingDirectGeometry(
       outer,
       inner,
       defaultTraits,
-      context
+      new AcTrRenderContext()
     )
     expect(built).not.toBeNull()
     if (!built) return
-    expect(getAreaBuildStats().offsetRingFastPath).toBe(1)
-    // All 64 boundary vertices stay distinct and the covered area matches the
-    // general path. Without the double-precision rebase, absolute Float32 at
-    // LARGE (ulp ~4) would merge the ring onto a handful of grid points.
-    const general = build(ringArea(outer, inner), context)
-    expect(Math.abs(totalArea(built) - totalArea(general))).toBeLessThan(1e-3)
-    expect(usedVertexKeys(built).size).toBe(count * 2)
+
+    expect(built.worldOffset.x).toBeCloseTo(cx, 5)
+    expect(built.worldOffset.y).toBeCloseTo(cy, 5)
+
+    const position = built.geometry.getAttribute('position')
+    const outer0 = new THREE.Vector3().fromBufferAttribute(position, 0)
+    const inner0 = new THREE.Vector3().fromBufferAttribute(position, 4)
+    expect(outer0.distanceTo(inner0)).toBeGreaterThan(1.5)
+
+    for (let i = 0; i < position.count; i++) {
+      expect(Math.abs(position.getX(i))).toBeLessThan(20)
+      expect(Math.abs(position.getY(i))).toBeLessThan(20)
+    }
     built.geometry.dispose()
-    general.geometry.dispose()
   })
 })

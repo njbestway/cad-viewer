@@ -27,6 +27,7 @@ import {
 } from '../input/AcEdOsnapResolver'
 import { AcEdMarkerManager } from '../input/marker'
 import {
+  acedDisposeMobileSnapLoupe,
   acedHideMobileSnapLoupe,
   acedRefreshMobileSnapLoupe
 } from '../input/ui/AcEdMobileSnapLoupe'
@@ -194,6 +195,13 @@ export type AcEdCalculateSizeCallback = () => { width: number; height: number }
  * });
  * ```
  */
+export interface AcEdViewportCoordinateMapper {
+  paperToModel(point: AcGePoint2dLike): AcGePoint2d
+  modelToPaper(point: AcGePoint2dLike): AcGePoint2d
+  /** Returns true when `paperPt` lies within the viewport's paper rectangle. */
+  containsPaperPoint(point: AcGePoint2dLike): boolean
+}
+
 export abstract class AcEdBaseView {
   /** Current viewport width in pixels */
   private _width: number
@@ -258,6 +266,18 @@ export abstract class AcEdBaseView {
   /** The HTML element to contain this view */
   protected _container: HTMLElement
 
+  /** Disconnects container/parent {@link ResizeObserver} on dispose. */
+  private _resizeObserver?: ResizeObserver
+
+  /**
+   * Aborts canvas DOM listeners registered in the base constructor.
+   * Subclasses may abort their own controllers independently.
+   */
+  private readonly _domAbortController = new AbortController()
+
+  /** True after {@link dispose} has run; further dispose calls are no-ops. */
+  private _baseDisposed = false
+
   /**
    * Long-lived session UI providers for this view (draw-style, etc.).
    * Feature installs register here; mountable accessories are minted on demand.
@@ -303,29 +323,50 @@ export abstract class AcEdBaseView {
     this._selectionSet = new AcEdSelectionSet()
     this._editor = new AcEditor(this)
     this._osnapResolver = new AcEdOsnapResolver(this)
-    this._canvas.addEventListener('mousemove', event => this.onMouseMove(event))
+    const domSignal = this._domAbortController.signal
+    this._canvas.addEventListener(
+      'mousemove',
+      event => this.onMouseMove(event),
+      { signal: domSignal }
+    )
     // Touch does not fire `mousemove`. Keep cursor (and therefore the next
     // point-prompt preview) in sync with the finger, otherwise `curMousePos`
     // stays at canvas (0, 0) — the top-left of the view. Mouse already has
     // `mousemove`; do not also handle pointer events or hover runs twice.
-    this._canvas.addEventListener('pointerdown', event => {
-      if (event.pointerType === 'touch') this.onMouseMove(event)
-    })
-    this._canvas.addEventListener('pointermove', event => {
-      if (event.pointerType === 'touch') this.onMouseMove(event)
-    })
-    this._canvas.addEventListener('mousedown', event => {
-      if (event.button === 1) {
-        // Middle mouse button (button === 1)
-        this._editor.setCursor(AcEdCorsorType.Grab)
-      }
-    })
-    this._canvas.addEventListener('mouseup', event => {
-      if (event.button === 1) {
-        // Middle mouse button (button === 1)
-        this._editor.restoreCursor()
-      }
-    })
+    this._canvas.addEventListener(
+      'pointerdown',
+      event => {
+        if (event.pointerType === 'touch') this.onMouseMove(event)
+      },
+      { signal: domSignal }
+    )
+    this._canvas.addEventListener(
+      'pointermove',
+      event => {
+        if (event.pointerType === 'touch') this.onMouseMove(event)
+      },
+      { signal: domSignal }
+    )
+    this._canvas.addEventListener(
+      'mousedown',
+      event => {
+        if (event.button === 1) {
+          // Middle mouse button (button === 1)
+          this._editor.setCursor(AcEdCorsorType.Grab)
+        }
+      },
+      { signal: domSignal }
+    )
+    this._canvas.addEventListener(
+      'mouseup',
+      event => {
+        if (event.button === 1) {
+          // Middle mouse button (button === 1)
+          this._editor.restoreCursor()
+        }
+      },
+      { signal: domSignal }
+    )
 
     const debouncedWindowResize = debounce(() => this.onWindowResize(), 0, {
       leading: false,
@@ -337,6 +378,7 @@ export abstract class AcEdBaseView {
     if (containerParent) {
       resizeObserver.observe(containerParent)
     }
+    this._resizeObserver = resizeObserver
 
     this._selectionBoxSize = 4
 
@@ -346,6 +388,25 @@ export abstract class AcEdBaseView {
       this.events.hover,
       this.events.unhover
     )
+  }
+
+  /**
+   * Releases base-view DOM observers, hover timers, and the editor UI.
+   *
+   * Safe to call more than once. Subclasses that override dispose must call
+   * `super.dispose()` so the ResizeObserver and canvas listeners are cleared.
+   */
+  dispose() {
+    if (this._baseDisposed) return
+    this._baseDisposed = true
+    this._domAbortController.abort()
+    this._resizeObserver?.disconnect()
+    this._resizeObserver = undefined
+    this._hoverController.dispose()
+    acedDisposeMobileSnapLoupe(this)
+    this._overlayGripOsnapMarkers?.clear()
+    this._overlayGripOsnapMarkers = null
+    this._editor.dispose()
   }
 
   /**
@@ -612,6 +673,21 @@ export abstract class AcEdBaseView {
     hitRadius?: number,
     pickOneOnly?: boolean
   ): AcEdSpatialQueryResultItemEx[]
+
+  /**
+   * Returns paper-space ↔ model-space WCS conversion for the paper-space
+   * viewport identified by `viewportId`, or `undefined` when no such
+   * viewport is visible in the active layout.
+   *
+   * {@link AcEdOsnapResolver} uses this to query osnap points against a
+   * viewport drill-through hit (whose geometry/pick point is in model-space
+   * WCS, see {@link AcEdSpatialQueryResultItemEx.viewportId}) using the
+   * cursor's paper-space WCS, then map the resulting points back to paper
+   * space (#746).
+   */
+  abstract getViewportCoordinateMapper(
+    viewportId: AcDbObjectId
+  ): AcEdViewportCoordinateMapper | undefined
 
   /**
    * Select entities intersected with the specified bounding box in the world

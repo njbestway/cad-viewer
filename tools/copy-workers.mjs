@@ -5,12 +5,15 @@
  *   node tools/copy-workers.mjs
  *   → copies mtext worker into ./dist
  *   → copies proprietary dwg workers when that package is available
+ *   → does NOT copy LibreDWG (GPL) — hosts/examples must depend on
+ *     @mlightcad/libredwg-converter and copy those assets themselves
  *   → does NOT copy acadrust — hosts/examples must depend on
  *     @mlightcad/acad-rust-converter and copy those assets themselves
  *
  * Consumer (examples):
  *   node tools/copy-workers.mjs dist/workers
  *   → copies *-worker.js from @mlightcad/cad-simple-viewer/dist
+ *   → copies LibreDWG worker + wasm from @mlightcad/libredwg-converter when present
  *   → copies acadrust worker + wasm from @mlightcad/acad-rust-converter when present
  */
 import {
@@ -31,6 +34,9 @@ import {
   DWG_CONVERTER_PACKAGE,
   DWG_PARSER_MAIN_FILE,
   DWG_PARSER_WORKER_FILE,
+  LIBREDWG_CONVERTER_PACKAGE,
+  LIBREDWG_PARSER_WASM_FILE,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_PACKAGE,
   MTEXT_RENDERER_WORKER_FILE
 } from './worker-assets.mjs'
@@ -121,6 +127,19 @@ function copyProducerWorkers() {
   )
 }
 
+function copyLibreDwgAssets(outDir) {
+  copyOptionalWorker(
+    LIBREDWG_CONVERTER_PACKAGE,
+    LIBREDWG_PARSER_WORKER_FILE,
+    outDir
+  )
+  copyOptionalWorker(
+    LIBREDWG_CONVERTER_PACKAGE,
+    LIBREDWG_PARSER_WASM_FILE,
+    outDir
+  )
+}
+
 function copyAcadRustAssets(outDir) {
   // acadrust is the default open-source DWG path: when a host depends on the
   // converter, the worker and its sibling wasm must land together (atomic pair:
@@ -172,7 +191,10 @@ function copyFromCadSimpleViewer(destRelativePath) {
     copy(join(srcDir, name), join(outDir, name))
   }
 
-  // acadrust is host-owned; copy when the example depends on the converter.
+  // LibreDWG is host-owned; copy when the example depends on the converter.
+  copyLibreDwgAssets(outDir)
+  // Local fork: copy the copyleft-free acadrust worker + wasm (MPL-2.0); the
+  // DWG slot is re-registered to it at runtime.
   copyAcadRustAssets(outDir)
 }
 

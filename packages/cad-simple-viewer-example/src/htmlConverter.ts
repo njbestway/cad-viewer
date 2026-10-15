@@ -2,15 +2,21 @@ import {
   type AcApHtmlExpiryDays,
   type AcApHtmlExportFormat,
   AcApHtmlSnapshotBuilder,
+  ACEX_DEFAULT_CHUNK_SIZE_MIB,
+  ACEX_MAX_CHUNK_SIZE_MIB,
+  ACEX_MIN_CHUNK_SIZE_MIB,
+  acexChunkSizeMiBToBytes,
   type AcExInitialViewMode,
   type AcExViewerMode,
   buildAcExPackage,
   captureAcApHtmlViewState,
+  clampAcApHtmlChunkSizeMiB,
   encodeSnapshot,
   packHtml,
   protectAcExHtmlEncodedSnapshot,
   resolveAcApHtmlExpiresAt,
   resolveAcApHtmlExportOptions,
+  resolveAcApHtmlPackageBuildOptions,
   zipAcExPackageFiles
 } from '@mlightcad/cad-html-plugin'
 import {
@@ -21,12 +27,14 @@ import {
   AcEdOpenMode,
   AcTrView2d,
   getDrawingExportBaseName,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE,
   resolveExportDownloadName
 } from '@mlightcad/cad-simple-viewer'
 import { log } from '@mlightcad/data-model'
 
 import { registerAcadRustConverter } from './registerAcadRust'
+import { registerLibreDwgConverter } from './registerLibreDwg'
 
 const SAMPLE_DRAWING_URL =
   'https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/canteen.dwg'
@@ -96,6 +104,9 @@ class HtmlConverterApp {
   private readonly convertButton: HTMLButtonElement
   private readonly exportInvisibleLayers: HTMLInputElement
   private readonly exportLayouts: HTMLInputElement
+  private readonly packageOptions: HTMLElement | null
+  private readonly chunkSizeMiB: HTMLInputElement | null
+  private readonly compressChunks: HTMLInputElement | null
   private readonly customExpiresAt: HTMLInputElement
   private readonly exportPassword: HTMLInputElement
   private readonly copyPasswordButton: HTMLButtonElement
@@ -130,6 +141,13 @@ class HtmlConverterApp {
     this.exportLayouts = document.getElementById(
       'exportLayouts'
     ) as HTMLInputElement
+    this.packageOptions = document.getElementById('packageOptions')
+    this.chunkSizeMiB = document.getElementById(
+      'chunkSizeMiB'
+    ) as HTMLInputElement | null
+    this.compressChunks = document.getElementById(
+      'compressChunks'
+    ) as HTMLInputElement | null
     this.customExpiresAt = document.getElementById(
       'customExpiresAt'
     ) as HTMLInputElement
@@ -142,6 +160,7 @@ class HtmlConverterApp {
 
     this.bindEvents()
     this.initSecurityDefaults()
+    this.initPackageDefaults()
   }
 
   private bindEvents() {
@@ -278,6 +297,9 @@ class HtmlConverterApp {
     if (securityPanel) {
       securityPanel.classList.toggle('is-disabled', isMulti)
     }
+    if (this.packageOptions) {
+      this.packageOptions.hidden = !isMulti
+    }
     if (isMulti) {
       const activeTab = document.querySelector('.tab.is-active') as
         | HTMLButtonElement
@@ -290,6 +312,22 @@ class HtmlConverterApp {
     this.convertButton.textContent = isMulti
       ? CONVERT_BUTTON_LABELS.multi
       : CONVERT_BUTTON_LABELS.single
+  }
+
+  private initPackageDefaults() {
+    if (this.chunkSizeMiB) {
+      this.chunkSizeMiB.min = String(ACEX_MIN_CHUNK_SIZE_MIB)
+      this.chunkSizeMiB.max = String(ACEX_MAX_CHUNK_SIZE_MIB)
+      this.chunkSizeMiB.value = String(ACEX_DEFAULT_CHUNK_SIZE_MIB)
+    }
+    if (this.compressChunks) {
+      this.compressChunks.checked = true
+    }
+  }
+
+  private readChunkSizeMiB(): number {
+    const raw = Number(this.chunkSizeMiB?.value ?? ACEX_DEFAULT_CHUNK_SIZE_MIB)
+    return clampAcApHtmlChunkSizeMiB(raw)
   }
 
   private initSecurityDefaults() {
@@ -453,8 +491,11 @@ class HtmlConverterApp {
       return
     }
 
-    const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
-    registerAcadRustConverter(dwgParserUrl)
+    const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+    registerLibreDwgConverter(dwgParserUrl)
+    // Local fork: re-register the DWG slot with the copyleft-free acadrust
+    // converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
+    registerAcadRustConverter(`./workers/${ACADRUST_PARSER_WORKER_FILE}`)
     AcApDocManager.createInstance({
       container: this.container,
       busyIndicatorHost: this.hiddenViewer,
@@ -589,7 +630,13 @@ class HtmlConverterApp {
       password:
         exportFormat === 'single'
           ? this.exportPassword.value.trim() || undefined
-          : undefined
+          : undefined,
+      ...(exportFormat === 'multi'
+        ? {
+            maxChunkBytes: acexChunkSizeMiBToBytes(this.readChunkSizeMiB()),
+            compressChunks: this.compressChunks?.checked !== false
+          }
+        : {})
     })
   }
 
@@ -665,7 +712,8 @@ class HtmlConverterApp {
     if (resolved.exportFormat === 'multi') {
       const pkg = buildAcExPackage(snapshot, {
         viewerRuntime,
-        baseName
+        baseName,
+        ...resolveAcApHtmlPackageBuildOptions(resolved)
       })
       return {
         downloadName: resolveExportDownloadName(fileName, 'zip'),

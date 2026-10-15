@@ -11,6 +11,7 @@ import {
   AcApOpenViewMode,
   AcEdOpenMode,
   AcTrView2d,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
@@ -19,6 +20,7 @@ import {
   AcDbDatabaseConverterManager,
   AcDbFileType
 } from '@mlightcad/data-model'
+import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
 
 /** Max time to wait for convert + deferred font/text geometry after open. */
 const SCENE_IDLE_TIMEOUT_MS = 120_000
@@ -286,13 +288,23 @@ async function ensureViewer(options: CadViewerCliRunOptions = {}): Promise<void>
   installDownloadCapture()
 
   const container = document.getElementById('cad-root') as HTMLDivElement
-  const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
+  const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+  AcDbDatabaseConverterManager.instance.register(
+    AcDbFileType.DWG,
+    new AcDbLibreDwgConverter({
+      convertByEntityType: false,
+      useWorker: true,
+      parserWorkerUrl: dwgParserUrl
+    })
+  )
+  // Local fork: re-register the DWG slot with the copyleft-free acadrust
+  // converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
   AcDbDatabaseConverterManager.instance.register(
     AcDbFileType.DWG,
     new AcDbAcadRustConverter({
       convertByEntityType: false,
       useWorker: true,
-      parserWorkerUrl: dwgParserUrl
+      parserWorkerUrl: `./workers/${ACADRUST_PARSER_WORKER_FILE}`
     })
   )
   AcApDocManager.createInstance({

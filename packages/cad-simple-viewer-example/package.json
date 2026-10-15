@@ -1,7 +1,7 @@
 {
   "name": "@mlightcad/cad-simple-viewer-example",
   "private": true,
-  "version": "1.7.5",
+  "version": "1.7.6-preview.0",
   "type": "module",
   "repository": {
     "type": "git",
@@ -28,9 +28,10 @@
     "@mlightcad/cad-simple-ui-plugin": "workspace:*",
     "@mlightcad/cad-svg-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "^1.15.6",
+    "@mlightcad/data-model": "^1.15.9",
+    "@mlightcad/libredwg-converter": "^3.15.9",
     "@mlightcad/acad-rust-converter": "workspace:*",
-    "@mlightcad/mtext-parser": "^1.5.3",
+    "@mlightcad/mtext-parser": "^1.5.5",
     "@mlightcad/mtext-renderer": "workspace:*",
     "@mlightcad/three-renderer": "workspace:*",
     "lodash-es": "4.17.21",
@@ -38,6 +39,8 @@
     "vue": "^3.4.21"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.8"
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^6.4.3",
+    "vite-plugin-static-copy": "^4.1.1"
   }
 }

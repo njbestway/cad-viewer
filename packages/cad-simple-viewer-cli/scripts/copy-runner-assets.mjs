@@ -7,6 +7,9 @@ import {
   ACADRUST_CONVERTER_PACKAGE,
   ACADRUST_PARSER_WORKER_FILE,
   ACADRUST_WASM_FILE,
+  LIBREDWG_CONVERTER_PACKAGE,
+  LIBREDWG_PARSER_WASM_FILE,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_PACKAGE,
   MTEXT_RENDERER_WORKER_FILE
 } from '../../../tools/worker-assets.mjs'
@@ -54,6 +57,16 @@ function copyIfExists(from, to) {
 
 mkdirSync(workersDir, { recursive: true })
 
+const libredwgDist = join(pkgRoot(LIBREDWG_CONVERTER_PACKAGE), 'dist')
+copy(
+  join(libredwgDist, LIBREDWG_PARSER_WORKER_FILE),
+  join(workersDir, LIBREDWG_PARSER_WORKER_FILE)
+)
+copyIfExists(
+  join(libredwgDist, LIBREDWG_PARSER_WASM_FILE),
+  join(workersDir, LIBREDWG_PARSER_WASM_FILE)
+)
+// Local fork: acadrust (MPL-2.0) parser worker + wasm pair.
 const acadRustDist = join(pkgRoot(ACADRUST_CONVERTER_PACKAGE), 'dist')
 copy(
   join(acadRustDist, ACADRUST_PARSER_WORKER_FILE),

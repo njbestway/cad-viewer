@@ -1,15 +1,20 @@
 import 'element-plus/dist/index.css'
 
 import { ACADRUST_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
+import { LIBREDWG_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
 import { i18n } from '@mlightcad/cad-viewer'
 import ElementPlus from 'element-plus'
 import { createApp } from 'vue'
 
 import App from './App.vue'
 import { registerAcadRustConverter } from './registerAcadRust'
+import { registerLibreDwgConverter } from './registerLibreDwg'
 
 const initApp = () => {
-  // Opt into copyleft-free DWG support (acadrust / MPL-2.0) before the viewer mounts.
+  // Opt into GPL DWG support before the viewer mounts.
+  registerLibreDwgConverter(`./assets/${LIBREDWG_PARSER_WORKER_FILE}`)
+  // Local fork: re-register the DWG slot with the copyleft-free acadrust
+  // converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
   registerAcadRustConverter(`./assets/${ACADRUST_PARSER_WORKER_FILE}`)
 
   const app = createApp(App)

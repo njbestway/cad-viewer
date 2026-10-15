@@ -725,6 +725,11 @@ export class AcApDocManager {
    * Destroy the view and unload all plugins
    */
   async destroy() {
+    // Abort progressive convert before plugins/documents go away so in-flight
+    // entity commits do not read a torn-down singleton.
+    this._mainView.abortConversion()
+    this._splitView?.abortConversion()
+
     await this._pluginManager.unloadAllPlugins()
     for (const session of [...this._sessions]) {
       session.context.dispose()
@@ -2421,10 +2426,12 @@ export class AcApDocManager {
       if (framedSynchronously) {
         AcApZoomCmd.rememberOriginalView(view, db.currentSpaceId)
       }
-      // Headless multi-layout export: convert unvisited paper tabs before the
-      // open-idle wait so `-chtml` does not pay a second full layout pass.
-      // Fire-and-forget: onAfterOpenDocument is sync; waitUntilIdle / CLI
-      // waitForSceneIdle drain the convert queue this kicks off.
+      // Headless multi-layout export: convert paper tabs the open stream did
+      // not already claim. `ensureEntitiesConvertedForExport` waits for the
+      // open drain first, so this must not be a second full pass over
+      // in-flight model-space entities (that pass is serial and duplicates
+      // geometry). Fire-and-forget: onAfterOpenDocument is sync;
+      // waitUntilIdle / CLI waitForSceneIdle observe the work this starts.
       if (options?.convertAllLayouts) {
         void view
           .ensureEntitiesConvertedForExport({

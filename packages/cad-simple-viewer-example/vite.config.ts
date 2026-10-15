@@ -9,6 +9,9 @@ import {
   ACADRUST_CONVERTER_PACKAGE,
   ACADRUST_PARSER_WORKER_FILE,
   ACADRUST_WASM_FILE,
+  LIBREDWG_CONVERTER_PACKAGE,
+  LIBREDWG_PARSER_WASM_FILE,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '../../tools/worker-assets.mjs'
 
@@ -28,6 +31,15 @@ export default defineConfig(() => {
   }
 
   const realdwgRoot = resolve(__dirname, '../../../realdwg-web')
+  const libredwgDist = `./node_modules/${LIBREDWG_CONVERTER_PACKAGE}/dist`
+  const libredwgWasmSrc = resolve(
+    __dirname,
+    'node_modules',
+    LIBREDWG_CONVERTER_PACKAGE,
+    'dist',
+    LIBREDWG_PARSER_WASM_FILE
+  )
+  // Local fork: acadrust (MPL-2.0) parser worker + wasm pair.
   const acadRustDist = `./node_modules/${ACADRUST_CONVERTER_PACKAGE}/dist`
   const acadRustWasmSrc = resolve(
     __dirname,
@@ -72,6 +84,21 @@ export default defineConfig(() => {
             dest: 'workers',
             rename: { stripBase: true }
           },
+          {
+            src: `${libredwgDist}/${LIBREDWG_PARSER_WORKER_FILE}`,
+            dest: 'workers',
+            rename: { stripBase: true }
+          },
+          ...(existsSync(libredwgWasmSrc)
+            ? [
+                {
+                  src: `${libredwgDist}/${LIBREDWG_PARSER_WASM_FILE}`,
+                  dest: 'workers',
+                  rename: { stripBase: true }
+                }
+              ]
+            : []),
+          // Local fork: acadrust (MPL-2.0) parser worker + wasm pair.
           {
             src: `${acadRustDist}/${ACADRUST_PARSER_WORKER_FILE}`,
             dest: 'workers',

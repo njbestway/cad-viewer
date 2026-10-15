@@ -22,6 +22,7 @@ import {
   AcUiFileOpenPanel,
   eventBus,
   layoutBackgroundColorFromRgb,
+  LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 import {
@@ -44,6 +45,7 @@ import { getGoogleDriveEnvConfig } from './googleDriveEnv'
 import { getOneDriveEnvConfig } from './onedriveEnv'
 import { registerLazyPlugins } from './register'
 import { registerAcadRustConverter } from './registerAcadRust'
+import { registerLibreDwgConverter } from './registerLibreDwg'
 
 // Isolate this example's prefs from cad-viewer-example on localhost.
 AcApSettingManager.configure({
@@ -905,8 +907,11 @@ class CadViewerApp {
       // Prefer main-thread MTEXT by default (less peak memory). Pass `?worker=1`
       // with openprof, or rely on worker mode only when explicitly requested.
       const useWorkers = openProf ? isWorkerOpenMode() : false
-      const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
-      registerAcadRustConverter(dwgParserUrl)
+      const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+      registerLibreDwgConverter(dwgParserUrl)
+      // Local fork: re-register the DWG slot with the copyleft-free acadrust
+      // converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
+      registerAcadRustConverter(`./workers/${ACADRUST_PARSER_WORKER_FILE}`)
       AcApDocManager.createInstance({
         container: this.container,
         busyIndicatorHost: this.viewerPane,

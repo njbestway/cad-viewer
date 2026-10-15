@@ -25,7 +25,6 @@ import {
 } from '../view/AcEdSpatialQueryResult'
 import {
   type AcEdOsnapCenterMark,
-  canonicalGsMark,
   centerMarksCoincide,
   collectCenterMarksFromEntity,
   mergeAcquiredCenterMarks,
@@ -74,6 +73,15 @@ type IntersectionSource = {
   entity: AcDbEntity
   /** Maps entity-local geometry into WCS. Identity for model-space entities. */
   transform: AcGeMatrix3d
+  /**
+   * Set when this source came from a paper-space viewport drill-through:
+   * `box`/`entity` geometry is in that viewport's model-space WCS, not the
+   * active layout's paper-space WCS (#746). Only sources with the same
+   * `viewportId` (including two `undefined`s, i.e. both from the active
+   * layout itself) are ever paired — intersecting across unrelated spaces
+   * is meaningless.
+   */
+  viewportId?: AcDbObjectId
 }
 
 function boxesOverlapXY(a: AcGeBox3d, b: AcGeBox3d): boolean {
@@ -371,9 +379,87 @@ export class AcEdOsnapResolver {
     })
   }
 
+  /**
+   * Collects enabled osnap modes from an already-resolved block sub-entity so
+   * each hit child is walked once instead of once per mode (#745).
+   */
+  private collectOsnapPointsFromResolvedSubEntity(
+    found: { entity: AcDbEntity; transform: AcGeMatrix3d },
+    osnapPoints: AcEdOsnapPoint[],
+    pickPoint: AcGePoint3dLike,
+    lastPoint: AcGePoint3dLike
+  ) {
+    const inverse = found.transform.clone().invert()
+    const localPick = new AcGePoint3d(pickPoint).applyMatrix4(inverse)
+    const localLast = new AcGePoint3d(lastPoint).applyMatrix4(inverse)
+    const modes = acdbMaskToOsnapModes(AcApSettingManager.instance.osnapModes)
+    const isNestedInsert = found.entity instanceof AcDbBlockReference
+
+    for (const mode of modes) {
+      if (mode === AcDbOsnapMode.Intersection) continue
+      const localSnapPoints: AcGePoint3dLike[] = []
+      if (isNestedInsert) {
+        // Preserve INSERT self-marker semantics used by subEntityGetOsnapPoints.
+        found.entity.subGetOsnapPoints(
+          mode,
+          localPick,
+          localLast,
+          localSnapPoints,
+          found.entity.objectId,
+          found.transform
+        )
+        for (const point of localSnapPoints) {
+          osnapPoints.push({
+            x: point.x,
+            y: point.y,
+            z: point.z ?? 0,
+            type: mode
+          })
+        }
+      } else {
+        found.entity.subGetOsnapPoints(
+          mode,
+          localPick,
+          localLast,
+          localSnapPoints
+        )
+        for (const point of localSnapPoints) {
+          const world = new AcGePoint3d(point).applyMatrix4(found.transform)
+          osnapPoints.push({
+            x: world.x,
+            y: world.y,
+            z: world.z,
+            type: mode
+          })
+        }
+      }
+    }
+  }
+
+  private static childBoxHint(child: {
+    minX?: number
+    minY?: number
+    maxX?: number
+    maxY?: number
+  }): AcGePoint3dLike | undefined {
+    if (
+      child.minX == null ||
+      child.minY == null ||
+      child.maxX == null ||
+      child.maxY == null
+    ) {
+      return undefined
+    }
+    return {
+      x: (child.minX + child.maxX) / 2,
+      y: (child.minY + child.maxY) / 2,
+      z: 0
+    }
+  }
+
   private collectIntersectionOsnapPoints(
     pickResults: AcEdSpatialQueryResultItemEx[],
-    modelSpace: { getIdAt: (id: AcDbObjectId) => AcDbEntity | undefined },
+    db: ReturnType<typeof acdbHostApplicationServices>['workingDatabase'],
     osnapPoints: AcEdOsnapPoint[],
     cursorWcs: AcGePoint2dLike,
     threshold: number
@@ -393,31 +479,48 @@ export class AcEdOsnapResolver {
     for (const item of pickResults) {
       if (sources.length >= MAX_INTERSECTION_SOURCES) break
       if (!isEffectiveSpatialQueryHit(item)) continue
-      const entity = modelSpace.getIdAt(item.id)
+      const entity = AcEdOsnapResolver.getEntityById(db, item.id)
       if (!entity) continue
+      const viewportId = item.viewportId
+      // Drill-through hits without a live mapper must not be treated as
+      // paper-space geometry — their boxes are still in model WCS.
+      if (
+        viewportId != null &&
+        !this._view.getViewportCoordinateMapper(viewportId)
+      ) {
+        continue
+      }
 
       if (item.children && item.children.length > 0) {
         // INSERT (and other hierarchical hits): only the aperture-hit children.
         // Never expand the whole block definition into INT snap.
         for (const child of item.children) {
           if (sources.length >= MAX_INTERSECTION_SOURCES) break
-          const gsMark = canonicalGsMark(child.id)
-          const key = `${item.id}:${gsMark}`
+          // Keep the `#n` occurrence suffix so two instances of the same part
+          // do not collapse to one INT source (#745).
+          const key = `${item.id}:${child.id}`
           if (entity instanceof AcDbBlockReference) {
-            const found = resolveBlockSubEntity(entity, gsMark)
+            const found = resolveBlockSubEntity(
+              entity,
+              child.id,
+              new AcGeMatrix3d(),
+              AcEdOsnapResolver.childBoxHint(child)
+            )
             if (!found) continue
             tryAdd({
               key,
               box: boxFromSpatialItem(child),
               entity: found.entity,
-              transform: found.transform
+              transform: found.transform,
+              viewportId
             })
           } else {
             tryAdd({
               key,
               box: boxFromSpatialItem(child),
               entity,
-              transform: new AcGeMatrix3d()
+              transform: new AcGeMatrix3d(),
+              viewportId
             })
           }
         }
@@ -434,7 +537,8 @@ export class AcEdOsnapResolver {
         key: item.id,
         box: entity.geometricExtents,
         entity,
-        transform: new AcGeMatrix3d()
+        transform: new AcGeMatrix3d(),
+        viewportId
       })
     }
 
@@ -448,23 +552,49 @@ export class AcEdOsnapResolver {
       for (let j = i + 1; j < sources.length; j++) {
         if (pairTests >= MAX_INTERSECTION_PAIR_TESTS) return
         if (performance.now() - started > INTERSECTION_TIME_BUDGET_MS) return
+        if (sources[i].viewportId !== sources[j].viewportId) continue
         if (!boxesOverlapXY(sources[i].box, sources[j].box)) continue
 
         pairTests++
+        const viewportId = sources[i].viewportId
+        const mapper =
+          viewportId != null
+            ? this._view.getViewportCoordinateMapper(viewportId)
+            : undefined
+        // Sources with a viewportId were only added when a mapper existed;
+        // if it disappeared mid-resolve, skip rather than emit model WCS.
+        if (viewportId != null && !mapper) continue
         const points = intersectSources(sources[i], sources[j])
         for (const point of points) {
-          const dx = point.x - cursorWcs.x
-          const dy = point.y - cursorWcs.y
+          const paperPoint = mapper ? mapper.modelToPaper(point) : point
+          if (mapper && !mapper.containsPaperPoint(paperPoint)) continue
+          const dx = paperPoint.x - cursorWcs.x
+          const dy = paperPoint.y - cursorWcs.y
           if (dx * dx + dy * dy > threshSq) continue
           osnapPoints.push({
-            x: point.x,
-            y: point.y,
+            x: paperPoint.x,
+            y: paperPoint.y,
             z: point.z,
             type: AcDbOsnapMode.Intersection
           })
         }
       }
     }
+  }
+
+  /**
+   * Looks an entity up by id with no block-table-record owner check, so a
+   * hit is resolved the same way whether it came from the active layout's
+   * own spatial index (paper space) or was drilled through a paper-space
+   * viewport into model space (#746) — a BTR-scoped `getIdAt` only resolves
+   * entities it owns and silently drops every other hit.
+   */
+  private static getEntityById(
+    db: ReturnType<typeof acdbHostApplicationServices>['workingDatabase'],
+    id: AcDbObjectId
+  ): AcDbEntity | undefined {
+    const object = db.getObjectById(id)
+    return object instanceof AcDbEntity ? object : undefined
   }
 
   private collectOsnapPoints(
@@ -475,32 +605,85 @@ export class AcEdOsnapResolver {
   ): AcEdOsnapPoint[] {
     const results = this._view.pick(cursorWcs, hitRadiusPx)
     const db = acdbHostApplicationServices().workingDatabase
-    const modelSpace = db.tables.blockTable.modelSpace
     const osnapPoints: AcEdOsnapPoint[] = []
     const pickPoint = AcGeGeometryUtil.point2dToPoint3d(cursorWcs)
     const last = AcGeGeometryUtil.point2dToPoint3d(lastPoint)
 
     results.forEach(item => {
-      const entity = modelSpace.getIdAt(item.id)
+      const entity = AcEdOsnapResolver.getEntityById(db, item.id)
       if (!entity) return
 
+      // A viewport drill-through hit's geometry is in model-space WCS: the
+      // pick/last points must be converted into that space before the
+      // query, and whatever comes back converted to paper space before it
+      // can be compared with the paper-space cursor (#746).
+      const mapper =
+        item.viewportId != null
+          ? this._view.getViewportCoordinateMapper(item.viewportId)
+          : undefined
+      // Never fall back to treating a tagged drill-through hit as paper
+      // space — that reintroduces the wrong-space snap from #746.
+      if (item.viewportId != null && !mapper) return
+
+      const queryPickPoint = mapper
+        ? AcGeGeometryUtil.point2dToPoint3d(mapper.paperToModel(cursorWcs))
+        : pickPoint
+      const queryLastPoint = mapper
+        ? AcGeGeometryUtil.point2dToPoint3d(mapper.paperToModel(lastPoint))
+        : last
+
+      const localPoints: AcEdOsnapPoint[] = []
       if (item.children && item.children.length > 0) {
-        item.children.forEach(child =>
+        item.children.forEach(child => {
+          if (entity instanceof AcDbBlockReference) {
+            const found = resolveBlockSubEntity(
+              entity,
+              child.id,
+              new AcGeMatrix3d(),
+              AcEdOsnapResolver.childBoxHint(child)
+            )
+            if (found) {
+              this.collectOsnapPointsFromResolvedSubEntity(
+                found,
+                localPoints,
+                queryPickPoint,
+                queryLastPoint
+              )
+              return
+            }
+          }
+          // Keep `#n` so data-model occurrence resolution can disambiguate
+          // duplicate nested INSERT parts when resolveBlockSubEntity misses.
           this.collectOsnapPointsInAvailableModes(
             entity,
-            osnapPoints,
-            pickPoint,
-            last,
-            canonicalGsMark(child.id)
+            localPoints,
+            queryPickPoint,
+            queryLastPoint,
+            child.id
           )
-        )
+        })
       } else {
         this.collectOsnapPointsInAvailableModes(
           entity,
-          osnapPoints,
-          pickPoint,
-          last
+          localPoints,
+          queryPickPoint,
+          queryLastPoint
         )
+      }
+
+      if (!mapper) {
+        osnapPoints.push(...localPoints)
+        return
+      }
+      for (const point of localPoints) {
+        const paperPoint = mapper.modelToPaper(point)
+        if (!mapper.containsPaperPoint(paperPoint)) continue
+        osnapPoints.push({
+          x: paperPoint.x,
+          y: paperPoint.y,
+          z: point.z,
+          type: point.type
+        })
       }
     })
 
@@ -512,24 +695,21 @@ export class AcEdOsnapResolver {
     ) {
       this.collectIntersectionOsnapPoints(
         results,
-        modelSpace,
+        db,
         osnapPoints,
         cursorWcs,
         threshold
       )
     }
 
-    this.updateAcquiredCenters(results, modelSpace, pickPoint)
+    this.updateAcquiredCenters(results, db, pickPoint)
 
     return osnapPoints
   }
 
   private updateAcquiredCenters(
-    results: Array<{
-      id: AcDbObjectId
-      children?: Array<{ id: AcDbObjectId }>
-    }>,
-    modelSpace: { getIdAt: (id: AcDbObjectId) => AcDbEntity | undefined },
+    results: AcEdSpatialQueryResultItemEx[],
+    db: ReturnType<typeof acdbHostApplicationServices>['workingDatabase'],
     pickPoint: AcGePoint3dLike
   ) {
     if (
@@ -544,20 +724,38 @@ export class AcEdOsnapResolver {
 
     const hovered: AcEdOsnapCenterMark[] = []
     results.forEach(item => {
-      const entity = modelSpace.getIdAt(item.id)
+      const entity = AcEdOsnapResolver.getEntityById(db, item.id)
       if (!entity) return
+
+      const mapper =
+        item.viewportId != null
+          ? this._view.getViewportCoordinateMapper(item.viewportId)
+          : undefined
+      if (item.viewportId != null && !mapper) return
+
+      const queryPickPoint = mapper
+        ? AcGeGeometryUtil.point2dToPoint3d(mapper.paperToModel(pickPoint))
+        : pickPoint
+
+      const localMarks: AcEdOsnapCenterMark[] = []
       if (item.children && item.children.length > 0) {
         item.children.forEach(child => {
-          hovered.push(
-            ...collectCenterMarksFromEntity(
-              entity,
-              pickPoint,
-              canonicalGsMark(child.id)
-            )
+          localMarks.push(
+            ...collectCenterMarksFromEntity(entity, queryPickPoint, child.id)
           )
         })
       } else {
-        hovered.push(...collectCenterMarksFromEntity(entity, pickPoint))
+        localMarks.push(...collectCenterMarksFromEntity(entity, queryPickPoint))
+      }
+
+      if (!mapper) {
+        hovered.push(...localMarks)
+        return
+      }
+      for (const mark of localMarks) {
+        const paperPoint = mapper.modelToPaper(mark)
+        if (!mapper.containsPaperPoint(paperPoint)) continue
+        hovered.push({ ...mark, x: paperPoint.x, y: paperPoint.y })
       }
     })
 
