@@ -91,7 +91,10 @@ async function findWorkspacePackageNames(rootPkg) {
   const entries = await readdir(packagesDir, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    // Include junctioned workspace packages (e.g. packages/mtext-renderer,
+    // a junction to the linked mtext-renderer repo) so `workspace:*` specs
+    // pointing at them are treated as workspace refs, not version drift.
+    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
     const pkgPath = path.join(packagesDir, entry.name, 'package.json');
     try {
       const pkg = await readJson(pkgPath);
@@ -181,6 +184,8 @@ async function syncPackage(
     let hadProcessingErrors = false;
 
     for (const entry of packageDirs) {
+      // Junctions (e.g. packages/mtext-renderer) are skipped on purpose: the
+      // linked fork repo owns that package.json, never rewrite it from here.
       if (!entry.isDirectory()) continue;
       const packageFilePath = path.join(packagesDir, entry.name, 'package.json');
       try {

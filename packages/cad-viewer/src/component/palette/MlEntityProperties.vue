@@ -2,7 +2,7 @@
   <div class="ml-entity-properties">
     <!-- Dropdown for multiple entities -->
     <div
-      v-if="entityPropsList && entityPropsList.length > 1"
+      v-if="entityPropsList && entityPropsList.length > 0"
       class="ml-entity-selector"
     >
       <el-select
@@ -278,10 +278,16 @@ function arrayKey(group: string, prop: string) {
 /* ================= formatting ================= */
 
 function getPropertyName(row: MlDisplayPropertyRow): string {
+  // Element Plus evaluates every `el-table-column` default slot once with a
+  // dummy scope (`{ row: {}, column: {}, $index: -1 }`) while collecting
+  // nested columns; ignore that placeholder row.
+  if (row == null || row.name == null) return ''
   return row.skipTranslation ? row.name : entityPropName(row.name)
 }
 
 function formatDisplayValue(row: MlDisplayPropertyRow): string {
+  // Placeholder row from el-table-column collection (see getPropertyName).
+  if (row == null || row.accessor == null) return ''
   const v = row.accessor.get()
   switch (row.type) {
     case 'boolean':

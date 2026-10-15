@@ -5,6 +5,7 @@ import {
   AcGeCircArc3d,
   AcGeEllipseArc3d,
   AcGePoint2d,
+  AcGePoint2dLike,
   AcGePoint3d,
   AcGePoint3dLike,
   AcGePolyline2d,
@@ -54,6 +55,10 @@ import {
 } from './AcTrEntityPreview'
 import { AcTrMTextRenderer } from './AcTrMTextRenderer'
 import { AcTrRenderContext } from './AcTrRenderContext'
+import {
+  measureOffsetEdgeBand,
+  measureWidePolylineBand
+} from './AcTrWidePolylineCenterline'
 
 /** Event payload when a mapped font cannot be resolved during rendering. */
 export interface AcTrFontNotFoundEventArgs {
@@ -747,6 +752,24 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
    * @inheritdoc
    */
   area(area: AcGeArea2d) {
+    // A wide polyline is emitted by the data model as a solid-fill band of
+    // per-segment quads. Two cases must be stroked as a centerline instead of
+    // filled solid:
+    //  1. The band carries a dashed/complex linetype (e.g. GAS_LINE). The fill
+    //     path never consults `lineType`, so the pattern silently disappears on
+    //     a polyline that also has width, even though the identical width-less
+    //     polyline renders it correctly through the line path.
+    //  2. The band is needle-thin (width far below its own extent). Filled at
+    //     true width it collapses to well under one device pixel and vanishes,
+    //     making a thin *wide* polyline LESS visible than a width-less one (which
+    //     the line path floors at >=1px). Rebuilding the centerline lets it draw
+    //     as a hairline. Real fills and hatches keep their solid fill.
+    // Anything else (hatches, collapsed or self-revisiting bands) falls through
+    // to normal fill.
+    const centerline = this.widePolylineStrokeCenterline(area)
+    if (centerline) {
+      return this.lines(centerline)
+    }
     if (this._directCapture !== 'off') {
       if (this.tryCaptureDirectPayload({ kind: 'area', area })) {
         return this.createDirectCapturePlaceholder() as AcTrPolygon
@@ -754,6 +777,66 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
       return this.createDirectCapturePlaceholder() as AcTrPolygon
     }
     return new AcTrPolygon(area, this._subEntityTraits, this._context)
+  }
+
+  /**
+   * Reconstructs the WCS centerline of a wide-polyline solid-fill band so it can
+   * be stroked (dash pattern / glyphs, or a >=1px hairline for a needle-thin
+   * band) instead of filled solid.
+   *
+   * @returns Centerline points when `area` is a reconstructable band that should
+   * be stroked, or `null` to leave it as a plain fill.
+   */
+  private widePolylineStrokeCenterline(
+    area: AcGeArea2d
+  ): AcGePoint3dLike[] | null {
+    // A thin band whose width is under this fraction of its own bounding-box
+    // diagonal renders well below one device pixel; promote it to a hairline.
+    const THIN_WIDE_POLYLINE_RATIO = 0.02
+    const traits = this._subEntityTraits
+    if (traits.fillType?.solidFill !== true) {
+      return null
+    }
+    const pattern = traits.lineType?.pattern
+    const hasPattern = !!pattern && pattern.length > 0
+
+    let loops: AcGePoint2dLike[][]
+    try {
+      loops = area.tessellate(
+        acdbDrawTessellateOptions({ context: this._context })
+      )
+    } catch {
+      return null
+    }
+    // A wide polyline band reaches us in one of two tessellator topologies:
+    //  - a chain of per-segment quads (each loop is one `[ls,le,re,rs]` quad);
+    //  - the two long boundary edges of the band (2 distinct loops, equal vertex
+    //    counts). Duplicate loops (each quad emitted twice) are collapsed inside
+    //    the measure helpers before either walk runs.
+    // A lone quad is geometrically identical to a rectangular solid hatch, so for
+    // the patterned path it is only trusted when the linetype truly embeds
+    // TEXT/SHAPE (e.g. the "井田边界" "+" mark). For the Continuous path we allow
+    // a lone quad too, but then lean entirely on the thin-ratio gate below — a
+    // square hatch has width/diagonal ~ 1 and keeps its solid fill, while a
+    // needle-thin polyline passes and is promoted to a hairline.
+    const band =
+      measureWidePolylineBand(loops, {
+        allowSingleQuad: isComplexLineType(pattern) || !hasPattern
+      }) ?? measureOffsetEdgeBand(loops)
+    if (!band) {
+      return null
+    }
+    if (!hasPattern) {
+      // Continuous (or empty pattern): only override the fill when the band is a
+      // needle-thin sliver that would vanish sub-pixel; leave genuine fills.
+      if (!(
+        band.diagonal > 0 &&
+        band.minWidth / band.diagonal < THIN_WIDE_POLYLINE_RATIO
+      )) {
+        return null
+      }
+    }
+    return band.centerline
   }
 
   /**

@@ -1,18 +1,19 @@
-import { existsSync } from 'fs'
-import { dirname, resolve } from 'path'
+import vue from '@vitejs/plugin-vue'
+import { createReadStream, existsSync, statSync } from 'fs'
+import { dirname, extname, resolve, sep } from 'path'
+import { visualizer } from 'rollup-plugin-visualizer'
 import { fileURLToPath } from 'url'
-import { Alias, defineConfig } from 'vite'
+import { Alias, type Connect, defineConfig, type Plugin } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import svgLoader from 'vite-svg-loader'
-import { visualizer } from 'rollup-plugin-visualizer'
-import vue from '@vitejs/plugin-vue'
-import { examplePeerPackageAliases, exampleRollupOutput } from '../vite-config/pluginRollupOutput'
+
 import {
   ACADRUST_CONVERTER_PACKAGE,
   ACADRUST_PARSER_WORKER_FILE,
   ACADRUST_WASM_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '../../tools/worker-assets.mjs'
+import { examplePeerPackageAliases, exampleRollupOutput } from '../vite-config/pluginRollupOutput'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const VIEWER_RUNTIME_SRC = '../cad-html-plugin/dist/viewer-runtime.iife.js'
@@ -64,6 +65,84 @@ function useLocalMtextRenderer(mode: string): boolean {
     mode === 'local-mtext-renderer' ||
     isEnvFlagEnabled('CAD_VIEWER_USE_LOCAL_MTEXT_RENDERER')
   )
+}
+
+const CAD_DATA_DIR = resolve(__dirname, '../../caddata')
+const CAD_DATA_ROUTE = '/cad-data/'
+
+/**
+ * Extensions the local cad-data route serves with an explicit `Content-Type`.
+ * Everything else falls back to `application/octet-stream`, which is fine for
+ * `.shx` / `.pfb` fonts and `.dxf` / `.dwg` sample drawings.
+ */
+const CAD_DATA_MIME: Record<string, string> = {
+  '.json': 'application/json',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2'
+}
+
+/**
+ * Serve the repo-root `caddata/` directory — a checkout of
+ * [mlightcad/cad-data](https://github.com/mlightcad/cad-data) holding `data/`,
+ * `fonts/` (including `fonts.json`) and `templates/` — live at `/cad-data/*` in
+ * `vite dev` and `vite preview`. `App.vue` points the viewer's `baseUrl` here,
+ * so drawings, fonts and drawing templates load locally with no CDN round-trip,
+ * and files added under `caddata/` take effect on the next request without a
+ * rebuild. Warns and no-ops when the checkout is missing.
+ */
+function localCadDataPlugin(): Plugin[] {
+  if (!existsSync(CAD_DATA_DIR)) {
+    console.warn(
+      `[cad-viewer-example] caddata/ checkout not found at "${CAD_DATA_DIR}"; ` +
+        'clone https://github.com/mlightcad/cad-data into the repo root as ' +
+        'caddata/ to serve CAD assets locally.'
+    )
+    return []
+  }
+  const middleware: Connect.NextHandleFunction = (req, res, next) => {
+    const url = (req.url ?? '').split('?')[0]
+    if (!url.startsWith(CAD_DATA_ROUTE)) {
+      return next()
+    }
+    let rel: string
+    try {
+      rel = decodeURIComponent(url.slice(CAD_DATA_ROUTE.length))
+    } catch {
+      res.statusCode = 400
+      return res.end('bad request')
+    }
+    const filePath = resolve(CAD_DATA_DIR, rel)
+    // Contain reads to within the cad-data root (block `..` traversal).
+    if (
+      !(filePath === CAD_DATA_DIR || filePath.startsWith(CAD_DATA_DIR + sep)) ||
+      !existsSync(filePath) ||
+      !statSync(filePath).isFile()
+    ) {
+      res.statusCode = 404
+      return res.end('cad-data file not found')
+    }
+    res.setHeader(
+      'Content-Type',
+      CAD_DATA_MIME[extname(filePath).toLowerCase()] ??
+        'application/octet-stream'
+    )
+    // no-cache so files replaced inside caddata/ are picked up on the next load.
+    res.setHeader('Cache-Control', 'no-cache')
+    createReadStream(filePath).pipe(res)
+  }
+  return [
+    {
+      name: 'local-cad-data',
+      configureServer(server) {
+        server.middlewares.use(middleware)
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use(middleware)
+      }
+    }
+  ]
 }
 
 export default defineConfig(({ command, mode }) => {
@@ -168,8 +247,11 @@ export default defineConfig(({ command, mode }) => {
     'dist',
     ACADRUST_WASM_FILE
   )
+  // viteStaticCopy resolves `src` through fast-glob, which requires forward
+  // slashes: backslashes in absolute Windows paths (`\r`, `\m`, ...) would be
+  // treated as escape sequences and the file match would come back empty.
   const mtextWorkerSrc = linkLocalMtextRenderer
-    ? LOCAL_MTEXT_RENDERER_WORKER
+    ? LOCAL_MTEXT_RENDERER_WORKER.replace(/\\/g, '/')
     : `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
 
   const plugins = [
@@ -213,6 +295,11 @@ export default defineConfig(({ command, mode }) => {
     plugins.push(visualizer())
   }
 
+  // Serve the repo-root `caddata/` checkout (mlightcad/cad-data: data/, fonts/,
+  // templates/) at /cad-data/ in dev + preview. App.vue's BASE_URL points here;
+  // the plugin warns and no-ops when the checkout is missing.
+  plugins.push(...localCadDataPlugin())
+
   return {
     base: './',
     resolve: {
@@ -245,8 +332,11 @@ export default defineConfig(({ command, mode }) => {
       fs: {
         allow: [
           resolve(__dirname, '../..'),
-          ...(linkLocalUiComponents ? [LOCAL_UI_COMPONENTS_ROOT] : []),
-          ...(linkLocalMtextRenderer ? [LOCAL_MTEXT_RENDERER_ROOT] : [])
+          // mtext-renderer resolves outside the workspace through the `link:`
+          // dependency in pnpm-workspace.yaml; Vite must be allowed to serve
+          // files from there in every mode (not only local-mtext-renderer).
+          LOCAL_MTEXT_RENDERER_ROOT,
+          ...(linkLocalUiComponents ? [LOCAL_UI_COMPONENTS_ROOT] : [])
         ]
       }
     },

@@ -294,6 +294,43 @@ describe('buildAreaGeometry single-loop fast path', () => {
     )
   })
 
+  it('keeps a small solid quad area exact at survey coordinates', () => {
+    // Float32 ulp at LARGE is ~4, so an absolute-coordinate buffer would snap
+    // this 3.75-unit quad onto the grid (collapsing width to ~4 and distorting
+    // area). Building local to a double origin keeps the covered area exact.
+    const size = 3.75
+    const built = build(
+      areaFromLoop(rectangle(LARGE, LARGE, LARGE + size, LARGE + size)),
+      new AcTrRenderContext()
+    )
+    expect(totalArea(built)).toBeCloseTo(size * size, 3)
+    expect(usedVertexKeys(built).size).toBe(4)
+    built.geometry.dispose()
+  })
+
+  it('keeps a curved solid boundary unsampled at survey coordinates', () => {
+    // A half-circle-ish bulge loop is a "solid" fill that runs through the
+    // general AcTrPolygon path. At LARGE the tessellated arc must keep its
+    // individual vertices; absolute Float32 would merge them onto a ~4-unit
+    // grid and visibly flatten the curve.
+    const curved = new AcGePolyline2d(
+      [
+        { x: LARGE, y: LARGE, bulge: 1 },
+        { x: LARGE, y: LARGE + 10 },
+        { x: LARGE + 4, y: LARGE + 5 }
+      ],
+      true
+    )
+    const area = new AcGeArea2d()
+    area.add(curved)
+    resetAreaBuildStats()
+    const built = build(area, new AcTrRenderContext())
+    expect(getAreaBuildStats().generalPath).toBe(1)
+    expect(built.geometry.getAttribute('position').count).toBeGreaterThan(4)
+    expect(usedVertexKeys(built).size).toBeGreaterThan(4)
+    built.geometry.dispose()
+  })
+
   it('falls back to the general path for a curved loop', () => {
     resetAreaBuildStats()
     const curved = new AcGePolyline2d(
@@ -502,5 +539,40 @@ describe('buildOffsetRingDirectGeometry', () => {
     expect(getAreaBuildStats().generalPath).toBe(0)
     expect(built!.geometry.getIndex()!.count).toBe(count * 6)
     built!.geometry.dispose()
+  })
+
+  it('keeps a drill-hole disk precise at survey coordinates', () => {
+    // Float32 ulp at LARGE is ~4, so baking absolute WCS into the position
+    // buffer would snap a small disk/ring onto a handful of grid points (a
+    // jagged blob). Rebasing to a double-precision origin before the Float32
+    // write keeps every boundary vertex distinct and the covered area exact.
+    const shift = (points: AcGePoint3dLike[]): AcGePoint3dLike[] =>
+      points.map(point => ({
+        ...point,
+        x: point.x + LARGE,
+        y: point.y + LARGE
+      }))
+    const count = 32
+    const outer = shift(ringPoints(2, count))
+    const inner = shift(ringPoints(1, count))
+    const context = new AcTrRenderContext()
+    resetAreaBuildStats()
+    const built = buildOffsetRingDirectGeometry(
+      outer,
+      inner,
+      defaultTraits,
+      context
+    )
+    expect(built).not.toBeNull()
+    if (!built) return
+    expect(getAreaBuildStats().offsetRingFastPath).toBe(1)
+    // All 64 boundary vertices stay distinct and the covered area matches the
+    // general path. Without the double-precision rebase, absolute Float32 at
+    // LARGE (ulp ~4) would merge the ring onto a handful of grid points.
+    const general = build(ringArea(outer, inner), context)
+    expect(Math.abs(totalArea(built) - totalArea(general))).toBeLessThan(1e-3)
+    expect(usedVertexKeys(built).size).toBe(count * 2)
+    built.geometry.dispose()
+    general.geometry.dispose()
   })
 })

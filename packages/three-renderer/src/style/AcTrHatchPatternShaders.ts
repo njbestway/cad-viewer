@@ -50,8 +50,9 @@ export function createHatchPatternShaderMaterial(
     u_color: { value: color }
   }
 
-  // TODO: it doesn't support "GRAVEL" pattern well, the reason may because of the angle
-  // in PatternLine! Tried to normalize the angle but doesn't work.
+  // NOTE: aggregate patterns (GRAVEL and friends) render correctly only when
+  // `offset` arrives in the line-local frame; the material manager inverse-
+  // rotates the world-space stored offset by the line angle before upload.
 
   const vertexShader = /*glsl*/ `
     varying vec3 v_pos;
@@ -119,16 +120,55 @@ export function createHatchPatternShaderMaterial(
         return abs((ap.x * ab.y) - (ab.x * ap.y)) / max(length(ab), EPSILON);
     }
 
+    // Along-line dash duty: fraction of one pattern period that is ink.
+    // Stipple patterns (GRAVEL) are ~1%, so any area-average fade must scale
+    // by this or it over-brightens by two orders of magnitude.
+    float dashDuty(PatternLine patternLine) {
+        float positive = 0.0;
+        #pragma unroll_loop_start
+        for (int i = 0; i < patternLine.dashLengths.length(); i++) {
+            if (patternLine.dashLengths[i] > 0.0) {
+                positive += patternLine.dashLengths[i];
+            }
+        }
+        #pragma unroll_loop_end
+        return patternLine.patternLength > 0.0
+            ? positive / patternLine.patternLength
+            : 1.0;
+    }
+
     // Draw a repeated line pattern in object/world space with smooth anti-aliasing.
-    float drawSpaceLine(vec2 samplePos, float distanceBetweenLines, float thick) {
+    // duty is the along-line ink fraction (1 for solid lines).
+    float drawSpaceLine(vec2 samplePos, float distanceBetweenLines, float thick, float duty) {
         float dist = sdfLine(samplePos, vec2(0.0, 0.0), vec2(1.0, 0.0));
 
+        float spacing = max(distanceBetweenLines, EPSILON);
         // compute fractional distance to nearest repeated line center
-        float normalizedDist = dist / max(distanceBetweenLines, EPSILON);
-        float lineDistance = abs(fract(normalizedDist + 0.5) - 0.5) * distanceBetweenLines;
-        // opacity: 0.0 = don't draw, 1.0 = draw
-        float opacity = 1.0 - step(thick, lineDistance);
-        return opacity;
+        float normalizedDist = dist / spacing;
+        float lineDistance = abs(fract(normalizedDist + 0.5) - 0.5) * spacing;
+
+        // Row coverage ~1 screen pixel wide while the rows are resolvable, but
+        // the fade MUST reach zero by half the row spacing: once a pixel grows
+        // past a fraction of the spacing an unbounded 2*thick fade bleeds
+        // neighbouring rows into one continuous field (the dense-snowflake
+        // symptom at normal zoom, which only clears on zoom-in).
+        float edge = min(thick * 1.5, spacing * 0.5);
+        float centerCoverage =
+            1.0 - smoothstep(thick * 0.5, max(edge, thick * 0.5 + EPSILON), lineDistance);
+
+        // Sub-pixel regime: once a whole screen pixel spans the row spacing the
+        // rows are unresolvable; fade to the true 2D mean coverage = along-line
+        // dash duty x the area fraction the row lines occupy. While a pixel is
+        // still smaller than the spacing keep discrete 1px dots (matching
+        // AutoCAD), which the edge cap above keeps from merging.
+        float linesPerPixel = thick / spacing;
+        float average = duty * min(linesPerPixel, 1.0);
+        // Ramp fully into the average by the time one pixel spans the row
+        // spacing (linesPerPixel = 1); past that the discrete row coverage is
+        // meaningless (its capped edge saturates to 1) and would read as a
+        // near-solid fill.
+        float denseBlend = saturate((linesPerPixel - 0.75) / 0.25);
+        return mix(centerCoverage, average, denseBlend);
     }
 
     float drawSolidLine(PatternLine patternLine, float thick) {
@@ -139,7 +179,7 @@ export function createHatchPatternShaderMaterial(
         base = rotate(base, u_patternAngle);
         vec2 samplePos = rotate(v_pos.xy - base, -(patternLine.angle + u_patternAngle));
 
-        return drawSpaceLine(samplePos, distanceBetweenLines, thick);
+        return drawSpaceLine(samplePos, distanceBetweenLines, thick, 1.0);
     }
 
     int getPatternIndex(PatternLine patternLine, float linePosition, out float distance) {
@@ -178,6 +218,21 @@ export function createHatchPatternShaderMaterial(
         base = rotate(base, u_patternAngle);
         vec2 samplePos = rotate(v_pos.xy - base, -(patternLine.angle + u_patternAngle));
 
+        // When the parallel lines fall finer than one pixel the along-line dash
+        // phase is unresolvable, and the gap-segment edge fallback below
+        // (distance < thick with a large thick) fills every gap so each dash
+        // elongates into a long jagged streak (GRAVEL zoomed out). Skip the
+        // discrete dash gating and let drawSpaceLine fade the row set toward its
+        // mean coverage instead.
+        if (thick >= distanceBetweenLines) {
+            return drawSpaceLine(
+                samplePos,
+                distanceBetweenLines,
+                thick,
+                dashDuty(patternLine)
+            );
+        }
+
         float offsetX = 0.0;
         if (abs(offset.y) > EPSILON) {
             offsetX = samplePos.y * offset.x / offset.y;
@@ -191,13 +246,23 @@ export function createHatchPatternShaderMaterial(
 
         float size = patternLine.dashLengths[index];
         if (size >= 0.0) {
-            // Dash segment: draw the line
-            opacity = drawSpaceLine(samplePos, distanceBetweenLines, thick);
-            // Try to solve the problem caused by the precision after zooming out by drawing a part of the dashed line
-        } else if (distance < thick) {
-            // Gap segment: draw only if very close to edge (for precision handling)
-            opacity = drawSpaceLine(samplePos, distanceBetweenLines, thick);
+            // Dash segment: draw the line at its true world-space extent. The
+            // along-line gating above already limits painting to [dashStart,
+            // dashEnd], so the mark scales with the view and stays world-synced.
+            opacity = drawSpaceLine(
+                samplePos,
+                distanceBetweenLines,
+                thick,
+                dashDuty(patternLine)
+            );
         }
+        // Gap segments paint nothing. Previously a gap was painted for up to
+        // 'thick' (the world size of one screen pixel) past each dash as a
+        // "precision" fallback; that stretched every dash into a zoom-dependent
+        // tail (the GRAVEL long-streak symptom) because 'thick' grows as you
+        // zoom out. Extreme zoom-out is already backstopped by the MAX_THICKNESS
+        // solid fill and the 'thick >= distanceBetweenLines' dense blend above,
+        // so the tail is unnecessary and only breaks world-sync.
 
         return opacity;
     }

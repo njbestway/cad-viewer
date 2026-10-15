@@ -57,3 +57,7 @@ samples
 .corpus
 **/tmp-*.*
 **/__tests__/
+caddata
+# Local fork link: packages/mtext-renderer is a machine-specific junction to
+# the mtext-renderer dev repository (never commit it).
+/packages/mtext-renderer

@@ -60,8 +60,8 @@ function rotatePatternVec2(
  * periods in the sample frame preserves the pattern phase.
  *
  * @param base - Mutable base already subtracted by the geometry origin.
- * @param offset - Pattern offset already rotated by `-lineAngle` (same frame as
- *   the hatch shader uniform / exported AcEx hatch line offset).
+ * @param offset - Pattern offset in the line-local PAT/DXF frame (`x` = along-line
+ *   shift, `y` = perpendicular spacing), the same frame the hatch shader consumes.
  * @param lineAngle - Definition-line angle in radians.
  * @param patternAngle - Hatch-level pattern angle in radians.
  * @param patternLength - Dash repeat length (`0` for continuous lines).
@@ -284,17 +284,34 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
     let currentUniformCount = 0
 
     const patternLines: AcTrPatternLine[] = []
-    const tempCenter = new THREE.Vector2()
     for (const hatchPatternLine of style.definitionLines) {
       const base = new THREE.Vector2(
         hatchPatternLine.base.x,
         hatchPatternLine.base.y
       ).sub(options.rebaseOffset)
 
+      // The stored pattern-line offset arrives as a WORLD-space vector: the
+      // line-local PAT step (along-line stagger, perpendicular spacing) rotated
+      // by the line angle, which is how DWG/DXF hatch definitions store it
+      // (visible as world-axis-aligned offset lattices in e.g. GRAVEL). The
+      // hatch shader samples in the line-local frame — it rotates the sample
+      // point by `-(lineAngle + patternAngle)` — so the offset must be
+      // inverse-rotated back into that frame first:
+      //   dx =  off.x*cos(a) + off.y*sin(a)  (along-line stagger)
+      //   dy = -off.x*sin(a) + off.y*cos(a)  (perpendicular spacing)
+      // Passing the world vector verbatim mis-scales spacing and stagger for
+      // every non-axis-aligned family; aggregate patterns (GRAVEL) then lose
+      // their inter-family phase and dissolve into sparse dashes everywhere
+      // except near the pattern origin, where the stagger term vanishes.
+      const lineAngle = hatchPatternLine.angle
+      const cosA = Math.cos(lineAngle)
+      const sinA = Math.sin(lineAngle)
+      const worldOffX = hatchPatternLine.offset.x
+      const worldOffY = hatchPatternLine.offset.y
       const offset = new THREE.Vector2(
-        hatchPatternLine.offset.x,
-        hatchPatternLine.offset.y
-      ).rotateAround(tempCenter, -hatchPatternLine.angle)
+        worldOffX * cosA + worldOffY * sinA,
+        -worldOffX * sinA + worldOffY * cosA
+      )
 
       if (offset.y === 0) {
         log.warn('offset.y is zero, skipping pattern line')

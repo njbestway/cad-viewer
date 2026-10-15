@@ -11,7 +11,8 @@ overrides:
   '@mlightcad/data-model': '^1.15.6'
   '@mlightcad/mtext-input-box': '^0.3.3'
   '@mlightcad/mtext-parser': '^1.5.3'
-  '@mlightcad/mtext-renderer': '^0.13.3'
+  # '@mlightcad/mtext-renderer' resolves to the local workspace package
+  # (packages/mtext-renderer is a junction to ../mtext-renderer).
   '@mlightcad/ribbon': '^0.1.13'
   '@mlightcad/ui-components': '^0.1.11'
   element-plus: '^2.12.0'

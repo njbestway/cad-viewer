@@ -59,7 +59,7 @@
     "@mlightcad/data-model": "^1.15.6",
     "@mlightcad/acad-rust-converter": "workspace:*",
     "@mlightcad/mtext-parser": "^1.5.3",
-    "@mlightcad/mtext-renderer": "^0.13.3",
+    "@mlightcad/mtext-renderer": "workspace:*",
     "commander": "^12.1.0",
     "playwright": "^1.49.1"
   },

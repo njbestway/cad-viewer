@@ -1,12 +1,12 @@
 import { AcGeArea2d, AcGePoint2d } from '@mlightcad/data-model'
 import * as THREE from 'three'
 
-import { expectWcsBboxCloseTo } from './helpers/expectWcsBbox'
 import { AcTrPolygon } from '../src/object/AcTrPolygon'
 import { AcTrRenderContext } from '../src/renderer/AcTrRenderContext'
 import { wrapPatternBaseToLocalFrame } from '../src/style/AcTrFillMaterialManager'
 import { AcTrSubEntityTraitsUtil } from '../src/util'
 import { getSceneDrawableUserData } from '../src/util/AcTrObjectUserData'
+import { expectWcsBboxCloseTo } from './helpers/expectWcsBbox'
 
 const defaultTraits = AcTrSubEntityTraitsUtil.createDefaultTraits()
 
@@ -152,7 +152,7 @@ describe('AcTrPolygon patterned hatch origin-shift', () => {
     )
   })
 
-  it('leaves solid fills in WCS without mesh translation', () => {
+  it('rebases solid fills to a local origin carried by mesh position', () => {
     const polygon = new AcTrPolygon(
       createRectangularArea(5, 10, 25, 30),
       defaultTraits,
@@ -160,17 +160,45 @@ describe('AcTrPolygon patterned hatch origin-shift', () => {
     )
 
     const mesh = getFirstMesh(polygon)
-    expect(mesh.position.x).toBe(0)
-    expect(mesh.position.y).toBe(0)
+    // Solid fills now shift vertices near the bbox center so shared Float32
+    // batch buffers stay precise; world placement moves to mesh.position.
+    expect(mesh.position.x).toBeCloseTo(15, 5)
+    expect(mesh.position.y).toBeCloseTo(20, 5)
 
     const position = mesh.geometry.getAttribute('position')
-    let sawWorldX = false
     for (let i = 0; i < position.count; i++) {
-      if (position.getX(i) >= 5) {
-        sawWorldX = true
-        break
-      }
+      expect(Math.abs(position.getX(i))).toBeLessThanOrEqual(10 + 1e-6)
+      expect(Math.abs(position.getY(i))).toBeLessThanOrEqual(10 + 1e-6)
     }
-    expect(sawWorldX).toBe(true)
+
+    // wcsBbox stays in absolute WCS for the spatial index.
+    expectWcsBboxCloseTo(polygon.wcsBbox, [5, 10, 0], [25, 30, 0])
+  })
+
+  it('keeps solid fills local at large survey coordinates', () => {
+    // A drill-hole-sized quad at x≈3.66e7: Float32 ulp here is ~4, so baking
+    // absolute WCS into the batch buffer would collapse a 7.5-unit fill. The
+    // origin-shift keeps the local vertices exact and defers the large
+    // translation to mesh.position (float64).
+    const cx = 36_579_120.48
+    const cy = 4_248_323
+    const half = 3.75
+    const polygon = new AcTrPolygon(
+      createRectangularArea(cx - half, cy - half, cx + half, cy + half),
+      defaultTraits,
+      new AcTrRenderContext()
+    )
+
+    const mesh = getFirstMesh(polygon)
+    expect(mesh.position.x).toBeCloseTo(cx, 3)
+    const position = mesh.geometry.getAttribute('position')
+    for (let i = 0; i < position.count; i++) {
+      expect(Math.abs(position.getX(i))).toBeLessThanOrEqual(half + 1e-6)
+    }
+    expectWcsBboxCloseTo(
+      polygon.wcsBbox,
+      [cx - half, cy - half, 0],
+      [cx + half, cy + half, 0]
+    )
   })
 })

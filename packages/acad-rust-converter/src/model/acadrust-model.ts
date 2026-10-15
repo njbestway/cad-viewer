@@ -147,7 +147,10 @@ export interface AcadRustLayer {
 
 /** `LineTypeSegment.complex` inner payload (dash-attached shape/text). */
 export interface AcadRustLineTypeComplex {
-  content: { Shape?: { shape_number: number }; Text?: unknown }
+  content: {
+    Shape?: { shape_number: number }
+    Text?: { text: string }
+  }
   style_handle: number
   scale: number
   rotation: number
@@ -1038,11 +1041,71 @@ export interface AcadRustMultiLeaderPayload {
 }
 
 /**
+ * One `crate::compound_file::BinaryRecord` — a `data` byte chunk tagged with
+ * its `sequence` for reordering on reassembly. serde serializes `Vec<u8>` as a
+ * plain JSON number array, so `data` arrives as `number[]` (never base64).
+ */
+export interface AcadRustBinaryRecord {
+  sequence: number
+  data: number[]
+}
+
+/**
+ * `CompoundStreamContent` — externally-tagged serde enum. A decoded CFB stream
+ * that was not recognized as a property set / VBA stream comes back as
+ * `{ Binary: [...] }`, which is exactly where an embedded picture's raw bytes
+ * live (a full BMP/PNG/JPEG in `CONTENTS` / `\u0001Ole10Native`, or a CF_DIB /
+ * metafile inside a `\u0002OlePres###` presentation stream).
+ */
+export type AcadRustCompoundStreamContent =
+  | { Binary: AcadRustBinaryRecord[] }
+  | { PropertySet: unknown }
+  | { VbaDirectory: unknown }
+  | { VbaModule: unknown }
+
+/** `CompoundStream { name, ..., content }`. */
+export interface AcadRustCompoundStream {
+  name: string
+  content?: AcadRustCompoundStreamContent
+}
+
+/** `CompoundStorage { name, entries }` (a directory of nested entries). */
+export interface AcadRustCompoundStorage {
+  name?: string
+  entries?: AcadRustCompoundEntry[]
+}
+
+/** `CompoundEntry` — externally-tagged enum: `{ Stream }` or `{ Storage }`. */
+export type AcadRustCompoundEntry =
+  | { Stream: AcadRustCompoundStream }
+  | { Storage: AcadRustCompoundStorage }
+
+/** `CompoundFile { ..., root }` — the decoded OLE compound document. */
+export interface AcadRustCompoundFile {
+  root?: AcadRustCompoundStorage
+}
+
+/**
+ * `crate::compound_file::StructuredStoragePayload` — acadrust's decoded form of
+ * the OLE binary: leading bytes before the compound file, the (optional)
+ * decoded `compound_file`, and trailing bytes. When the payload had no CFB
+ * magic, `compound_file` is `null` and the whole blob sits in `leading_records`.
+ */
+export interface AcadRustOleStorage {
+  leading_records?: AcadRustBinaryRecord[]
+  compound_file?: AcadRustCompoundFile | null
+  trailing_records?: AcadRustBinaryRecord[]
+}
+
+/**
  * `EntityType::Ole2Frame` (DXF OLE2FRAME). A display frame hosting an embedded /
- * linked OLE 2 object. Only the frame rectangle
- * (`upper_left_corner`/`lower_right_corner`) and object type are recoverable from
- * the corpus; the `storage` compound-file binary is opaque and non-renderable, so
- * it is carried as `unknown` and skipped by the converter.
+ * linked OLE 2 object. The frame rectangle (`upper_left_corner`/
+ * `lower_right_corner`), object type and version are read straight from the
+ * payload; the embedded picture is recovered from `storage` — acadrust decodes
+ * the OLE compound file into `StructuredStoragePayload`, whose stream `Binary`
+ * records carry the raw image bytes. The converter reassembles those bytes and
+ * hands them to `AcDbOle2Frame.setOleObject`, letting the data-model extractor
+ * render the picture.
  */
 export interface AcadRustOle2FramePayload {
   common: AcadRustEntityCommon
@@ -1055,7 +1118,7 @@ export interface AcadRustOle2FramePayload {
   lock_aspect?: number
   dwg_mode?: number
   envelope?: unknown
-  storage?: unknown
+  storage?: AcadRustOleStorage
 }
 
 /** One content entry inside a table cell (`contents[]`). */

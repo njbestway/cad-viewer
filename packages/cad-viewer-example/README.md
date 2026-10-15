@@ -11,7 +11,7 @@ A Vue 3 demo that embeds [`@mlightcad/cad-viewer`](https://github.com/mlightcad/
 - **Open modes** — Read, Review, or Write access when opening a drawing
 - **Internationalization** — Built-in English/Chinese UI via `vue-i18n`; host app can merge custom messages
 - **Custom commands** — Example `quit` / `exit` commands return to the upload screen
-- **CDN assets** — Fonts and templates loaded from [cad-data](https://github.com/mlightcad/cad-data)
+- **Local cad-data assets** — Fonts and templates served from the repo-root `caddata/` checkout of [cad-data](https://github.com/mlightcad/cad-data)
 - **Export plugins** — HTML (`chtml` dialog, `-chtml` command-line) and PDF (`cpdf`) via lazy-loaded workspace plugins
 - **E2E tests** — Playwright smoke and rendering checks against local fixtures
 
@@ -55,6 +55,8 @@ pnpm dev
 ```
 
 Vite prints the local URL (default `http://localhost:5173`). In dev mode, Vite aliases `@mlightcad/cad-viewer`, `@mlightcad/cad-simple-viewer`, and renderer packages to their **source** for faster iteration.
+
+The dev and preview servers also serve the repo-root `caddata/` directory — a checkout of [`mlightcad/cad-data`](https://github.com/mlightcad/cad-data) holding `data/`, `fonts/`, and `templates/` — live at `/cad-data/*`, and `App.vue` points the viewer's `baseUrl` there. Drawings, fonts (including `fonts.json`), and drawing templates therefore load locally with no CDN round-trip; clone the repository into the repo root as `caddata/` if it is missing.
 
 ### OneDrive (optional)
 
@@ -119,7 +121,7 @@ Minimal host wiring in `App.vue`:
   locale="en"
   :local-file="store.selectedFile"
   :mode="selectedMode"
-  base-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/"
+  base-url="/cad-data/"
   @create="initialize"
 />
 ```

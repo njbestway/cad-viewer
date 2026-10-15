@@ -22,7 +22,7 @@
     "@mlightcad/data-model": "^1.15.6",
     "@mlightcad/acad-rust-converter": "workspace:*",
     "@mlightcad/mtext-parser": "^1.5.3",
-    "@mlightcad/mtext-renderer": "^0.13.3",
+    "@mlightcad/mtext-renderer": "workspace:*",
     "@mlightcad/three-renderer": "workspace:*",
     "three": "^0.172.0"
   }

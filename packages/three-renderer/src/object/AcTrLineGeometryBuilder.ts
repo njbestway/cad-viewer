@@ -2,6 +2,7 @@ import {
   acdbDrawTessellateOptions,
   AcGeArea2d,
   AcGeIndexNode,
+  AcGePoint2d,
   AcGePoint2dLike,
   AcGePoint3dLike,
   AcGiSubEntityTraits
@@ -345,22 +346,24 @@ function segmentsProperlyIntersect(
 }
 
 /**
- * Builds WCS-coordinate triangle geometry from a small fill loop.
+ * Builds local-space triangle geometry from a small fill loop.
  *
- * Vertices keep their WCS coordinates so the subsequent
- * `worldOffset`-driven rebase is identical to the general
- * {@link AcTrPolygon} path.
+ * Vertices are stored relative to `origin` (computed in double precision by the
+ * caller) so the Float32 buffer never holds large absolute WCS coordinates, and
+ * the `worldOffset`-driven placement matches the general {@link AcTrPolygon}
+ * path exactly.
  */
 function buildSmallFillLoopMesh(
-  loop: AcTrSmallFillLoopGeometry
+  loop: AcTrSmallFillLoopGeometry,
+  origin: { x: number; y: number; z: number }
 ): THREE.BufferGeometry {
   const vertexCount = loop.points.length
   const positions = new Float32Array(vertexCount * 3)
   let offset = 0
   for (let i = 0; i < vertexCount; i++) {
     const point = loop.points[i]
-    positions[offset++] = point.x
-    positions[offset++] = point.y
+    positions[offset++] = point.x - origin.x
+    positions[offset++] = point.y - origin.y
     positions[offset++] = 0
   }
 
@@ -530,7 +533,8 @@ export function buildPointGeometry(
  */
 function buildOffsetRingMesh(
   outer: AcGePoint3dLike[],
-  inner: AcGePoint3dLike[]
+  inner: AcGePoint3dLike[],
+  origin: { x: number; y: number; z: number }
 ): THREE.BufferGeometry | null {
   const outerCount = openLoopCount(outer)
   const innerCount = openLoopCount(inner)
@@ -561,13 +565,17 @@ function buildOffsetRingMesh(
     ) {
       return null
     }
-    positions[i * 3] = outerPoint.x
-    positions[i * 3 + 1] = outerPoint.y
-    positions[i * 3 + 2] = outerPoint.z ?? 0
+    // Store vertices relative to `origin` (computed in double precision by the
+    // caller). Writing large absolute WCS coordinates straight into a Float32
+    // buffer quantizes them: e.g. a 3.75-unit drill-hole disk at x≈3.6e7 has a
+    // Float32 ulp of ~4, which collapses its 102-gon outline into a jagged blob.
+    positions[i * 3] = outerPoint.x - origin.x
+    positions[i * 3 + 1] = outerPoint.y - origin.y
+    positions[i * 3 + 2] = (outerPoint.z ?? 0) - origin.z
     const innerOffset = (outerCount + i) * 3
-    positions[innerOffset] = innerPoint.x
-    positions[innerOffset + 1] = innerPoint.y
-    positions[innerOffset + 2] = innerPoint.z ?? 0
+    positions[innerOffset] = innerPoint.x - origin.x
+    positions[innerOffset + 1] = innerPoint.y - origin.y
+    positions[innerOffset + 2] = (innerPoint.z ?? 0) - origin.z
   }
 
   const indices = new Uint32Array(outerCount * 6)
@@ -612,7 +620,39 @@ export function buildOffsetRingDirectGeometry(
   traits: AcGiSubEntityTraits,
   context: AcTrRenderContext
 ): AcTrBuiltDirectGeometry | null {
-  const geometry = buildOffsetRingMesh(outer, inner)
+  // Compute the rebase origin and the absolute WCS bbox in double precision
+  // from the input loops BEFORE any Float32 quantization happens inside
+  // buildOffsetRingMesh. Rebasing afterwards (on already-quantized positions)
+  // cannot recover the shape of small features at large WCS coordinates.
+  let minX = Infinity
+  let minY = Infinity
+  let minZ = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  let maxZ = -Infinity
+  const accumulate = (p: AcGePoint3dLike) => {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      return
+    }
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+    const z = p.z ?? 0
+    if (z < minZ) minZ = z
+    if (z > maxZ) maxZ = z
+  }
+  outer.forEach(accumulate)
+  inner.forEach(accumulate)
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
+    return null
+  }
+  const origin = {
+    x: (minX + maxX) / 2,
+    y: (minY + maxY) / 2,
+    z: (minZ + maxZ) / 2
+  }
+  const geometry = buildOffsetRingMesh(outer, inner, origin)
   if (!geometry) return null
   const boundingBox = AcTrBufferGeometryUtil.safeComputeBoundingBox(geometry)
   if (!boundingBox || boundingBox.isEmpty()) {
@@ -620,9 +660,13 @@ export function buildOffsetRingDirectGeometry(
     return null
   }
   _areaBuildStats.offsetRingFastPath++
-  const wcsBbox = boundingBox.clone()
-  const worldOffset = wcsBbox.getCenter(new THREE.Vector3())
-  rebaseGeometryPositions(geometry, worldOffset)
+  // Positions are already local to `origin`; keep wcsBbox in absolute WCS for
+  // the spatial index and let worldOffset carry the large translation (Float64).
+  const wcsBbox = new THREE.Box3(
+    new THREE.Vector3(minX, minY, minZ),
+    new THREE.Vector3(maxX, maxY, maxZ)
+  )
+  const worldOffset = new THREE.Vector3(origin.x, origin.y, origin.z)
   return {
     kind: 'mesh',
     geometry,
@@ -647,6 +691,54 @@ function signedPointTriangleArea(
   c: AcGePoint2dLike
 ): number {
   return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) * 0.5
+}
+
+/** Double-precision XY bounds of tessellated boundary loops, or null if empty. */
+function boundsFromPointLoops(
+  loops: AcGePoint2dLike[][] | undefined
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (!loops) {
+    return null
+  }
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  let found = false
+  for (const loop of loops) {
+    for (const point of loop) {
+      if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+        continue
+      }
+      found = true
+      if (point.x < minX) minX = point.x
+      if (point.x > maxX) maxX = point.x
+      if (point.y < minY) minY = point.y
+      if (point.y > maxY) maxY = point.y
+    }
+  }
+  if (!found) {
+    return null
+  }
+  return { minX, minY, maxX, maxY }
+}
+
+/**
+ * Wraps an area so `tessellate()` returns its loops shifted by `-origin`,
+ * letting {@link AcTrPolygon} triangulate in local (Float32-precise) space. The
+ * caller places the result back with `worldOffset = origin`.
+ */
+function makeOriginShiftedArea(
+  base: AcGeArea2d,
+  loops: AcGePoint2dLike[][],
+  origin: { x: number; y: number; z: number }
+): AcGeArea2d {
+  const shifted = loops.map(loop =>
+    loop.map(point => new AcGePoint2d(point.x - origin.x, point.y - origin.y))
+  )
+  return Object.create(base, {
+    tessellate: { value: () => shifted }
+  }) as AcGeArea2d
 }
 
 /**
@@ -716,6 +808,41 @@ export function buildAreaGeometry(
   // If neither API exists (or the probe was skipped), fast-path variables stay
   // undefined and buildSmallFillLoopGeometry is not called — AcTrPolygon runs.
 
+  // Solid fills (SOLID / TRACE / non-gradient, non-patterned hatch): compute a
+  // double-precision rebase origin + absolute WCS bbox from the tessellated
+  // loops BEFORE any Float32 write. Storing absolute WCS (x≈3.6e7, Float32 ulp
+  // ≈4) directly into the GPU buffer quantizes small fills into jagged blobs.
+  // Gradient fills keep the historical absolute path (their shader relies on the
+  // un-shifted geometry/material bounds).
+  const isGradientFill = !!style.gradient
+  let solidOrigin: { x: number; y: number; z: number } | undefined
+  let solidWcsBbox: THREE.Box3 | undefined
+  let solidLoops: AcGePoint2dLike[][] | undefined
+  if (!isGradientFill) {
+    let loops = pointBoundaries
+    if (!loops) {
+      const boundsApi = area as AcGeArea2d & {
+        tessellate?: (options: unknown) => AcGePoint2dLike[][]
+      }
+      if (typeof boundsApi.tessellate === 'function') {
+        loops = boundsApi.tessellate(acdbDrawTessellateOptions({ context }))
+      }
+    }
+    const bounds = boundsFromPointLoops(loops)
+    if (bounds && loops) {
+      solidOrigin = {
+        x: (bounds.minX + bounds.maxX) / 2,
+        y: (bounds.minY + bounds.maxY) / 2,
+        z: 0
+      }
+      solidWcsBbox = new THREE.Box3(
+        new THREE.Vector3(bounds.minX, bounds.minY, 0),
+        new THREE.Vector3(bounds.maxX, bounds.maxY, 0)
+      )
+      solidLoops = loops
+    }
+  }
+
   const smallLoop =
     !pointBoundaries || !hierarchy
       ? null
@@ -724,13 +851,21 @@ export function buildAreaGeometry(
   let geometry: THREE.BufferGeometry
   let resolvedMaterial: THREE.Material | undefined
 
+  const fallbackOrigin = { x: 0, y: 0, z: 0 }
+
   if (smallLoop) {
     _areaBuildStats.smallLoopFastPath++
-    geometry = buildSmallFillLoopMesh(smallLoop)
+    geometry = buildSmallFillLoopMesh(smallLoop, solidOrigin ?? fallbackOrigin)
     resolvedMaterial = context.styleManager.getFillMaterial(traits)
   } else {
     _areaBuildStats.generalPath++
-    const polygon = new AcTrPolygon(areaForGeneralPath, traits, context)
+    // For solid fills feed AcTrPolygon the loops already shifted to
+    // `solidOrigin` so its Float32 output is local and matches the fast path.
+    const generalArea =
+      solidOrigin && solidLoops
+        ? makeOriginShiftedArea(areaForGeneralPath, solidLoops, solidOrigin)
+        : areaForGeneralPath
+    const polygon = new AcTrPolygon(generalArea, traits, context)
     const meshGeometries: THREE.BufferGeometry[] = []
 
     polygon.traverse(object => {
@@ -773,9 +908,20 @@ export function buildAreaGeometry(
     return null
   }
 
-  const wcsBbox = boundingBox.clone()
-  const worldOffset = wcsBbox.getCenter(new THREE.Vector3())
-  rebaseGeometryPositions(geometry, worldOffset)
+  let wcsBbox: THREE.Box3
+  let worldOffset: THREE.Vector3
+  if (solidOrigin && solidWcsBbox) {
+    // Positions are already local to `solidOrigin` for both solid sub-paths, so
+    // no rebase pass (which would run after Float32 quantization). wcsBbox
+    // stays absolute for the spatial index; worldOffset carries the large
+    // translation in Float64.
+    wcsBbox = solidWcsBbox
+    worldOffset = new THREE.Vector3(solidOrigin.x, solidOrigin.y, solidOrigin.z)
+  } else {
+    wcsBbox = boundingBox.clone()
+    worldOffset = wcsBbox.getCenter(new THREE.Vector3())
+    rebaseGeometryPositions(geometry, worldOffset)
+  }
 
   const gradientBounds = {
     minX: wcsBbox.min.x,

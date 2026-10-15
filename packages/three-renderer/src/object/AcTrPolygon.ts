@@ -94,15 +94,19 @@ export class AcTrPolygon extends AcTrEntity {
       loop => loop.length >= 3
     )
 
-    // Patterned hatches sample object-space `position` in the fragment shader.
-    // Keep vertices near the origin (and shift pattern `base` by the same
-    // offset) so float32 `fract`/`floor` still resolve fine line spacing at
-    // large WCS coordinates. Solid/gradient fills do not need this here —
-    // gradient uses normalized attrs; solid rebases in buildAreaGeometry.
+    // Rebasing object-space vertices near a local origin keeps the Float32
+    // buffers precise at large survey coordinates (ulp ~4 at x≈3.6e7 collapses
+    // small fills into jagged blobs). Patterned hatches additionally shift the
+    // shader pattern `base` by the same offset so `fract`/`floor` spacing stays
+    // correct. Solid fills are baked into shared batch buffers here (block
+    // templates and `group`ed multi-area hatches bypass the per-entity rebase in
+    // {@link buildAreaGeometry}), so they need this shift too. Gradient fills
+    // are left untranslated: their material relies on un-shifted WCS bounds.
     const isPatterned = this.isPatternedHatch(traits)
+    const isGradient = !!traits.fillType.gradient
     let localOrigin: THREE.Vector3 | undefined
     let boundariesForGeometry = pointBoundaries
-    if (isPatterned) {
+    if (!isGradient) {
       localOrigin = computeLocalOriginFromLoops(pointBoundaries)
       if (localOrigin) {
         boundariesForGeometry = offsetLoops(pointBoundaries, localOrigin)
@@ -139,9 +143,10 @@ export class AcTrPolygon extends AcTrEntity {
         maxX: this.wcsBbox.max.x,
         maxY: this.wcsBbox.max.y
       }
-      const rebaseOffset = localOrigin
-        ? new THREE.Vector2(localOrigin.x, localOrigin.y)
-        : undefined
+      const rebaseOffset =
+        isPatterned && localOrigin
+          ? new THREE.Vector2(localOrigin.x, localOrigin.y)
+          : undefined
       const material = this.styleManager.getFillMaterial(
         traits,
         rebaseOffset,

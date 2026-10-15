@@ -50,6 +50,7 @@
     "clean": "rimraf dist lib wasm/pkg rust/target tsconfig.tsbuildinfo",
     "build:wasm": "node scripts/build-wasm.mjs",
     "build": "node scripts/build-wasm.mjs && tsc && vite build -c vite.config.main.ts && vite build -c vite.config.worker.ts && vite build -c vite.config.maint.ts",
+    "build:js": "tsc && vite build -c vite.config.main.ts && vite build -c vite.config.worker.ts && vite build -c vite.config.maint.ts",
     "build:main": "tsc && vite build -c vite.config.main.ts",
     "build:worker": "vite build -c vite.config.worker.ts",
     "build:main-thread": "vite build -c vite.config.maint.ts",

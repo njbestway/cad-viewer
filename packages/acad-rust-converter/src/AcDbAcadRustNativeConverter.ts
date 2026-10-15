@@ -93,6 +93,7 @@ import {
   AcGePolyline2d,
   AcGeSpline3d,
   AcGeVector3d,
+  type AcGiLineTypePatternElement,
   AcGiLineWeight,
   AcGiMTextAttachmentPoint,
   AcGiMTextFlowDirection,
@@ -108,6 +109,7 @@ import {
   type AcadRustAttachmentPoint,
   type AcadRustAttribute,
   type AcadRustAttributeDefinitionPayload,
+  type AcadRustBinaryRecord,
   type AcadRustBlockRecord,
   type AcadRustBlockRecordFlags,
   type AcadRustBlockRecordTable,
@@ -115,6 +117,7 @@ import {
   type AcadRustClass,
   type AcadRustClassTable,
   type AcadRustColor,
+  type AcadRustCompoundStorage,
   type AcadRustDictionary,
   type AcadRustDimensionAngularPayload,
   type AcadRustDimensionBase,
@@ -146,6 +149,7 @@ import {
   type AcadRustLinePayload,
   type AcadRustLineSpacingStyle,
   type AcadRustLineType,
+  type AcadRustLineTypeElement,
   type AcadRustLineTypeTable,
   type AcadRustLineWeight,
   type AcadRustLwPolylinePayload,
@@ -157,6 +161,7 @@ import {
   type AcadRustMultiLeaderStyle,
   type AcadRustObjects,
   type AcadRustOle2FramePayload,
+  type AcadRustOleStorage,
   type AcadRustPoint3d,
   type AcadRustPointPayload,
   type AcadRustPolyline2DPayload,
@@ -292,13 +297,24 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
       const classes = await client.section<AcadRustClassTable>(handle, 'classes')
       mapClasses(db, classes)
 
+      // STYLE is fetched before LTYPE (but still mapped at its own stage below):
+      // complex linetypes embed SHAPE/TEXT segments that reference a STYLE record
+      // by handle, and the renderer resolves that reference by style *name* (the
+      // converter re-derives object handles, so the DWG hex is not a valid native
+      // object id). The handle -> name map must therefore exist before LTYPE maps.
+      const textStyles = await client.section<AcadRustTextStyleTable>(
+        handle,
+        'tables-style'
+      )
+      const styleNameByHandle = buildStyleNameByHandle(textStyles)
+
       // LTYPE (layers reference linetype names, so land the table first).
       const lineTypes = await client.section<AcadRustLineTypeTable>(
         handle,
         'tables-ltype'
       )
       await emit(11, 'LTYPE', 'START')
-      mapLineTypes(db, lineTypes)
+      mapLineTypes(db, lineTypes, styleNameByHandle)
       await emit(12, 'LTYPE', 'END')
 
       // DIMSTYLE (M4.6): dimension styles; DIMENSION entities only resolve
@@ -324,13 +340,16 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
       mapVports(db, vports)
       await emit(13, 'VPORT', 'END')
 
-      // STYLE (text styles; $TEXTSTYLE resolves against this table).
-      const textStyles = await client.section<AcadRustTextStyleTable>(
-        handle,
-        'tables-style'
-      )
+      // STYLE (text styles; $TEXTSTYLE resolves against this table). Fetched
+      // above (before LTYPE) for complex-linetype style-name resolution.
       await emit(14, 'STYLE', 'START')
-      mapTextStyles(db, textStyles)
+      const styleHandleToObjectId = mapTextStyles(db, textStyles)
+      // Complex-linetype elements landed earlier still carry the raw DWG style
+      // handle as `styleObjectId`; rewrite those to the native ids assigned above
+      // so the renderer can resolve the embedded SHAPE/TEXT font. Shape-file
+      // styles have an empty name, so the name fallback alone can never reach
+      // them — the object id is the only resolvable reference.
+      remapLinetypeStyleHandles(db, styleHandleToObjectId)
       await emit(15, 'STYLE', 'END')
 
       // LAYER ($CLAYER + the layer table entities hang off).
@@ -664,33 +683,168 @@ function layerToRecord(layer: AcadRustLayer): AcDbLayerTableRecord {
   })
 }
 
-function mapLineTypes(db: AcDbDatabase, table: AcadRustLineTypeTable): void {
+function mapLineTypes(
+  db: AcDbDatabase,
+  table: AcadRustLineTypeTable,
+  styleNameByHandle: Map<number, string>
+): void {
   for (const lineType of Object.values(table?.entries ?? {})) {
-    db.tables.linetypeTable.add(lineTypeToRecord(lineType))
+    db.tables.linetypeTable.add(
+      lineTypeToRecord(lineType, styleNameByHandle)
+    )
   }
 }
 
-function lineTypeToRecord(lineType: AcadRustLineType): AcDbLinetypeTableRecord {
+/**
+ * A linetype pattern element carrying the renderer's style-name alias. The
+ * data-model record stores `styleObjectId` (DXF group 340), but the converter
+ * re-derives object handles so the DWG hex is not a valid native object id; the
+ * three-renderer falls back to `element.style` (the style *name*) to resolve the
+ * embedded SHAPE/TEXT font, so we attach both.
+ */
+type LinetypePatternElement = AcGiLineTypePatternElement & { style?: string }
+
+function lineTypeToRecord(
+  lineType: AcadRustLineType,
+  styleNameByHandle: Map<number, string>
+): AcDbLinetypeTableRecord {
+  const pattern: LinetypePatternElement[] = (lineType.elements ?? []).map(el =>
+    linetypeElementToPattern(el, styleNameByHandle)
+  )
   return new AcDbLinetypeTableRecord({
     name: lineType.name,
     description: lineType.description,
     standardFlag: lineType.xref_dependent ? 16 : 0,
     totalPatternLength: lineType.pattern_length,
-    // Slice 0 keeps dash lengths + total pattern length (what the renderer
-    // needs to stroke the pattern). Embedded shape/text complex segments are a
-    // later milestone and are flattened to plain dashes here.
-    pattern: (lineType.elements ?? []).map(el => ({
-      elementLength: el.length,
-      elementTypeFlag: 0
-    }))
+    // Dash lengths plus embedded complex SHAPE/TEXT segments (DXF group 74 bit
+    // flags 1/2/4). Complex segments drive the renderer's glyph placement so
+    // patterns like `jtbj-1` (井田边界) keep their boundary markers instead of
+    // collapsing to plain dashes.
+    pattern
   })
 }
 
-function mapTextStyles(db: AcDbDatabase, table: AcadRustTextStyleTable): void {
+function linetypeElementToPattern(
+  el: AcadRustLineTypeElement,
+  styleNameByHandle: Map<number, string>
+): LinetypePatternElement {
+  const simple: LinetypePatternElement = {
+    elementLength: el.length,
+    elementTypeFlag: 0
+  }
+  const complex = el.complex
+  const content = complex?.content
+  if (!content) {
+    return simple
+  }
+  const shapeNumber = content.Shape?.shape_number
+  const text = content.Text?.text
+  const isShape = shapeNumber != null && shapeNumber !== 0
+  const isText = typeof text === 'string' && text.length > 0
+  // A `complex` wrapper with shape_number 0 / empty text is a LibreDWG
+  // pseudo-complex dash; the baseline writes those as plain segments (74 = 0),
+  // and the renderer would otherwise stamp an empty glyph every cycle.
+  if (!isShape && !isText) {
+    return simple
+  }
+  let flag = 0
+  if (complex.absolute_rotation) flag |= 1
+  flag |= isShape ? 4 : 2
+  const element: LinetypePatternElement = {
+    elementLength: el.length,
+    elementTypeFlag: flag,
+    scale: complex.scale,
+    rotation: complex.rotation,
+    offsetX: complex.offset?.[0] ?? 0,
+    offsetY: complex.offset?.[1] ?? 0
+  }
+  if (isShape) {
+    element.shapeNumber = shapeNumber
+  } else {
+    element.text = text
+  }
+  if (complex.style_handle) {
+    element.styleObjectId = dwgHandleToObjectId(complex.style_handle)
+    const styleName = styleNameByHandle.get(complex.style_handle)
+    if (styleName) {
+      element.style = styleName
+    }
+  }
+  return element
+}
+
+/** Map a STYLE record's DWG handle to its name (for complex-linetype fonts). */
+function buildStyleNameByHandle(
+  table: AcadRustTextStyleTable
+): Map<number, string> {
+  const map = new Map<number, string>()
   for (const style of Object.values(table?.entries ?? {})) {
-    db.tables.textStyleTable.add(textStyleToRecord(style))
+    if (style?.handle != null && style.name) {
+      map.set(style.handle, style.name)
+    }
+  }
+  return map
+}
+
+function mapTextStyles(
+  db: AcDbDatabase,
+  table: AcadRustTextStyleTable
+): Map<number, string> {
+  const handleToObjectId = new Map<number, string>()
+  for (const style of Object.values(table?.entries ?? {})) {
+    const record = textStyleToRecord(style)
+    db.tables.textStyleTable.add(record)
+    if (style?.handle != null) {
+      handleToObjectId.set(style.handle, record.objectId)
+    }
   }
   db.ensureTextStyleDefaults()
+  return handleToObjectId
+}
+
+/**
+ * Rewrite each complex-linetype element's dangling `styleObjectId` (the raw DWG
+ * style handle in uppercase hex, written before the style records landed) to the
+ * native objectId of the STYLE record now resident in the database.
+ *
+ * The converter re-derives object handles on `add`, so `dwgHandleToObjectId`
+ * is not a valid native id and `openObjectForRead` misses it. Named TEXT styles
+ * still resolve through the renderer's style-name fallback, but SHAPE-file
+ * styles carry an empty name and can only be reached by object id — so without
+ * this remap every embedded SHAPE glyph (e.g. the L75 wave / `Dmaps.shx` #136)
+ * silently drops to the `Standard` (non-shape) font and is never drawn.
+ */
+function remapLinetypeStyleHandles(
+  db: AcDbDatabase,
+  handleToObjectId: Map<number, string>
+): void {
+  if (handleToObjectId.size === 0) {
+    return
+  }
+  for (const record of db.tables.linetypeTable.newIterator()) {
+    const pattern = (
+      record as unknown as {
+        getAttrWithoutException?: (k: string) => LinetypePatternElement[] | undefined
+      }
+    ).getAttrWithoutException?.('pattern')
+    if (!Array.isArray(pattern)) {
+      continue
+    }
+    for (const element of pattern) {
+      if (!element.styleObjectId) {
+        continue
+      }
+      // styleObjectId currently holds the raw DWG handle (uppercase hex).
+      const dwgHandle = Number.parseInt(element.styleObjectId, 16)
+      if (Number.isNaN(dwgHandle)) {
+        continue
+      }
+      const nativeId = handleToObjectId.get(dwgHandle)
+      if (nativeId) {
+        element.styleObjectId = nativeId
+      }
+    }
+  }
 }
 
 function textStyleToRecord(style: AcadRustTextStyle): AcDbTextStyleTableRecord {
@@ -1855,15 +2009,23 @@ function mapEntity(entity: AcadRustEntity, target: AcDbBlockTableRecord): boolea
       return true
     }
     case 'Ole2Frame': {
-      // DXF OLE2FRAME: a display frame hosting an OLE 2 object. Only the frame
-      // rectangle and object type are recoverable from the corpus; the embedded
-      // `storage` compound-file binary is opaque and non-renderable, so it is
-      // intentionally skipped (AcDbOle2Frame.setOleObject expects raw bytes).
+      // DXF OLE2FRAME: a display frame hosting an OLE 2 object. The embedded
+      // picture bytes are reassembled from acadrust's decoded `storage` payload
+      // and handed to `setOleObject`; the data-model extractor then recovers
+      // the raster blob via its signature scan, so the picture renders instead
+      // of the empty placeholder frame.
       const p = entity.Ole2Frame as AcadRustOle2FramePayload | undefined
       if (!p?.common) {
         return false
       }
       const record = new AcDbOle2Frame()
+      // Feed the OLE payload before the corners: `setOleObject` may re-derive
+      // geometry from the OLE2FRAME binary header, and the explicit
+      // upper-left/lower-right corners below must take precedence.
+      const oleBytes = oleStorageToBytes(p.storage)
+      if (oleBytes) {
+        record.setOleObject(oleBytes)
+      }
       if (p.upper_left_corner) {
         record.upperLeftCorner = new AcGePoint3d(
           p.upper_left_corner.x,
@@ -2316,6 +2478,83 @@ function oleObjectType(v: string | undefined): AcDbOleObjectType {
     default:
       return AcDbOleObjectType.Embedded
   }
+}
+
+/**
+ * Flatten a decoded OLE compound storage into the raw bytes of its binary
+ * streams. acadrust serializes `Vec<u8>` as JSON number arrays, so each
+ * `BinaryRecord.data` is rehydrated into a `Uint8Array` and appended in
+ * `sequence` order. Stream chunks are gathered depth-first; the data-model
+ * image extractor then locates the raster blob via its raw signature scan
+ * (BMP/PNG/JPEG/GIF/DIB/WMF/EMF at any offset).
+ */
+function appendBinaryRecordChunks(
+  records: AcadRustBinaryRecord[] | undefined,
+  chunks: Uint8Array[]
+): void {
+  if (!records) {
+    return
+  }
+  const ordered = [...records].sort(
+    (a, b) => (a?.sequence ?? 0) - (b?.sequence ?? 0)
+  )
+  for (const record of ordered) {
+    if (Array.isArray(record?.data) && record.data.length > 0) {
+      chunks.push(Uint8Array.from(record.data))
+    }
+  }
+}
+
+/** Recursively collect `Binary` stream bytes from a compound storage node. */
+function appendCompoundStreamChunks(
+  storage: AcadRustCompoundStorage | undefined,
+  chunks: Uint8Array[]
+): void {
+  for (const entry of storage?.entries ?? []) {
+    if ('Stream' in entry && entry.Stream) {
+      const content = entry.Stream.content
+      if (content && 'Binary' in content && Array.isArray(content.Binary)) {
+        appendBinaryRecordChunks(content.Binary, chunks)
+      }
+    } else if ('Storage' in entry && entry.Storage) {
+      appendCompoundStreamChunks(entry.Storage, chunks)
+    }
+  }
+}
+
+/**
+ * Reassemble the embedded OLE picture bytes from an acadrust
+ * `StructuredStoragePayload`. Prefers stream bytes recovered from the decoded
+ * `compound_file`; when the payload carried no CFB magic (`compound_file` is
+ * null) falls back to the raw `leading`/`trailing` records. Returns `undefined`
+ * when nothing usable is present, so the frame keeps its placeholder box.
+ */
+function oleStorageToBytes(
+  storage: AcadRustOleStorage | undefined
+): Uint8Array | undefined {
+  if (!storage) {
+    return undefined
+  }
+  const chunks: Uint8Array[] = []
+  appendCompoundStreamChunks(storage.compound_file?.root, chunks)
+  if (chunks.length === 0) {
+    appendBinaryRecordChunks(storage.leading_records, chunks)
+    appendBinaryRecordChunks(storage.trailing_records, chunks)
+  }
+  let total = 0
+  for (const chunk of chunks) {
+    total += chunk.length
+  }
+  if (total === 0) {
+    return undefined
+  }
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.length
+  }
+  return bytes
 }
 
 /** Text content of an ACAD_TABLE cell (first non-empty Value content). */
@@ -2884,6 +3123,35 @@ function buildHatch(
   }
   for (const path of h.paths) {
     addHatchPathLoop(rec, path)
+  }
+  // Renderers consume `definitionLines`. For a Predefined pattern name that the
+  // data-model bundles in its PAT library (e.g. GRAVEL) the `patternName` /
+  // `patternType` / `patternScale` setters auto-expand an approximation — but
+  // that approximation stores each line's offset already rotated, and the hatch
+  // shader rotates it AGAIN by the line angle, collapsing GRAVEL into a
+  // near-solid fill (see the shader's GRAVEL TODO). acadrust carries the
+  // drawing's authoritative line set (offset in the world PAT frame), so replace
+  // the auto-generated array with it.
+  //
+  // Clearing (not appending) is what fixes the render; it still survives the
+  // draw-time `updatePredefinedPatternDefinitionLines()` pass because
+  // patternName / patternScale are left unchanged, so that pass short-circuits
+  // on its "already generated for this name+scale" guard. `base` is kept in
+  // absolute WCS — the renderer subtracts the geometry origin in float64 and
+  // wraps `base` into one pattern period, so large survey coords stay precise.
+  if (!h.is_solid && Array.isArray(h.pattern?.lines) && h.pattern.lines.length > 0) {
+    const defLines = rec.definitionLines
+    defLines.length = 0
+    for (const line of h.pattern.lines) {
+      defLines.push({
+        angle: line.angle ?? 0,
+        base: { x: line.base_point?.x ?? 0, y: line.base_point?.y ?? 0 },
+        offset: { x: line.offset?.x ?? 0, y: line.offset?.y ?? 0 },
+        dashLengths: Array.isArray(line.dash_lengths)
+          ? [...line.dash_lengths]
+          : []
+      })
+    }
   }
   return { entity: rec, common: h.common }
 }

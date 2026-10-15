@@ -54,6 +54,14 @@ export default {
   enum: {
     ...enEntity.enum,
 
+    NoneContent: 'بدون',
+    BlockContent: 'كتلة',
+    MTextContent: 'نص متعدد',
+    ToleranceContent: 'تفاوت',
+    InvisibleLeader: 'بدون',
+    StraightLeader: 'مستقيم',
+    SplineLeader: 'منحنى',
+
     AtLeast: 'على الأقل',
     Exactly: 'بالضبط',
 
@@ -87,6 +95,31 @@ export default {
 
   property: {
     ...enEntity.property,
+
+    patternDouble: 'مزدوج',
+    associative: 'ترابطي',
+    backgroundColor: 'لون الخلفية',
+    mline: 'خط متعدد',
+    scale: 'المقياس',
+    justification: 'المحاذاة',
+    vertexCount: 'عدد الرؤوس',
+    tolerance: 'التفاوت',
+    dimensionStyle: 'نمط الأبعاد',
+    leader: 'خط توجيه',
+    contentType: 'نوع المحتوى',
+    leaderLineType: 'نوع خط التوجيه',
+    doglegEnabled: 'خط منكسر',
+    doglegLength: 'طول الخط المنكسر',
+    leaderCount: 'عدد خطوط التوجيه',
+    textWidth: 'عرض النص',
+    textStyleName: 'نمط النص',
+    faces: 'الأوجه',
+    vertexIndices: 'فهارس الرؤوس',
+    index: 'الفهرس',
+    mCount: 'عدد رؤوس M',
+    nCount: 'عدد رؤوس N',
+    closedM: 'إغلاق اتجاه M',
+    closedN: 'إغلاق اتجاه N',
 
     general: 'عام',
     geometry: 'الهندسة',

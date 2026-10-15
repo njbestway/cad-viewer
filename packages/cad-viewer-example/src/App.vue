@@ -62,10 +62,7 @@ import {
   registerGoogleDriveFromEnv
 } from './googleDriveEnv'
 import { initializeLocale } from './locale'
-import {
-  getOneDriveEnvConfig,
-  registerOneDriveFromEnv
-} from './onedriveEnv'
+import { getOneDriveEnvConfig, registerOneDriveFromEnv } from './onedriveEnv'
 import { store } from './store'
 
 // Isolate this example's prefs from cad-simple-viewer-example on localhost.
@@ -92,15 +89,13 @@ const bumpLandingSources = () => {
 landingDataSources.on('changed', bumpLandingSources)
 landingDataSources.on('auth-changed', bumpLandingSources)
 
-const getLandingCloudSources = (): AcApDataSource[] =>
-  landingDataSources.list()
+const getLandingCloudSources = (): AcApDataSource[] => landingDataSources.list()
 
 const setupLandingCloudSources = async () => {
   if (oneDriveEnv) {
     try {
-      const { AcApOneDriveDataSource } = await import(
-        '@mlightcad/cad-onedrive-plugin'
-      )
+      const { AcApOneDriveDataSource } =
+        await import('@mlightcad/cad-onedrive-plugin')
       if (!landingDataSources.get('onedrive')) {
         const source = new AcApOneDriveDataSource(
           oneDriveEnv,
@@ -116,9 +111,8 @@ const setupLandingCloudSources = async () => {
 
   if (googleDriveEnv) {
     try {
-      const { AcApGoogleDriveDataSource } = await import(
-        '@mlightcad/cad-google-drive-plugin'
-      )
+      const { AcApGoogleDriveDataSource } =
+        await import('@mlightcad/cad-google-drive-plugin')
       if (!landingDataSources.get('googledrive')) {
         const source = new AcApGoogleDriveDataSource(
           googleDriveEnv,
@@ -189,7 +183,150 @@ const initialize = () => {
   )
 }
 
-const BASE_URL = 'https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/'
+// Base URL for cad-data resources (drawings, fonts, drawing templates). The dev
+// and preview servers serve the repo-root `caddata/` checkout of
+// mlightcad/cad-data live at /cad-data/ (see vite.config.ts), so nothing is
+// pulled from the CDN.
+const BASE_URL = '/cad-data/'
+
+/* eslint-disable */
+// TEMP hatch/pattern probe — `__DUMP_ENTITY('102E89')`, `__SCAN_HATCH()`.
+const safe = (fn: any): any => {
+  try {
+    return typeof fn === 'function' ? fn() : fn
+  } catch {
+    return '<err>'
+  }
+}
+const curDb = (): any =>
+  (AcApDocManager as any).instance?.curDocument?.database ?? null
+const mapDefLines = (arr: any) =>
+  (arr ?? []).map((l: any) => ({
+    angle: l.angle,
+    base: l.base,
+    offset: l.offset,
+    dashLengths: l.dashLengths
+  }))
+const findEnt = (db: any, id: string): any => {
+  const s = String(id).toLowerCase()
+  // objectId and handle can diverge from getEntityById's key, so scan model
+  // space and match either, falling back to getEntityById.
+  try {
+    for (const x of db.tables.blockTable.modelSpace.newIterator()) {
+      const e: any = x
+      if (
+        String(e.objectId).toLowerCase() === s ||
+        String(e.handle).toLowerCase() === s
+      )
+        return e
+    }
+  } catch {
+    /* ignore */
+  }
+  return db.tables.blockTable.getEntityById(String(id))
+}
+const dumpEntity = (id: string) => {
+  const db = curDb()
+  const ent: any = db ? findEnt(db, id) : null
+  if (!ent) {
+    console.log('[DBG] entity not found', id)
+    return null
+  }
+  const ls: any =
+    ent.lineStyle ?? (ent.linetype ? { name: ent.linetype } : null)
+  const larr = ls?.lines ?? ls?.pattern ?? ls?.elements ?? []
+  let eff: any = null
+  const mock: any = new Proxy(
+    { subEntityTraits: {}, context: { database: db } },
+    {
+      get: (t: any, p: string) => (p in t ? t[p] : () => undefined),
+      set: (t: any, p: string, v: any) => {
+        t[p] = v
+        return true
+      }
+    }
+  )
+  try {
+    if (typeof ent.subWorldDraw === 'function') ent.subWorldDraw(mock)
+    else if (typeof ent.worldDraw === 'function') ent.worldDraw(mock)
+    const ft = mock.subEntityTraits.fillType
+    if (ft)
+      eff = {
+        solidFill: ft.solidFill,
+        patternAngle: ft.patternAngle,
+        nDef: ft.definitionLines?.length,
+        definitionLines: mapDefLines(ft.definitionLines)
+      }
+  } catch (e) {
+    eff = 'worldDraw err: ' + e
+  }
+  const out = {
+    id,
+    type: ent.constructor?.name,
+    objectId: String(ent.objectId),
+    handle: String(ent.handle),
+    layer: ent.layer,
+    closed: ent.closed,
+    numberOfVertices: ent.numberOfVertices,
+    linetype: ls
+      ? {
+          name: ls.name,
+          totalPatternLength: ls.totalPatternLength,
+          elements: Array.isArray(larr)
+            ? larr.map((e: any) => ({
+                length: e.length,
+                type: e.elementTypeFlag,
+                text: e.text,
+                shapeNumber: e.shapeNumber
+              }))
+            : null
+        }
+      : null,
+    patternName: safe(ent.patternName),
+    patternType: safe(ent.patternType),
+    patternScale: safe(ent.patternScale),
+    isSolidFill: safe(ent.isSolidFill),
+    nDefLines: safe(() => ent.definitionLines?.length),
+    recordDefinitionLines: safe(() => mapDefLines(ent.definitionLines)),
+    effective: eff
+  }
+  console.log('[DBG ENTITY]', JSON.stringify(out, null, 1))
+  return out
+}
+const scanHatch = () => {
+  const db = curDb()
+  if (!db) {
+    console.log('[DBG] no database open')
+    return []
+  }
+  const rows: any[] = []
+  for (const e of db.tables.blockTable.modelSpace.newIterator()) {
+    const ee: any = e
+    const isHatch =
+      ee.constructor?.name?.includes('Hatch') ||
+      ee.patternName != null ||
+      (ee.definitionLines && ee.definitionLines.length)
+    if (isHatch) {
+      rows.push({
+        id: String(ee.objectId),
+        type: ee.constructor?.name,
+        layer: ee.layer,
+        patternName: safe(ee.patternName),
+        patternScale: safe(ee.patternScale),
+        solid: ee.isSolidFill,
+        nDef: safe(() => ee.definitionLines?.length)
+      })
+    }
+  }
+  console.log(
+    '[DBG HATCHES] count=' + rows.length,
+    JSON.stringify(rows, null, 1)
+  )
+  return rows
+}
+;(window as any).__DUMP_ENTITY = dumpEntity
+;(window as any).__SCAN_HATCH = scanHatch
+/* eslint-enable */
 
 const showViewer = computed(
   () =>
