@@ -30,6 +30,10 @@
         :base-url="BASE_URL"
       />
     </div>
+
+    <!-- Floating parse-performance bench (acad-ts vs acad-rust A/B). Always
+         visible so it can run from the landing screen without opening a doc. -->
+    <PerfBenchmark />
   </div>
 </template>
 
@@ -57,6 +61,7 @@ import { computed, nextTick, ref } from 'vue'
 
 import { AcApQuitCmd } from './commands'
 import FileUpload from './components/FileUpload.vue'
+import PerfBenchmark from './components/PerfBenchmark.vue'
 import {
   getGoogleDriveEnvConfig,
   registerGoogleDriveFromEnv
