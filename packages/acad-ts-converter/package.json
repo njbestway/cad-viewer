@@ -1,0 +1,37 @@
+{
+  "name": "@mlightcad/acad-ts-converter",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Experimental DWG converter built on acad-ts (@node-projects/acad-ts, MIT, pure TypeScript) — maps an acad-ts CadDocument directly into the data-model AcDbDatabase to validate acad-ts as a DWG parser",
+  "private": true,
+  "sideEffects": false,
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "package.json"
+  ],
+  "scripts": {
+    "clean": "rimraf lib tsconfig.tsbuildinfo",
+    "build": "tsc",
+    "lint": "eslint src/",
+    "lint:fix": "eslint --fix --quiet src/"
+  },
+  "dependencies": {
+    "@node-projects/acad-ts": "link:../../../acad-ts"
+  },
+  "devDependencies": {
+    "@mlightcad/data-model": "^1.15.9"
+  },
+  "peerDependencies": {
+    "@mlightcad/data-model": "^1.15.9"
+  }
+}
