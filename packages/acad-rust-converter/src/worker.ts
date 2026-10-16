@@ -190,27 +190,34 @@ ctx.addEventListener('message', (event: MessageEvent) => {
         }
         const input = new Uint8Array(data)
         switch (request.kind) {
-          case 'dwg-to-dxf':
+          case 'dwg-to-dxf': {
+            const dxf = toExactBuffer(dwg_to_dxf(input))
             ctx.postMessage(
               {
                 type: 'result',
                 id,
-                dxf: toExactBuffer(dwg_to_dxf(input))
+                dxf
               },
-              // The result carries no transferables other than the DXF buffer.
-              []
+              // Transfer (move) the DXF buffer instead of structurally cloning
+              // it: its backing store moves to the main thread with no copy,
+              // so the worker's own reference is detached and left unused.
+              [dxf]
             )
             return
-          case 'dxf-to-dxf':
+          }
+          case 'dxf-to-dxf': {
+            const dxf = toExactBuffer(dxf_to_dxf(input))
             ctx.postMessage(
               {
                 type: 'result',
                 id,
-                dxf: toExactBuffer(dxf_to_dxf(input))
+                dxf
               },
-              []
+              // Same zero-copy transfer as `dwg-to-dxf`.
+              [dxf]
             )
             return
+          }
           case 'open':
             ctx.postMessage({ type: 'result', id, handle: dwg_open(input) })
             return
