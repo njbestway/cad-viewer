@@ -171,6 +171,20 @@ export type AcTrDirectCapturePayload =
       indices: Uint16Array
     }
 
+/**
+ * Total planar length of a polyline.
+ */
+function polylineLength(points: AcGePoint3dLike[]): number {
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    total += Math.hypot(
+      points[i].x - points[i - 1].x,
+      points[i].y - points[i - 1].y
+    )
+  }
+  return total
+}
+
 export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
   /**
    * Z step between successive entities. Keeps the stack within typical
@@ -182,6 +196,19 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
   private _context: AcTrRenderContext
   private _renderer: THREE.WebGLRenderer
   private _subEntityTraits: AcGiSubEntityTraits
+  /**
+   * Total length of the wide-polyline band centerlines already stroked for
+   * the entity currently being drawn.
+   *
+   * `AcDbPolyline.subWorldDraw` appends a hairline stroke of the same
+   * centerline after the solid-fill band so needle-thin bands stay visible.
+   * {@link area} already strokes that centerline with the real linetype, so a
+   * second pass expands a complex pattern twice (duplicate embedded
+   * TEXT/SHAPE glyphs stacked on themselves) and fills the dash gaps of a
+   * dashed band with a solid core. Track the stroked length to recognize and
+   * drop the redundant hairline.
+   */
+  private _strokedWideBandLength = 0
   /**
    * Current direct-batch capture session state.
    *
@@ -765,6 +792,21 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
    * @inheritdoc
    */
   lines(points: AcGePoint3dLike[]) {
+    if (this._strokedWideBandLength > 0) {
+      const stroked = this._strokedWideBandLength
+      this._strokedWideBandLength = 0
+      // `area()` already stroked this band's centerline segment by segment
+      // with the real linetype. The stroke that follows is the data model's
+      // visibility hairline for the very same centerline; drawing it again
+      // would expand the dash/glyph pattern on top of itself (duplicate
+      // embedded TEXT/SHAPE glyphs and a solid core across dash gaps).
+      if (
+        Math.abs(polylineLength(points) - stroked) <=
+        Math.max(1e-6, stroked * 1e-6)
+      ) {
+        return this.createEntity()
+      }
+    }
     return this.linePoints(points)
   }
 
@@ -818,7 +860,8 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
     // to normal fill.
     const centerline = this.widePolylineStrokeCenterline(area)
     if (centerline) {
-      return this.lines(centerline)
+      this._strokedWideBandLength += polylineLength(centerline)
+      return this.linePoints(centerline)
     }
     if (this._directCapture !== 'off') {
       if (this.tryCaptureDirectPayload({ kind: 'area', area })) {

@@ -409,9 +409,27 @@ function snapshotGlyphPlacements(group: AcTrMText[]): GlyphPlacement[] {
   }))
 }
 
-function applyGlyphPlacement(glyph: AcTrMText, p: GlyphPlacement): void {
+/**
+ * Moves a glyph shell and keeps a manually managed matrix in sync.
+ *
+ * `AcTrEntity.flatten` reparents glyph shells that live inside an
+ * {@link AcTrGroup} (wide polylines, block references) and freezes their
+ * matrix with `matrixAutoUpdate = false`. Writing `position` alone is then
+ * ignored by `updateMatrixWorld`, so a stale translation stays on the shell.
+ * The next draw folds that translation into the rendered geometry (see
+ * `collapseInverseParentTransformIntoPlacement`) and stacks it on top of the
+ * restored placement, which parks the glyph tens of millions of units away
+ * from the view (missing embedded complex-linetype text).
+ */
+function applyGlyphPlacement(
+  glyph: AcTrMText | AcTrGlyphEntity,
+  p: GlyphPlacement
+): void {
   glyph.position.set(p.x, p.y, p.z)
   glyph.rotation.set(0, 0, p.rz)
+  if (!glyph.matrixAutoUpdate) {
+    glyph.updateMatrix()
+  }
 }
 
 /**
@@ -420,8 +438,7 @@ function applyGlyphPlacement(glyph: AcTrMText, p: GlyphPlacement): void {
 function drawSharedTextGroupSync(group: AcTrMText[]): void {
   const placements = snapshotGlyphPlacements(group)
   const template = group[0]
-  template.position.set(0, 0, 0)
-  template.rotation.set(0, 0, 0)
+  applyGlyphPlacement(template, { x: 0, y: 0, z: 0, rz: 0 })
   template.syncDraw()
   for (let i = 0; i < group.length; i++) {
     applyGlyphPlacement(group[i], placements[i])
@@ -434,8 +451,7 @@ function drawSharedTextGroupSync(group: AcTrMText[]): void {
 async function drawSharedTextGroupAsync(group: AcTrMText[]): Promise<void> {
   const placements = snapshotGlyphPlacements(group)
   const template = group[0]
-  template.position.set(0, 0, 0)
-  template.rotation.set(0, 0, 0)
+  applyGlyphPlacement(template, { x: 0, y: 0, z: 0, rz: 0 })
   await template.asyncDraw()
   for (let i = 0; i < group.length; i++) {
     applyGlyphPlacement(group[i], placements[i])
@@ -460,8 +476,7 @@ function applySharedPlacement(
   glyph: AcTrGlyphEntity,
   placement: SharedPlacement
 ): void {
-  glyph.position.set(placement.x, placement.y, placement.z)
-  glyph.rotation.set(0, 0, placement.rz)
+  applyGlyphPlacement(glyph, placement)
 }
 
 function prepareSharedGlyphGroup(group: AcTrGlyphEntity[]): {
@@ -477,8 +492,7 @@ function prepareSharedGlyphGroup(group: AcTrGlyphEntity[]): {
   }
   const placements = snapshotSharedPlacements(group)
   const template = group[0]
-  template.position.set(0, 0, 0)
-  template.rotation.set(0, 0, 0)
+  applyGlyphPlacement(template, { x: 0, y: 0, z: 0, rz: 0 })
   return { placements, template }
 }
 
