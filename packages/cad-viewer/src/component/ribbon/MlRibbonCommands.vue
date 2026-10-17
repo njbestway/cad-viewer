@@ -2806,7 +2806,7 @@ const handleFileMenuSelect = async (command: string) => {
   } else if (command === 'Open') {
     const cmd = new AcApOpenCmd()
     cmd.trigger(AcApDocManager.instance.context)
-  } else if (command.startsWith('ds:')) {
+  } else if (command.length>0   && command.startsWith('ds:')) {
     const itemId = command.slice(3)
     const item = dataSourceMenuItems.value.find(i => i.id === itemId)
     if (item) {

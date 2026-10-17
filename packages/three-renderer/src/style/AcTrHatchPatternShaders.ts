@@ -413,18 +413,50 @@ export function createHatchPatternShaderMaterial(
         // elongates into a long jagged streak (GRAVEL zoomed out). Skip the
         // discrete dash gating and let drawSpaceLine fade the row set toward its
         // mean coverage instead.
-        if (thick >= distanceBetweenLines) {
+        bool rowMerge = thick >= distanceBetweenLines;
+        // A second, earlier failure mode is along-line phase aliasing: the dash
+        // phase advances by (offset.x / offset.y) per unit of perpendicular
+        // travel, so one screen pixel shifts it by slope*thick. For high-stagger
+        // aggregate patterns (GRAVEL: |offset.x/offset.y| measured up to ~600)
+        // this exceeds half a pattern period while the rows are still nominally
+        // resolvable, turning the per-pixel dash/gap decision into a chaotic
+        // long-streak net. Detect that threshold and fall back to the duty
+        // weighted mean too. Gentle/orthogonal patterns (ANSI31, dashed lines)
+        // have slope near 0 and never trip this, so they are unaffected.
+        bool alongAlias = false;
+        if (abs(offset.y) > EPSILON && patternLine.patternLength > EPSILON) {
+            float slope = abs(offset.x) / abs(offset.y);
+            alongAlias = slope * thick >= 0.5 * patternLine.patternLength;
+        }
+        if (rowMerge || alongAlias) {
+            // Force drawSpaceLine into its pure mean-coverage regime
+            // (linesPerPixel == 1 -> denseBlend saturates to the duty-weighted
+            // average) regardless of which trigger fired, so sparse stipple
+            // patterns read as a light wash instead of bright streaks.
+            float mergeSpacing = max(distanceBetweenLines, thick);
             return drawSpaceLine(
                 samplePos,
-                distanceBetweenLines,
-                thick,
+                mergeSpacing,
+                mergeSpacing,
                 dashDuty(patternLine)
             );
         }
 
         float offsetX = 0.0;
         if (abs(offset.y) > EPSILON) {
-            offsetX = samplePos.y * offset.x / offset.y;
+            // PAT line families are DISCRETE parallel lines spaced offset.y
+            // apart, each shifted along-line by an integer multiple of offset.x.
+            // The continuous form samplePos.y*offset.x/offset.y instead smears
+            // the phase across the whole hatch: for a high-stagger aggregate
+            // (GRAVEL: offset.x/offset.y ~162) every 34-wide dash is dragged
+            // into a diagonal band sweeping the full sample range, which reads
+            // as the chaotic long-streak net. Quantizing to the nearest line
+            // index keeps each line at a constant along-line phase, so it draws
+            // its true short dash; on the lines themselves (samplePos.y ==
+            // k*offset.y) this equals the continuous value exactly, so ordinary
+            // low-stagger patterns are visually unchanged.
+            float lineIndex = floor(samplePos.y / offset.y + 0.5);
+            offsetX = lineIndex * offset.x;
         }
         float linePosition = samplePos.x - offsetX;
         float distance = 0.0;
