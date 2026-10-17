@@ -396,35 +396,15 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
         await emit(pct, 'ENTITY', 'IN-PROGRESS')
       }
 
-      // (a) Model space — the drawing body (LINE/CIRCLE/.../INSERT).
-      const modelSpace = db.tables.blockTable.modelSpace
-      let offset = 0
-      for (;;) {
-        if (modelTotal > 0 && offset >= modelTotal) {
-          break
-        }
-        const page = await client.entityPage(handle, offset, pageSize)
-        if (page.length === 0) {
-          break
-        }
-        for (const entity of page) {
-          if (!mapEntity(entity, modelSpace)) {
-            unknownEntityCount++
-          }
-        }
-        offset += page.length
-        processed += page.length
-        await emitEntityProgress()
-        // Keep the UI responsive between worker round-trips.
-        await accmYieldToUi()
-        if (page.length < pageSize) {
-          break // short page => server exhausted the range
-        }
-      }
-
-      // (b) Block definitions — page each non-space block's own entities into its
-      // record (bounded by the BLOCK-RECORD `entity_handles` count). Insert refs
-      // above already resolve to these records by name.
+      // (a) Block definitions — page each non-space block's own entities into
+      // its record (bounded by the BLOCK-RECORD `entity_handles` count). This
+      // must land BEFORE the model-space loop: the view converts and draws
+      // model-space entities progressively while `read()` is still streaming
+      // (every `accmYieldToUi` gives the draw loop a turn), and an INSERT's
+      // `subWorldDraw` snapshots the referenced block record the moment it is
+      // drawn. With the model-space loop first, every block definition was still
+      // empty at that point, so INSERTs rendered as empty groups and
+      // AcDbRenderingCache cached the empty template.
       for (const { name, record, entityCount } of mappedBlocks) {
         if (entityCount <= 0) {
           continue
@@ -455,6 +435,34 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
           if (page.length < pageSize) {
             break
           }
+        }
+      }
+
+      // (b) Model space — the drawing body (LINE/CIRCLE/.../INSERT). Runs after
+      // the block definitions so INSERTs resolve against populated records even
+      // though the view draws this stream before `read()` returns.
+      const modelSpace = db.tables.blockTable.modelSpace
+      let offset = 0
+      for (;;) {
+        if (modelTotal > 0 && offset >= modelTotal) {
+          break
+        }
+        const page = await client.entityPage(handle, offset, pageSize)
+        if (page.length === 0) {
+          break
+        }
+        for (const entity of page) {
+          if (!mapEntity(entity, modelSpace)) {
+            unknownEntityCount++
+          }
+        }
+        offset += page.length
+        processed += page.length
+        await emitEntityProgress()
+        // Keep the UI responsive between worker round-trips.
+        await accmYieldToUi()
+        if (page.length < pageSize) {
+          break // short page => server exhausted the range
         }
       }
 
