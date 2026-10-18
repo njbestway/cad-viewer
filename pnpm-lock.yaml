@@ -129,6 +129,22 @@ importers:
         specifier: ^1.15.10
         version: 1.15.10
 
+  packages/cad-agent-core:
+    dependencies:
+      acorn:
+        specifier: ^8.15.0
+        version: 8.16.0
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@mlightcad/cad-simple-viewer':
+        specifier: workspace:*
+        version: link:../cad-simple-viewer
+      '@mlightcad/data-model':
+        specifier: ^1.15.11
+        version: 1.15.11
+
   packages/cad-agent-plugin:
     dependencies:
       '@ai-sdk/anthropic':
@@ -147,6 +163,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@mlightcad/cad-agent-core':
+        specifier: workspace:*
+        version: link:../cad-agent-core
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -343,6 +362,25 @@ importers:
         specifier: ^5.6.205
         version: 5.7.284
 
+  packages/cad-script-plugin:
+    dependencies:
+      json-formatter-js:
+        specifier: ^2.5.23
+        version: 2.5.23
+    devDependencies:
+      '@mlightcad/cad-agent-core':
+        specifier: workspace:*
+        version: link:../cad-agent-core
+      '@mlightcad/cad-simple-viewer':
+        specifier: workspace:*
+        version: link:../cad-simple-viewer
+      '@mlightcad/data-model':
+        specifier: ^1.15.11
+        version: 1.15.11
+      vite:
+        specifier: ^6.4.3
+        version: 6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3)
+
   packages/cad-simple-ui-plugin:
     devDependencies:
       '@mlightcad/cad-simple-viewer':
@@ -454,6 +492,9 @@ importers:
       '@mlightcad/acad-ts-converter':
         specifier: workspace:*
         version: link:../acad-ts-converter
+      '@mlightcad/cad-agent-core':
+        specifier: workspace:*
+        version: link:../cad-agent-core
       '@mlightcad/cad-agent-plugin':
         specifier: workspace:*
         version: link:../cad-agent-plugin
@@ -469,6 +510,9 @@ importers:
       '@mlightcad/cad-pdf-plugin':
         specifier: workspace:*
         version: link:../cad-pdf-plugin
+      '@mlightcad/cad-script-plugin':
+        specifier: workspace:*
+        version: link:../cad-script-plugin
       '@mlightcad/cad-simple-ui-plugin':
         specifier: workspace:*
         version: link:../cad-simple-ui-plugin
@@ -536,6 +580,9 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.31(typescript@5.9.3))
+      '@mlightcad/cad-agent-core':
+        specifier: workspace:*
+        version: link:../cad-agent-core
       '@mlightcad/cad-agent-plugin':
         specifier: workspace:*
         version: link:../cad-agent-plugin
@@ -551,6 +598,9 @@ importers:
       '@mlightcad/cad-pdf-plugin':
         specifier: workspace:*
         version: link:../cad-pdf-plugin
+      '@mlightcad/cad-script-plugin':
+        specifier: workspace:*
+        version: link:../cad-script-plugin
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -632,6 +682,9 @@ importers:
       '@mlightcad/acad-ts-converter':
         specifier: workspace:*
         version: link:../acad-ts-converter
+      '@mlightcad/cad-agent-core':
+        specifier: workspace:*
+        version: link:../cad-agent-core
       '@mlightcad/cad-agent-plugin':
         specifier: workspace:*
         version: link:../cad-agent-plugin
@@ -647,6 +700,9 @@ importers:
       '@mlightcad/cad-pdf-plugin':
         specifier: workspace:*
         version: link:../cad-pdf-plugin
+      '@mlightcad/cad-script-plugin':
+        specifier: workspace:*
+        version: link:../cad-script-plugin
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -2262,8 +2318,8 @@ packages:
   '@maxim_mazurok/gapi.client.discovery-v1@0.6.20200806':
     resolution: {integrity: sha512-QN6aGmIbLXcJW0SEf8tz9UWCpQTBMy2u4xSuZ04YofzMGknhWwMeUecySLntCZYAEstHzDoSgwxCf5Gb8GqIRQ==}
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261011':
-    resolution: {integrity: sha512-ysPqL+m0TAbTm9yGJQLKhDOJhkC6r0G60pcHpyzS3Pw9w97t1Q1QnBFVjNpAMUPmcfeAy35YKbWwt1NgUat1QA==}
+  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261012':
+    resolution: {integrity: sha512-pyIFD7bd5Ly1lkpjzT0hxFUsB7ZbzXUCf2LK8BQN0sggFHeGS4CyCoqdyDI8qQFm6Lhdd2DhIjSXLXeFMR+e3Q==}
 
   '@microsoft/api-extractor-model@7.33.5':
     resolution: {integrity: sha512-Xh4dXuusndVQqVz4nEN9xOp0DyzsKxeD2FFJkSPg4arAjDSKPcy6cAc7CaeBPA7kF2wV1fuDlo2p/bNMpVr8yg==, tarball: https://registry.npmmirror.com/@microsoft/api-extractor-model/-/api-extractor-model-7.33.5.tgz}
@@ -4838,6 +4894,9 @@ packages:
 
   json-buffer@3.0.1:
     resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
+
+  json-formatter-js@2.5.23:
+    resolution: {integrity: sha512-Cbm8wHXjo/C56aCePP1VuKvjxoMEmL7g7Ckss1oWFFlCsvOEEbye1kTeaNNaqba1Cl6YpIOYAnK65pUQ8mDIUQ==}
 
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
@@ -8136,7 +8195,7 @@ snapshots:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261011':
+  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261012':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -8752,7 +8811,7 @@ snapshots:
 
   '@types/gapi.client.drive-v3@0.0.5':
     dependencies:
-      '@maxim_mazurok/gapi.client.drive-v3': 0.3.20261011
+      '@maxim_mazurok/gapi.client.drive-v3': 0.3.20261012
 
   '@types/gapi.client@1.0.8': {}
 
@@ -10970,6 +11029,8 @@ snapshots:
   jsesc@3.1.0: {}
 
   json-buffer@3.0.1: {}
+
+  json-formatter-js@2.5.23: {}
 
   json-parse-even-better-errors@2.3.1: {}
 

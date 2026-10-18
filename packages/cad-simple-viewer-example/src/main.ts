@@ -47,6 +47,7 @@ import { registerLazyPlugins } from './register'
 import { registerAcadRustConverter } from './registerAcadRust'
 import { isAcadTsEnabled, registerAcadTsConverter } from './registerAcadTs'
 import { registerLibreDwgConverter } from './registerLibreDwg'
+import { SCRIPT_TOOLBAR_ITEM } from './scriptToolbarItem'
 
 // Isolate this example's prefs from cad-viewer-example on localhost.
 AcApSettingManager.configure({
@@ -953,7 +954,7 @@ class CadViewerApp {
         toolbar: {
           placement: 'right',
           items: 'default',
-          appendItems: [AGENT_TOOLBAR_ITEM],
+          appendItems: [AGENT_TOOLBAR_ITEM, SCRIPT_TOOLBAR_ITEM],
           appendItemsAfter: 'layout',
           collapsible: true
         },
