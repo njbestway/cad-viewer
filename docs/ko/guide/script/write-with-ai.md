@@ -63,10 +63,24 @@ title: AI로 스크립트 작성하기
 - Point: { position: {x,y,z} }
 - Ray / Xline: { basePoint: {x,y,z}, unitDir: {x,y,z} }
 - Insert(BlockReference): { name, position: {x,y,z}, rotation, scale: {x,y,z} }
+- Hatch: { patternName, patternScale, boundary }
+- Dimension: { text, measurement, textPosition, styleName }
+
+스냅샷에는 `ownerId`가 있습니다. 모형 공간, 도면 공간, 블록 정의, 블록 참조의 속성이 포함됩니다.
+
+### cad.tables
+`AcDbDatabase.tables`와 같은 심볼 테이블입니다. 각 테이블은 { id, records: [{ id, name, ... }] }입니다.
+appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
+layerTable에는 color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable이 있습니다. 블록 안 엔티티는 cad.blocks를 사용합니다.
+
+### cad.blocks
+DXF BLOCKS 섹션에 해당합니다. *Model_Space와 *Paper_Space를 포함합니다.
+필드: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entities.
 
 ### cad.selection
 선택 집합 제어:
-- cad.selection.ids() -> 현재 선택된 엔티티 ID 배열
+- cad.selection.ids -> 현재 선택된 엔티티 ID 배열
+- cad.selection.entities -> 선택 집합에 있는 각 엔티티의 스냅샷
 - cad.selection.replace(ids) -> 지우고 지정된 ID 목록으로 설정
 - cad.selection.add(ids) -> 선택 집합에 추가
 - cad.selection.remove(ids) -> 선택 집합에서 제거

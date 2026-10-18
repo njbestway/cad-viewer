@@ -76,7 +76,7 @@ highlights those ids.
 | `cad.entities.where(predicate)` | Tests each model-space entity, then snapshots only the matches |
 | `cad.entities.byId(id)` | One snapshot, or `undefined` |
 | `cad.entities.inBox(min, max)` | Snapshots whose scene bounds meet a WCS box |
-| `cad.selection` | `ids`, `replace`, `add`, `remove`, `clear` |
+| `cad.selection` | `ids`, `entities`, `replace`, `add`, `remove`, `clear` |
 | `cad.view.zoomExtents()` | Fit the view to the drawing |
 | `cad.log(...)` | Lines returned on the tool result |
 | `cad.edit.transaction(label, tx => {})` | One undo group |
@@ -98,8 +98,11 @@ Snapshot `geometry` for common types:
 - Ray / Xline: `basePoint`, `unitDir`
 - Insert: `name`, `position`, `rotation`, `scale`
 
-Other entity types still return `id`, `type`, `layer`, and `extents`. The first
-version iterates model space only.
+Geometry is copied for every concrete entity type in `@mlightcad/data-model`. A property that cannot be read is omitted. Binary payloads such as ACIS, OLE streams, and proxy graphics are not copied. `cad.entities` walks every block table record, so model space, paper space, and block definitions are all included. Attributes on inserts are included too. `ownerId` is the owning block id, or the insert id for an attribute.
+
+`cad.tables` copies `AcDbDatabase.tables`: `appIdTable`, `blockTable`, `dimStyleTable`, `linetypeTable`, `textStyleTable`, `ucsTable`, `viewTable`, `layerTable`, and `viewportTable`. Each value is `{ id, records }`.
+
+`cad.blocks` copies block definitions the way a DXF BLOCKS section does, including `*Model_Space` and `*Paper_Space`. Each block has `id`, `name`, `origin`, `isModelSpace`, `isPaperSpace`, `flags`, `pathName`, `isXref`, and `entities`.
 
 `CAD_SCRIPT_API_SUMMARY` is the text embedded in the chat system prompt and in
 the `execute_cad_script` description. Adapters should reuse that string.

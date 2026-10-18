@@ -63,10 +63,24 @@ Türlerine göre geometry alanları:
 - Point: { position: {x,y,z} }
 - Ray / Xline: { basePoint: {x,y,z}, unitDir: {x,y,z} }
 - Insert (BlockReference): { name, position: {x,y,z}, rotation, scale: {x,y,z} }
+- Hatch: { patternName, patternScale, boundary }
+- Dimension: { text, measurement, textPosition, styleName }
+
+Anlık görüntüde `ownerId` vardır. Kapsam model alanı, kağıt alanı, blok tanımları ve blok referansı öznitelikleridir.
+
+### cad.tables
+`AcDbDatabase.tables` ile aynı sembol tabloları. Her tablo { id, records: [{ id, name, ... }] } biçimindedir.
+appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
+layerTable color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable içerir. Blok içindeki varlıklar cad.blocks üzerindedir.
+
+### cad.blocks
+DXF BLOCKS bölümüne karşılık gelir. *Model_Space ve *Paper_Space dahildir.
+Alanlar: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entities.
 
 ### cad.selection
 Seçim kümesini kontrol etme:
-- cad.selection.ids() -> Şu anda seçili varlık ID'leri dizisi
+- cad.selection.ids -> Şu anda seçili varlık ID'leri dizisi
+- cad.selection.entities -> Seçim kümesindeki her varlığın anlık görüntüsü
 - cad.selection.replace(ids) -> Seçim kümesini temizler ve belirtilen ID listesiyle değiştirir
 - cad.selection.add(ids) -> Seçim kümesine ekler
 - cad.selection.remove(ids) -> Seçim kümesinden çıkarır

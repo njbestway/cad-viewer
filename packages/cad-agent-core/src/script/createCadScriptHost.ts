@@ -1,5 +1,5 @@
 import { acapRunDatabaseEdit } from '@mlightcad/cad-simple-viewer'
-import { AcGeBox2d, AcGePoint2d, AcGePoint3d } from '@mlightcad/data-model'
+import { AcDbEntity, AcGePoint3d } from '@mlightcad/data-model'
 
 import { getDrawingContext } from '../context/DrawingContextProvider'
 import type { CadSession } from '../session/CadSession'
@@ -9,10 +9,12 @@ import { CadActionExecutor } from '../tools/CadActionExecutor'
 import type { Point2dInput, ToolResult } from '../tools/types'
 import {
   type EntitySnapshot,
+  iterateDatabaseEntities,
   openEntityFilterView,
   toEntitySnapshot
 } from './entitySnapshot'
 import { CAD_EDIT_TX_METHODS, CAD_SCRIPT_API_TREE } from './scriptApi'
+import { toBlockSnapshots, toDatabaseTables } from './tableSnapshot'
 
 /** Side effects collected while a script runs. */
 export interface CadScriptEffects {
@@ -64,7 +66,7 @@ export function createCadScriptHost(
       }
       const doc = requireDocumentRecord(session)
       const matches: EntitySnapshot[] = []
-      for (const entity of doc.database.tables.blockTable.modelSpace.newIterator()) {
+      for (const entity of iterateDatabaseEntities(doc.database)) {
         const view = openEntityFilterView(entity)
         let matched = false
         try {
@@ -80,26 +82,39 @@ export function createCadScriptHost(
       return snapshotById(session, id)
     },
     inBox(min: Point2dInput, max: Point2dInput): EntitySnapshot[] {
-      const view = requireView(session)
-      const box = new AcGeBox2d(
-        new AcGePoint2d(min.x, min.y),
-        new AcGePoint2d(max.x, max.y)
-      )
+      const doc = requireDocumentRecord(session)
+      const minX = Math.min(min.x, max.x)
+      const maxX = Math.max(min.x, max.x)
+      const minY = Math.min(min.y, max.y)
+      const maxY = Math.max(min.y, max.y)
       const snapshots: EntitySnapshot[] = []
-      const seen = new Set<string>()
-      for (const hit of view.search(box)) {
-        if (seen.has(hit.id)) continue
-        seen.add(hit.id)
-        const snapshot = snapshotById(session, hit.id)
-        if (snapshot) snapshots.push(snapshot)
+      for (const entity of iterateDatabaseEntities(doc.database)) {
+        const view = openEntityFilterView(entity)
+        const extents = view.value.extents
+        view.release()
+        if (!extents) continue
+        const hits =
+          extents.max.x >= minX &&
+          extents.min.x <= maxX &&
+          extents.max.y >= minY &&
+          extents.min.y <= maxY
+        if (hits) snapshots.push(toEntitySnapshot(entity))
       }
       return snapshots
     }
   }
 
   const selection = {
-    ids(): string[] {
+    get ids(): string[] {
       return [...requireView(session).selectionSet.ids]
+    },
+    get entities(): EntitySnapshot[] {
+      const snapshots: EntitySnapshot[] = []
+      for (const id of this.ids) {
+        const snapshot = snapshotById(session, id)
+        if (snapshot) snapshots.push(snapshot)
+      }
+      return snapshots
     },
     replace(ids: string[]): void {
       const view = requireView(session)
@@ -140,7 +155,12 @@ export function createCadScriptHost(
       const db = session.getDocument()!.database
       runInsideScriptEdit(() => {
         acapRunDatabaseEdit(db, label || 'Agent script', () => {
-          fn(seal(createTransaction(session, executor, effects), CAD_EDIT_TX_METHODS))
+          fn(
+            seal(
+              createTransaction(session, executor, effects),
+              CAD_EDIT_TX_METHODS
+            )
+          )
         })
       })
     }
@@ -165,6 +185,12 @@ export function createCadScriptHost(
       }
     },
     entities,
+    get tables() {
+      return toDatabaseTables(requireDocumentRecord(session).database)
+    },
+    get blocks() {
+      return toBlockSnapshots(requireDocumentRecord(session).database)
+    },
     selection,
     view,
     edit,
@@ -173,7 +199,10 @@ export function createCadScriptHost(
     },
     __tick(): void {
       ticks++
-      if (ticks > limits.maxTicks || Date.now() - startedAt > limits.maxMilliseconds) {
+      if (
+        ticks > limits.maxTicks ||
+        Date.now() - startedAt > limits.maxMilliseconds
+      ) {
         throw new Error('script_timeout')
       }
     }
@@ -184,8 +213,16 @@ export function createCadScriptHost(
 
 /** Transaction methods exposed inside `cad.edit.transaction`. */
 export interface CadEditTransaction {
-  drawLine(input: { start: Point2dInput; end: Point2dInput; layer?: string }): string
-  drawCircle(input: { center: Point2dInput; radius: number; layer?: string }): string
+  drawLine(input: {
+    start: Point2dInput
+    end: Point2dInput
+    layer?: string
+  }): string
+  drawCircle(input: {
+    center: Point2dInput
+    radius: number
+    layer?: string
+  }): string
   drawArc(input: {
     center: Point2dInput
     radius: number
@@ -242,7 +279,9 @@ function createTransaction(
     },
     setLayer(ids, layer) {
       const doc = session.getDocument()!
-      const known = doc.layerStore.getLayers().some(entry => entry.name === layer)
+      const known = doc.layerStore
+        .getLayers()
+        .some(entry => entry.name === layer)
       if (!known) throw new Error('layer_not_found')
       const db = doc.database
       for (const id of ids) {
@@ -280,8 +319,7 @@ function createTransaction(
 /**
  * Reads one entity through the database id map.
  *
- * Scanning model space here made `ids.map(id => cad.entities.byId(id))`
- * rebuild every snapshot once per selected id.
+ * Opening the object by id avoids scanning every block once per selected id.
  *
  * @param session - Drawing access.
  * @param id - Entity object id.
@@ -292,7 +330,11 @@ function snapshotById(
   id: string
 ): EntitySnapshot | undefined {
   const doc = requireDocumentRecord(session)
-  const entity = doc.database.tables.blockTable.getEntityById(id)
+  const opened = doc.database.openObjectForRead(id)
+  const entity =
+    opened instanceof AcDbEntity
+      ? opened
+      : doc.database.tables.blockTable.getEntityById(id)
   if (!entity) return undefined
   return toEntitySnapshot(entity)
 }
@@ -312,10 +354,29 @@ function requireView(session: CadSession) {
 function formatLogValue(value: unknown): string {
   if (typeof value === 'string') return value
   try {
-    return JSON.stringify(value) ?? String(value)
+    return stringifyScriptValue(value) ?? String(value)
   } catch {
     return String(value)
   }
+}
+
+/**
+ * JSON text for a script value.
+ *
+ * `JSON.stringify` omits functions, so an API object such as `cad.selection`
+ * becomes `{}` and the result pane shows an object with no properties.
+ * Function members are kept as `function name` strings.
+ *
+ * @param value - Return value or log argument.
+ * @returns JSON text, or `undefined` when the value cannot be represented.
+ */
+export function stringifyScriptValue(value: unknown): string | undefined {
+  return JSON.stringify(value, (key, current: unknown) => {
+    if (key === '__tick') return undefined
+    if (typeof current !== 'function') return current
+    const name = current.name.replace(/^bound /, '')
+    return name ? `function ${name}` : 'function'
+  })
 }
 
 function seal<T extends object>(target: T, allowed: readonly string[]): T {
@@ -324,6 +385,9 @@ function seal<T extends object>(target: T, allowed: readonly string[]): T {
     get(obj, prop, receiver) {
       if (typeof prop !== 'string') return undefined
       if (!keys.has(prop)) {
+        // JSON.stringify reads toJSON before enumerating. The script validator
+        // still rejects a written `cad.toJSON` access.
+        if (prop === 'toJSON') return undefined
         throw new Error(`unknown_api:${prop}`)
       }
       const value = Reflect.get(obj, prop, receiver)
