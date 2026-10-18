@@ -43,6 +43,8 @@ use std::cell::RefCell;
 use std::io::Cursor;
 use wasm_bindgen::prelude::*;
 
+pub mod tianzheng;
+
 /// Convert a Rust error into a `JsValue` string so JS callers get a usable
 /// diagnostic instead of an opaque abort.
 fn to_js<E: std::fmt::Display>(context: &str) -> impl Fn(E) -> JsValue + '_ {
@@ -60,10 +62,14 @@ fn to_json<T: serde::Serialize>(context: &str, value: &T) -> Result<String, JsVa
 // ---------------------------------------------------------------------------
 
 /// Architecture A: read DWG bytes and return ASCII DXF bytes.
+///
+/// Tianzheng `TCH_TEXT` records are promoted first (see [`tianzheng`]) so this
+/// path emits the same text geometry as the sectioned `dwg_open` path.
 #[wasm_bindgen]
 pub fn dwg_to_dxf(data: &[u8]) -> Result<Vec<u8>, JsValue> {
     let mut reader = DwgReader::from_stream(Cursor::new(data));
-    let doc = reader.read().map_err(to_js("acadrust DWG read failed"))?;
+    let mut doc = reader.read().map_err(to_js("acadrust DWG read failed"))?;
+    tianzheng::promote_tch_text(&mut doc);
     DxfWriter::new(&doc)
         .write_to_vec()
         .map_err(to_js("acadrust DXF write failed"))
@@ -159,10 +165,15 @@ fn register_document(doc: CadDocument) -> u32 {
 /// Parse DWG bytes, keep the resulting `CadDocument` alive in wasm memory, and
 /// return its handle for later `dwg_meta` / `dwg_section_json` /
 /// `dwg_entity_page` / `dwg_block_entity_page` / `dwg_close` calls.
+///
+/// Tianzheng `TCH_TEXT` records are promoted to ordinary `Text` entities here,
+/// before the document is registered, because their private `TDbText` payload
+/// is otherwise untyped and never reaches the view (see [`tianzheng`]).
 #[wasm_bindgen]
 pub fn dwg_open(data: &[u8]) -> Result<u32, JsValue> {
     let mut reader = DwgReader::from_stream(Cursor::new(data));
-    let doc = reader.read().map_err(to_js("acadrust DWG read failed"))?;
+    let mut doc = reader.read().map_err(to_js("acadrust DWG read failed"))?;
+    tianzheng::promote_tch_text(&mut doc);
     Ok(register_document(doc))
 }
 

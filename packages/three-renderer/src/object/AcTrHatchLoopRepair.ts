@@ -91,6 +91,35 @@ export function hatchLoopHasSelfIntersection(
   return false
 }
 
+/**
+ * Returns whether a tessellated hatch loop encloses any area.
+ *
+ * DWG hatch paths can be degenerate: two opposing line edges (a closed
+ * two-vertex polyline) tessellate to `[a, b, a]`, and a collinear ring spans no
+ * area at all. Earcut emits no triangle for either, so they carry nothing to
+ * fill — unlike a boundary that fails to convert.
+ */
+export function hatchLoopHasRenderableArea(
+  points: AcGePoint2dLike[]
+): boolean {
+  const ring = openRing(points)
+  if (ring.length < 3) {
+    return false
+  }
+  // A zero-area ring lies entirely on one line, so every consecutive triple is
+  // collinear. Testing triples instead of the signed area keeps bow-ties
+  // (zero signed area, but a real even-odd region) renderable.
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]
+    const b = ring[(i + 1) % ring.length]
+    const c = ring[(i + 2) % ring.length]
+    if (orientation2d(a, b, c) !== 0) {
+      return true
+    }
+  }
+  return false
+}
+
 function polyboolEpsilonFor(points: AcGePoint2dLike[]): number {
   const first = points[0]
   if (

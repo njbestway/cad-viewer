@@ -1,7 +1,8 @@
 import {
   AcGeArea2d,
   AcGePoint2d,
-  AcGePolyline2d
+  AcGePolyline2d,
+  log
 } from '@mlightcad/data-model'
 import * as THREE from 'three'
 
@@ -288,6 +289,31 @@ describe('AcTrPolygon self-intersecting hatch loops', () => {
     expect(isFilledAt(polygon, 1437, 650)).toBe(true)
     expect(isFilledAt(polygon, 1425, 628.2)).toBe(true)
     expect(isFilledAt(polygon, 1425, 640)).toBe(false)
+  })
+})
+
+describe('AcTrPolygon degenerate hatch boundaries', () => {
+  it('leaves a zero-area path unfilled without warning', () => {
+    // DWG hatch 46824 (block A$Cf2a86b6d): its innermost path is two opposing
+    // line edges, so tessellation yields [a, b, a]. There is nothing to fill,
+    // and that must not look like a boundary-conversion failure.
+    const a = new AcGePoint2d(-9950.337937803008, 24604.21912893001)
+    const b = new AcGePoint2d(-7450.337942285463, 24604.21912893164)
+    const area = {
+      tessellate: () => [[a, b, a]],
+      buildHierarchy: () => ({ children: [{ index: 0, children: [] }] })
+    } as unknown as AcGeArea2d
+
+    const warn = jest.spyOn(log, 'warn').mockImplementation(() => {})
+    const polygon = new AcTrPolygon(
+      area,
+      createPatternedTraits(),
+      new AcTrRenderContext()
+    )
+    warn.mockRestore()
+
+    expect(polygon.wcsBbox.isEmpty()).toBe(true)
+    expect(warn).not.toHaveBeenCalled()
   })
 })
 

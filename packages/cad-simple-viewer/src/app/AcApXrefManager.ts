@@ -247,6 +247,44 @@ export class AcApXrefManager {
   }
 
   /**
+   * Derives the overlay transform from the host INSERT that places an xref.
+   *
+   * The INSERT is searched in model space first, then in paper space records.
+   * Only top-level placements are considered: a reference nested inside another
+   * block cannot be represented by a single world transform.
+   *
+   * @param hostDb - Host drawing database that owns the xref BTR and INSERT.
+   * @param blockName - Name of the xref block-table record.
+   * @returns The matching INSERT transform, or `undefined` when the reference is
+   * unloaded or no INSERT places it.
+   */
+  static findHostInsertTransform(
+    hostDb: AcDbDatabase,
+    blockName: string
+  ): AcApXrefTransform | undefined {
+    const normalized = blockName.trim().toUpperCase()
+    const blockTable = hostDb.tables.blockTable
+    const spaces = [blockTable.modelSpace]
+    for (const record of blockTable.newIterator()) {
+      if (record.isPaperSapce && !record.isXref) spaces.push(record)
+    }
+
+    for (const space of spaces) {
+      for (const entity of space.newIterator()) {
+        if (!(entity instanceof AcDbBlockReference)) continue
+        if (entity.blockName.trim().toUpperCase() !== normalized) continue
+        const scale = entity.scaleFactors.x
+        return {
+          position: new AcGePoint3d(entity.position),
+          scale: scale > 0 ? scale : 1,
+          rotationRad: entity.rotation
+        }
+      }
+    }
+    return undefined
+  }
+
+  /**
    * Creates an empty xref block-table record and INSERT on the host database.
    *
    * Source entities are intentionally not bound into the BTR; geometry is shown

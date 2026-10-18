@@ -406,11 +406,18 @@ const loadBufferAsOverlay = async (
   sourcePath?: string
 ) => {
   try {
+    // Align the overlay with the host INSERT that places this reference;
+    // without it the geometry would be drawn at the world origin.
+    const transform = AcApXrefManager.findHostInsertTransform(
+      AcApDocManager.instance.curDocument.database,
+      xrefName
+    )
     const session = await AcApXrefManager.instance.attachOverlay({
       blockName: xrefName,
       fileName,
       content: buffer,
-      sourcePath: sourcePath?.trim() || fileName
+      sourcePath: sourcePath?.trim() || fileName,
+      transform
     })
     setOverlayState(xrefName, {
       overlayId: session.overlayId,

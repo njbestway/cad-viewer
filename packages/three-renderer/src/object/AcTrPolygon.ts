@@ -17,7 +17,10 @@ import type { AcTrDrawMode } from '../draw/AcTrDrawMode'
 import { AcTrRenderContext } from '../renderer/AcTrRenderContext'
 import { AcTrBufferGeometryUtil } from '../util/AcTrBufferGeometryUtil'
 import { AcTrEntity } from './AcTrEntity'
-import { resolveSelfIntersectingHatchLoop } from './AcTrHatchLoopRepair'
+import {
+  hatchLoopHasRenderableArea,
+  resolveSelfIntersectingHatchLoop
+} from './AcTrHatchLoopRepair'
 
 function toVector2(points: AcGePoint2dLike[]): THREE.Vector2[] {
   return points
@@ -109,8 +112,8 @@ export class AcTrPolygon extends AcTrEntity {
         tessellate: { value: () => pointBoundaries }
       }) as AcGeArea2d
     ).buildHierarchy(tessellateOptions)
-    const hasRenderableBoundaries = pointBoundaries.some(
-      loop => loop.length >= 3
+    const hasRenderableBoundaries = pointBoundaries.some(loop =>
+      hatchLoopHasRenderableArea(loop)
     )
 
     // Rebasing object-space vertices near a local origin keeps the Float32
