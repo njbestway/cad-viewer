@@ -24,17 +24,48 @@ function orientation2d(
 
 /**
  * Returns whether segments `ab` and `cd` cross in their interiors.
+ *
+ * DWG hatch paths repeat vertices, and their closing edges land within
+ * floating-point noise of a previous edge. PolyBool classifies such a hit as
+ * an endpoint touch (`EqualStart` / `EqualEnd`) and never splits the segment,
+ * so reporting it as a crossing only feeds a degenerate loop into the repair,
+ * which then throws "Zero-length segment detected". Ignore hits within
+ * `epsilon` (in segment parameter space) of an endpoint, mirroring PolyBool's
+ * own categorisation.
  */
 function segmentsProperlyIntersect(
   a: AcGePoint2dLike,
   b: AcGePoint2dLike,
   c: AcGePoint2dLike,
-  d: AcGePoint2dLike
+  d: AcGePoint2dLike,
+  epsilon: number
 ): boolean {
-  return (
-    orientation2d(a, b, c) !== orientation2d(a, b, d) &&
-    orientation2d(c, d, a) !== orientation2d(c, d, b)
-  )
+  const c1 = cross2d(a, b, c)
+  const c2 = cross2d(a, b, d)
+  const c3 = cross2d(c, d, a)
+  const c4 = cross2d(c, d, b)
+  if (c1 === 0 || c2 === 0 || c3 === 0 || c4 === 0) {
+    // An endpoint lies on the other segment (touch or collinear overlap).
+    return false
+  }
+  if ((c1 > 0) === (c2 > 0) || (c3 > 0) === (c4 > 0)) {
+    return false
+  }
+  // Parameters of the crossing along `ab` and `cd`; both lie in (0, 1).
+  const t = c3 / (c3 - c4)
+  const u = c1 / (c1 - c2)
+  return t > epsilon && 1 - t > epsilon && u > epsilon && 1 - u > epsilon
+}
+
+/**
+ * Cross product of `ab` and `ac`; positive when `c` lies left of `a`→`b`.
+ */
+function cross2d(
+  a: AcGePoint2dLike,
+  b: AcGePoint2dLike,
+  c: AcGePoint2dLike
+): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }
 
 /**
@@ -67,7 +98,8 @@ function openRing(points: AcGePoint2dLike[]): AcGePoint2dLike[] {
  * past the boundary).
  */
 export function hatchLoopHasSelfIntersection(
-  points: AcGePoint2dLike[]
+  points: AcGePoint2dLike[],
+  epsilon: number = polyboolEpsilonFor(points)
 ): boolean {
   const ring = openRing(points)
   const count = ring.length
@@ -83,7 +115,7 @@ export function hatchLoopHasSelfIntersection(
       }
       const c = ring[j]
       const d = ring[(j + 1) % count]
-      if (segmentsProperlyIntersect(a, b, c, d)) {
+      if (segmentsProperlyIntersect(a, b, c, d, epsilon)) {
         return true
       }
     }
@@ -148,11 +180,14 @@ export function resolveSelfIntersectingHatchLoop(
   points: AcGePoint2dLike[]
 ): AcGePoint2d[][] {
   const ring = openRing(points)
-  if (ring.length < 3 || !hatchLoopHasSelfIntersection(ring)) {
+  if (ring.length < 3) {
     return [ring.map(p => new AcGePoint2d(p.x, p.y))]
   }
 
   const epsilon = polyboolEpsilonFor(ring)
+  if (!hatchLoopHasSelfIntersection(ring, epsilon)) {
+    return [ring.map(p => new AcGePoint2d(p.x, p.y))]
+  }
   try {
     const polybool = new PolyBool(new GeometryEpsilon(epsilon))
     const rebuilt = polybool.polygon(

@@ -1,4 +1,4 @@
-import { AcGePoint2d } from '@mlightcad/data-model'
+import { AcGePoint2d, log } from '@mlightcad/data-model'
 
 import {
   hatchLoopHasRenderableArea,
@@ -55,6 +55,36 @@ describe('AcTrHatchLoopRepair', () => {
     expect(regions.some(region => pointInPoly(1425, 640, region))).toBe(false)
   })
 
+  describe('loops that only touch themselves at a vertex', () => {
+    let warn: jest.SpyInstance
+
+    beforeEach(() => {
+      warn = jest.spyOn(log, 'warn').mockImplementation(() => undefined)
+    })
+
+    afterEach(() => {
+      warn.mockRestore()
+    })
+
+    it('ignores a closing edge that ends within noise of an earlier edge (hatch 4054212)', () => {
+      expect(hatchLoopHasSelfIntersection(hatch4054212Loop())).toBe(false)
+      const regions = resolveSelfIntersectingHatchLoop(hatch4054212Loop())
+      expect(regions).toHaveLength(1)
+      expect(regions[0]).toHaveLength(5)
+      // PolyBool throws "Zero-length segment detected" on this loop, so it
+      // must never be fed to the repair path.
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it('ignores repeated vertices and zero-width spikes (hatch 3692049)', () => {
+      expect(hatchLoopHasSelfIntersection(hatch3692049Loop())).toBe(false)
+      const regions = resolveSelfIntersectingHatchLoop(hatch3692049Loop())
+      expect(regions).toHaveLength(1)
+      expect(regions[0]).toHaveLength(19)
+      expect(warn).not.toHaveBeenCalled()
+    })
+  })
+
   describe('hatchLoopHasRenderableArea', () => {
     it('rejects the degenerate out-and-back path from DWG hatch 46824', () => {
       // Closed two-vertex polyline (opposing line edges) tessellates to
@@ -105,6 +135,50 @@ describe('AcTrHatchLoopRepair', () => {
     })
   })
 })
+
+/**
+ * DWG hatch handle 4054212 (rebased): a quadrilateral whose top edge ends a
+ * float-noise sliver past the left edge. PolyBool calls this a zero-length
+ * segment and throws; earcut renders the loop correctly as-is.
+ */
+function hatch4054212Loop() {
+  return [
+    new AcGePoint2d(-114.15049745887518, 187.15896254684776),
+    new AcGePoint2d(-114.14950263500214, -187.15896254591644),
+    new AcGePoint2d(114.1504974514246, -187.01592611242086),
+    new AcGePoint2d(114.14565581083298, 186.44702962972224),
+    new AcGePoint2d(-114.15049739927053, 186.4470296818763)
+  ]
+}
+
+/**
+ * DWG hatch handle 3692049 (rebased): a degenerate out-and-back path with
+ * repeated vertices and zero-width spikes. Its self-touches all sit exactly on
+ * a vertex, so they are endpoint touches, not crossings.
+ */
+function hatch3692049Loop() {
+  return [
+    new AcGePoint2d(-14.465469680726528, -99.079499783925712),
+    new AcGePoint2d(-14.33558251708746, -195.07941188290715),
+    new AcGePoint2d(0.044921249151229858, -180.65994198899716),
+    new AcGePoint2d(14.44129453599453, -195.0635677985847),
+    new AcGePoint2d(14.465469673275948, -99.063570877537131),
+    new AcGePoint2d(0.06909644603729248, -84.659945053979754),
+    new AcGePoint2d(-0.084966011345386505, 55.248284876346588),
+    new AcGePoint2d(-0.16194731742143631, 195.06586372107267),
+    new AcGePoint2d(-0.16195477545261383, 195.07941187452525),
+    new AcGePoint2d(-0.16194731742143631, 195.06586372107267),
+    new AcGePoint2d(-0.084966018795967102, 55.248288797214627),
+    new AcGePoint2d(-0.2388586550951004, 195.00229961052537),
+    new AcGePoint2d(-0.16195477545261383, 195.07941187359393),
+    new AcGePoint2d(-0.16194731742143631, 195.06586372107267),
+    new AcGePoint2d(-0.16195476800203323, 195.07941188197583),
+    new AcGePoint2d(-0.084966011345386505, 195.00238434039056),
+    new AcGePoint2d(-0.084966011345386505, 55.248284876346588),
+    new AcGePoint2d(-0.084966011345386505, 55.248280955478549),
+    new AcGePoint2d(-0.084966011345386505, -84.660029876977205)
+  ]
+}
 
 function pointInPoly(
   x: number,
