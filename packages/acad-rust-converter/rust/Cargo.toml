@@ -32,8 +32,10 @@ dumper = ["dep:anyhow"]
 # memmap2/rayon dependencies are gated behind cfg(not(target_arch = "wasm32")).
 acadrust = { version = "0.6.3", features = ["serde"] }
 # Needed directly (not just transitively via `acadrust`'s `serde` feature) to
-# name the `serde::Serialize` trait bound in `to_json`'s generic signature.
-serde = "1"
+# name the `serde::Serialize` trait bound in `to_json`'s generic signature;
+# `derive` lets the batched-block reply serialize a plain struct instead of an
+# intermediate `serde_json::Value` tree.
+serde = { version = "1", features = ["derive"] }
 # Pinned exactly so the generated JS glue schema matches the installed
 # `wasm-bindgen` CLI (0.2.126). A mismatch aborts wasm-bindgen with a schema
 # version error.
@@ -44,8 +46,12 @@ serde_json = "1"
 anyhow = { version = "1", optional = true }
 
 [profile.release]
-# Optimise for byte size: the wasm is shipped to browsers.
-opt-level = "s"
+# Optimise for runtime speed rather than byte size: the DWG read dominates wall
+# clock on large drawings (~4.7 s of a 9.4 s Architecture-B read, ~8 s of an
+# Architecture-A transcode) and the browser fetches this wasm once per worker.
+# `"s"` was picked before any end-to-end measurement; this is the A/B against
+# the artifact size (roughly +20-30%, gzip absorbs most of it).
+opt-level = 3
 lto = true
 codegen-units = 1
 panic = "abort"

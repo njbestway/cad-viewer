@@ -270,12 +270,11 @@ interface OneRead {
 }
 
 async function readOnce(
-  makeConverter: () => {
+  converter: {
     read(d: ArrayBuffer, db: AcDbDatabase, o?: any): Promise<void>
   },
   buffer: ArrayBuffer
 ): Promise<OneRead> {
-  const converter = makeConverter()
   const db = new AcDbDatabase()
   const copy = buffer.slice(0) // untimed defensive copy (converters may transfer)
   const { cb, out } = makeCollector()
@@ -340,14 +339,19 @@ async function runRoute(key: RouteKey, buffer: ArrayBuffer): Promise<RouteResult
     }
   }
   const def = defs[key]
+  // One converter per route, reused across warmup + timed runs: the host
+  // registers a single converter instance, and a per-run instance would rebuild
+  // the worker and re-instantiate the wasm module each time (multi-second cold
+  // start attributed to PARSE) instead of measuring steady-state reads.
+  const converter = def.make()
   // Warmup (absorbs wasm fetch/compile + worker boot + JIT).
-  const warm = await readOnce(def.make, buffer)
+  const warm = await readOnce(converter, buffer)
 
   const totalRuns: number[] = []
   const reads: OneRead[] = []
   let heapPeak = warm.heapAfter ?? 0
   for (let i = 0; i < runs.value; i++) {
-    const r = await readOnce(def.make, buffer)
+    const r = await readOnce(converter, buffer)
     totalRuns.push(r.totalMs)
     reads.push(r)
     if (r.heapAfter != null) heapPeak = Math.max(heapPeak, r.heapAfter)

@@ -350,9 +350,18 @@ export class AcTrView2d extends AcEdBaseView {
   private _deferredGeometryQueue: Array<{
     run: () => Promise<void>
     epoch: number
+    /**
+     * `group` for INSERTs that still host empty glyph shells, `glyph` for
+     * TEXT/MTEXT/complex-linetype jobs. Reported separately by OPENPROF so a
+     * text-heavy drawing can be told apart from a huge-block drawing.
+     */
+    kind: 'group' | 'glyph'
   }> = []
   /** Currently executing deferred geometry runners. */
   private _deferredGeometryActive = 0
+  /** Queued + running deferred jobs split by kind (OPENPROF diagnostics). */
+  private _deferredGroupJobs = 0
+  private _deferredGlyphJobs = 0
   /**
    * Debounced glyph rebuild after {@link FontManager.events.fontLoaded} so a
    * burst of lazy face loads (simsun + malgun, etc.) triggers one redraw pass.
@@ -422,6 +431,7 @@ export class AcTrView2d extends AcEdBaseView {
   /** Convert-phase wall timers (ms) for OPENPERF diagnostics. */
   private _convertPhaseMs = {
     finishGeometry: 0,
+    groupGlyph: 0,
     handleGroup: 0,
     addEntity: 0,
     awaitFonts: 0
@@ -485,6 +495,7 @@ export class AcTrView2d extends AcEdBaseView {
     }
     this._convertPhaseMs = {
       finishGeometry: 0,
+      groupGlyph: 0,
       handleGroup: 0,
       addEntity: 0,
       awaitFonts: 0
@@ -1163,6 +1174,26 @@ export class AcTrView2d extends AcEdBaseView {
    */
   get isConvertingEntities() {
     return this._numOfEntitiesToProcess > 0
+  }
+
+  /**
+   * Snapshot of what still keeps {@link isProcessingEntities} true.
+   *
+   * OPENPROF prints this while the open overlay is held, so a drawing stuck on
+   * "Rendering drawing ..." can be attributed to linework convert versus
+   * deferred glyph/INSERT geometry (text/font work), instead of guessing.
+   */
+  getOpenConvertStats() {
+    return {
+      pendingEntities: this._numOfEntitiesToProcess,
+      convertQueued: this._convertQueue.length,
+      deferredQueued: this._deferredGeometryQueue.length,
+      deferredActive: this._deferredGeometryActive,
+      pendingGeometryJobs: this._pendingGeometryJobs,
+      deferredGroupJobs: this._deferredGroupJobs,
+      deferredGlyphJobs: this._deferredGlyphJobs,
+      claimedObjects: this._claimedConvertObjectIds.size
+    }
   }
 
   /**
@@ -4170,14 +4201,29 @@ export class AcTrView2d extends AcEdBaseView {
    */
   private enqueueDeferredGeometry(
     run: () => Promise<void>,
-    epoch: number
+    epoch: number,
+    kind: 'group' | 'glyph'
   ): void {
     if (epoch !== this._convertEpoch) {
       return
     }
     this._pendingGeometryJobs++
-    this._deferredGeometryQueue.push({ run, epoch })
+    if (kind === 'group') {
+      this._deferredGroupJobs++
+    } else {
+      this._deferredGlyphJobs++
+    }
+    this._deferredGeometryQueue.push({ run, epoch, kind })
     this.pumpDeferredGeometryQueue()
+  }
+
+  /** Decrements the per-kind deferred job counter (never below zero). */
+  private releaseDeferredJobKind(kind: 'group' | 'glyph') {
+    if (kind === 'group') {
+      this._deferredGroupJobs = Math.max(0, this._deferredGroupJobs - 1)
+    } else {
+      this._deferredGlyphJobs = Math.max(0, this._deferredGlyphJobs - 1)
+    }
   }
 
   /**
@@ -4192,6 +4238,7 @@ export class AcTrView2d extends AcEdBaseView {
       const job = this._deferredGeometryQueue.shift()!
       if (job.epoch !== this._convertEpoch) {
         this._pendingGeometryJobs = Math.max(0, this._pendingGeometryJobs - 1)
+        this.releaseDeferredJobKind(job.kind)
         continue
       }
 
@@ -4224,6 +4271,7 @@ export class AcTrView2d extends AcEdBaseView {
               0,
               this._pendingGeometryJobs - 1
             )
+            this.releaseDeferredJobKind(job.kind)
             if (this._pendingGeometryJobs === 0) {
               this._isDirty = true
             }
@@ -4241,6 +4289,8 @@ export class AcTrView2d extends AcEdBaseView {
     // slots until their `finally` runs. Zeroing here lets pump over-schedule
     // when those completions decrement the counter afterward.
     this._pendingGeometryJobs = 0
+    this._deferredGroupJobs = 0
+    this._deferredGlyphJobs = 0
     this._textStyleFontPreloadPromise = null
     this._textStyleFontPreloadEpoch = -1
     this._deferredFontsReady = null
@@ -4541,7 +4591,8 @@ export class AcTrView2d extends AcEdBaseView {
                     epoch,
                     convertGen
                   ),
-                epoch
+                epoch,
+                'group'
               )
             } else {
               await this.handleGroup(
@@ -4596,7 +4647,11 @@ export class AcTrView2d extends AcEdBaseView {
               }
             }
             if (deferGeometry) {
-              this.enqueueDeferredGeometry(commitEntity, epoch)
+              this.enqueueDeferredGeometry(
+                commitEntity,
+                epoch,
+                threeEntity instanceof AcTrGroup ? 'group' : 'glyph'
+              )
             } else {
               await commitEntity()
             }
@@ -4700,7 +4755,12 @@ export class AcTrView2d extends AcEdBaseView {
   ) {
     const t0 = performance.now()
     try {
+      const tGeo = performance.now()
       await this.finishEntityGeometry(group, progressive)
+      // `finishEntityGeometry` runs `group.asyncDraw()` over every pending
+      // glyph in the block, serially. Separating it from the layer split tells
+      // a text-heavy mega-block apart from one whose cost is re-parenting.
+      this._convertPhaseMs.groupGlyph += performance.now() - tGeo
       if (epoch !== this._convertEpoch) {
         group.dispose()
         return

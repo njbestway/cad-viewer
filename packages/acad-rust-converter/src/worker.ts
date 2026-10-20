@@ -19,6 +19,7 @@
  *                    { id, kind: 'section', handle, section }
  *                    { id, kind: 'page',    handle, offset, limit }
  *                    { id, kind: 'block-page', handle, block, offset, limit }
+ *                    { id, kind: 'block-batch', handle, names }
  *                    { id, kind: 'close',   handle }
  *   worker -> main:  { type: 'result', id, dxf?, handle?, json? }
  *                    { type: 'error',  id?, message: string }
@@ -46,6 +47,7 @@
  * the tsc lib build, so the glue import needs no committed typings.
  */
 import {
+  dwg_block_entities_batch,
   dwg_block_entity_page,
   dwg_close,
   dwg_entity_page,
@@ -86,6 +88,7 @@ type WorkerRequest =
       offset: number
       limit: number
     }
+  | { id: number; kind: 'block-batch'; handle: number; names: string }
   | { id: number; kind: 'close'; handle: number }
 
 interface WorkerResult {
@@ -94,6 +97,8 @@ interface WorkerResult {
   dxf?: ArrayBuffer
   handle?: number
   json?: string
+  /** `open` only: wall time of the wasm `dwg_open` read, measured in-worker. */
+  parseMs?: number
 }
 
 interface WorkerError {
@@ -218,9 +223,19 @@ ctx.addEventListener('message', (event: MessageEvent) => {
             )
             return
           }
-          case 'open':
-            ctx.postMessage({ type: 'result', id, handle: dwg_open(input) })
+          case 'open': {
+            // Time the wasm read itself so the main thread can separate parse
+            // cost from worker boot / IPC / scheduling in benchmarks.
+            const startedAt = performance.now()
+            const handle = dwg_open(input)
+            ctx.postMessage({
+              type: 'result',
+              id,
+              handle,
+              parseMs: performance.now() - startedAt
+            })
             return
+          }
           case 'dxf-open':
             ctx.postMessage({ type: 'result', id, handle: dxf_open(input) })
             return
@@ -262,6 +277,13 @@ ctx.addEventListener('message', (event: MessageEvent) => {
               request.offset,
               request.limit
             )
+          })
+          break
+        case 'block-batch':
+          ctx.postMessage({
+            type: 'result',
+            id,
+            json: dwg_block_entities_batch(handle, request.names)
           })
           break
         case 'close':

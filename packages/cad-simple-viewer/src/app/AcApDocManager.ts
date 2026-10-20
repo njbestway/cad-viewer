@@ -538,11 +538,7 @@ export class AcApDocManager {
     )
     this._openDocumentDefaults = options.openDocumentDefaults
     this._disableExport = options.disableExport === true
-    if (options.useMainThreadDraw) {
-      AcTrMTextRenderer.getInstance().setRenderMode('main')
-    } else {
-      AcTrMTextRenderer.getInstance().setRenderMode('worker')
-    }
+    this.setUseMainThreadDraw(options.useMainThreadDraw === true)
     FontManager.instance.setDefaultFonts(DEFAULT_FONTS_PRESET)
     FontManager.instance.lazyFontLoading = true
     FontManager.instance.awaitFontsBeforeDraw = true
@@ -675,6 +671,21 @@ export class AcApDocManager {
   }
 
   /**
+   * Switches text glyph rendering between the main thread and the worker pool.
+   *
+   * Worker mode runs glyph generation in `min(4, hardwareConcurrency)` workers,
+   * so a text-heavy block no longer serializes `group.asyncDraw()` on the main
+   * thread. The setting applies to subsequently opened drawings.
+   *
+   * @param useMainThreadDraw - `true` to draw glyphs on the main thread.
+   */
+  setUseMainThreadDraw(useMainThreadDraw: boolean) {
+    AcTrMTextRenderer.getInstance().setRenderMode(
+      useMainThreadDraw ? 'main' : 'worker'
+    )
+  }
+
+  /**
    * Creates the singleton instance with an optional canvas element.
    *
    * This method should be called before accessing the `instance` property
@@ -686,6 +697,11 @@ export class AcApDocManager {
   static createInstance(options: AcApDocManagerOptions = {}) {
     if (AcApDocManager._instance == null) {
       AcApDocManager._instance = new AcApDocManager(options)
+    } else if (options.useMainThreadDraw != null) {
+      // Render mode is a live renderer setting, not a constructor-only field.
+      // Hosts remount the viewer with a different choice without recreating the
+      // singleton, so apply it on every createInstance call.
+      AcApDocManager._instance.setUseMainThreadDraw(options.useMainThreadDraw)
     }
     return this._instance
   }

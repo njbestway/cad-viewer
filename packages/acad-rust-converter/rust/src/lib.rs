@@ -297,6 +297,47 @@ pub fn dwg_block_entity_page(
     })
 }
 
+/// One block's complete entity list inside a [`dwg_block_entities_batch`]
+/// reply. Serialized directly (no `serde_json::Value` intermediate) so the
+/// batched path keeps the same per-entity encode cost as the paged one.
+#[derive(serde::Serialize)]
+struct BlockEntityGroup<'a> {
+    name: &'a str,
+    entities: Vec<&'a acadrust::EntityType>,
+}
+
+/// Architecture B: full entity lists for several block definitions in one
+/// worker round-trip.
+///
+/// [`dwg_block_entity_page`] costs one request per block definition, and on
+/// block-heavy drawings (537 definitions, ~452 entities each on the 15 MB
+/// reference file) those round-trips dominate the main-thread consume phase
+/// even though each definition is far smaller than one page. The caller
+/// batches small definitions here (keeping the combined entity count within
+/// its page budget) and falls back to paging only for oversized definitions.
+/// `names_json` is a JSON string array; the reply is
+/// `[{ "name": ..., "entities": [...] }, ...]` in request order. Unknown
+/// names yield an empty `entities` array, matching `entities_in_block`'s empty
+/// iterator instead of turning a data mismatch into a hard error.
+#[wasm_bindgen]
+pub fn dwg_block_entities_batch(
+    handle: u32,
+    names_json: &str,
+) -> Result<String, JsValue> {
+    let names: Vec<String> = serde_json::from_str(names_json)
+        .map_err(to_js("acadrust block batch names parse failed"))?;
+    with_document(handle, |doc| {
+        let groups: Vec<BlockEntityGroup> = names
+            .iter()
+            .map(|name| BlockEntityGroup {
+                name: name.as_str(),
+                entities: doc.entities_in_block(name).collect(),
+            })
+            .collect();
+        to_json("acadrust block batch serialize failed", &groups)
+    })
+}
+
 /// Exported for the TypeScript side to keep its worker-side validation of
 /// `dwg_section_json`'s `kind` argument in sync with what Rust actually
 /// accepts (checked by `packages/acad-rust-converter/__tests__` against the

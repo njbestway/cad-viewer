@@ -1,8 +1,8 @@
 import {
   AcCmColor,
   AcCmTransparency,
+  AcCmUiYieldGate,
   accmYieldForPaint,
-  accmYieldToUi,
   AcDb2dPolyline,
   AcDb3dPolyline,
   AcDb3PointAngularDimension,
@@ -195,12 +195,38 @@ const ENTITY_START_PCT = 20
 const ENTITY_END_PCT = 98
 
 /**
- * Default model-space entity page size for the sectioned fetch loop. Sized well
- * above the base converter's 10-item UI chunk: each page is a worker round-trip,
- * so we amortize those over many entities while still bounding wasm-side memory.
- * `options.minimumChunkSize` (when provided) overrides it.
+ * Default entity page size for the sectioned fetch loop. Sized well above the
+ * base converter's 10-item UI chunk: each page is a worker round-trip (wasm
+ * serde + IPC + JSON.parse), so bigger pages amortize that fixed cost. 2000 was
+ * chosen over 5000 because page bytes are entity-dependent: the 15 MB reference
+ * drawing averages ~360 KB per 500 entities and peaks at 2.5 MB, so 5000 would
+ * risk 20 MB+ single structured clones. `options.minimumChunkSize` (when
+ * provided) overrides it.
  */
-const ENTITY_PAGE_SIZE = 500
+const ENTITY_PAGE_SIZE = 2000
+
+/**
+ * Cooperative-yield budgets (ms). `accmYieldToUi` resolves on the next
+ * animation frame (~16.7 ms at 60 Hz), so yielding unconditionally once per
+ * page cost ~9 s on a drawing with 537 block definitions. The block phase has
+ * nothing on screen yet (model space is mapped after it) and can use a wide
+ * budget; the model-space phase is drawn progressively and keeps a tighter one.
+ */
+const BLOCK_YIELD_BUDGET_MS = 200
+const ENTITY_YIELD_BUDGET_MS = 50
+
+/** Minimum interval between ENTITY `IN-PROGRESS` emits (ms). */
+const ENTITY_PROGRESS_THROTTLE_MS = 100
+
+/**
+ * Maximum combined entity count for one batched block-definition fetch. Block
+ * definitions average a few hundred entities on block-heavy drawings, so 5000
+ * keeps one reply around 3.8 MB (≈759 B/entity on the reference drawing) while
+ * cutting 537 per-block round-trips to a few dozen. Definitions larger than
+ * this stay on the paged `blockEntityPage` path so one huge block can never
+ * produce an unbounded structured clone.
+ */
+const BLOCK_BATCH_MAX_ENTITIES = 5000
 
 /** Native converter options — the shared asset config plus client injection. */
 export interface AcDbAcadRustNativeConverterConfig extends AcDbAcadRustConverterConfig {
@@ -240,6 +266,13 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
   private readonly opts: AcDbAcadRustNativeConverterConfig
   /** Injected in tests; otherwise a worker client is built on first read. */
   private injectedClient?: AcadRustDocumentClient
+  /**
+   * Worker client cached across reads (mirrors Architecture A's persistent
+   * worker). A fresh client per `read()` also meant a fresh Worker and wasm
+   * instance per file - a multi-second re-instantiation the host pays again
+   * for every drawing it opens with the same converter.
+   */
+  private workerClient?: AcadRustWorkerDocumentClient
 
   constructor(config?: AcDbAcadRustNativeConverterConfig) {
     super(config)
@@ -386,7 +419,20 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
       const grandTotal = modelTotal + blockTotal
       let unknownEntityCount = 0
       let processed = 0
-      const emitEntityProgress = async (): Promise<void> => {
+      // A gate's budget clock starts at construction, so each read() gets its
+      // own window (a module-level gate would yield immediately on page one).
+      const blockYieldGate = new AcCmUiYieldGate(BLOCK_YIELD_BUDGET_MS)
+      const entityYieldGate = new AcCmUiYieldGate(ENTITY_YIELD_BUDGET_MS)
+      // Progress is throttled separately from UI yields: the callback is async
+      // and often drives DOM/status-bar updates, so emitting it once per page
+      // (or per block) is wasted work when nothing visible changed.
+      let lastEntityProgressAt = 0
+      const emitEntityProgress = async (force = false): Promise<void> => {
+        const now = performance.now()
+        if (!force && now - lastEntityProgressAt < ENTITY_PROGRESS_THROTTLE_MS) {
+          return
+        }
+        lastEntityProgressAt = now
         const frac =
           grandTotal > 0 ? Math.min(1, processed / grandTotal) : 1
         const pct = Math.min(
@@ -396,19 +442,77 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
         await emit(pct, 'ENTITY', 'IN-PROGRESS')
       }
 
-      // (a) Block definitions — page each non-space block's own entities into
-      // its record (bounded by the BLOCK-RECORD `entity_handles` count). This
-      // must land BEFORE the model-space loop: the view converts and draws
+      // (a) Block definitions — fill each non-space block's record before the
+      // model-space loop (see the ordering note below). Definitions are small on
+      // average but numerous (537 definitions, ~452 entities each on the 15 MB
+      // reference drawing), so one request per definition would pay hundreds of
+      // round-trips for entities that would fit in a handful of pages. Small
+      // definitions are fetched in batches sized by combined entity count;
+      // oversized ones keep the bounded-payload page loop.
+      //
+      // This must land BEFORE the model-space loop: the view converts and draws
       // model-space entities progressively while `read()` is still streaming
-      // (every `accmYieldToUi` gives the draw loop a turn), and an INSERT's
+      // (every UI yield gives the draw loop a turn), and an INSERT's
       // `subWorldDraw` snapshots the referenced block record the moment it is
       // drawn. With the model-space loop first, every block definition was still
       // empty at that point, so INSERTs rendered as empty groups and
       // AcDbRenderingCache cached the empty template.
-      for (const { name, record, entityCount } of mappedBlocks) {
-        if (entityCount <= 0) {
-          continue
+      const activeHandle = handle
+      const batchable = mappedBlocks.filter(
+        b => b.entityCount > 0 && b.entityCount <= BLOCK_BATCH_MAX_ENTITIES
+      )
+      const paged = mappedBlocks.filter(
+        b => b.entityCount > BLOCK_BATCH_MAX_ENTITIES
+      )
+      let blockBatch: MappedBlock[] = []
+      let blockBatchEntities = 0
+      const flushBlockBatch = async (): Promise<void> => {
+        if (blockBatch.length === 0) {
+          return
         }
+        const groups = await client.blockEntitiesBatch(
+          activeHandle,
+          blockBatch.map(b => b.name)
+        )
+        if (groups.length !== blockBatch.length) {
+          throw new Error(
+            `acad-rust block batch returned ${groups.length} groups for ` +
+              `${blockBatch.length} requested definitions.`
+          )
+        }
+        // Pair by request order rather than by name: acadrust's block table is
+        // case-insensitive, so a name echoed back by wasm may not be the exact
+        // spelling this loop sent.
+        for (let i = 0; i < groups.length; i++) {
+          const record = blockBatch[i].record
+          const entities = groups[i].entities
+          for (const entity of entities) {
+            if (!mapEntity(entity, record)) {
+              unknownEntityCount++
+            }
+          }
+          processed += entities.length
+        }
+        blockBatch = []
+        blockBatchEntities = 0
+        await emitEntityProgress()
+        // Nothing is on screen during the block phase yet, so a wide budget
+        // keeps throughput high without starving the progress bar.
+        await blockYieldGate.maybeYield()
+      }
+      for (const entry of batchable) {
+        if (
+          blockBatchEntities + entry.entityCount > BLOCK_BATCH_MAX_ENTITIES &&
+          blockBatch.length > 0
+        ) {
+          await flushBlockBatch()
+        }
+        blockBatch.push(entry)
+        blockBatchEntities += entry.entityCount
+      }
+      await flushBlockBatch()
+
+      for (const { name, record, entityCount } of paged) {
         let blockOffset = 0
         for (;;) {
           if (blockOffset >= entityCount) {
@@ -431,12 +535,16 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
           blockOffset += page.length
           processed += page.length
           await emitEntityProgress()
-          await accmYieldToUi()
+          await blockYieldGate.maybeYield()
           if (page.length < pageSize) {
             break
           }
         }
       }
+
+      // Flush the throttled progress once so the bar lands on the block-phase
+      // total before the model-space loop starts.
+      await emitEntityProgress(true)
 
       // (b) Model space — the drawing body (LINE/CIRCLE/.../INSERT). Runs after
       // the block definitions so INSERTs resolve against populated records even
@@ -459,8 +567,9 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
         offset += page.length
         processed += page.length
         await emitEntityProgress()
-        // Keep the UI responsive between worker round-trips.
-        await accmYieldToUi()
+        // The view converts and draws model-space entities while this loop runs,
+        // so keep the tighter budget here to stay responsive.
+        await entityYieldGate.maybeYield()
         if (page.length < pageSize) {
           break // short page => server exhausted the range
         }
@@ -498,7 +607,7 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
       if (handle != null) {
         await client.close(handle).catch(() => undefined)
       }
-      // Worker clients are reused across files only through the factory; a
+      // Worker clients are reused across files through `workerClient`; a
       // per-read injected client is left for the caller (tests) to dispose.
     }
   }
@@ -508,6 +617,13 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
     if (this.injectedClient) {
       return this.injectedClient
     }
+    const requestTimeout = this.getParserWorkerTimeout(data, timeout)
+    if (this.workerClient) {
+      // The budget scales with the file length, so a reused client gets this
+      // read's timeout instead of the first file's.
+      this.workerClient.setRequestTimeout(requestTimeout)
+      return this.workerClient
+    }
     const workerUrl = this.resolveWorkerUrl()
     if (!workerUrl) {
       throw new Error(
@@ -516,11 +632,12 @@ export class AcDbAcadRustNativeConverter extends AcDbDatabaseConverter<null> {
           '(the sectioned WASM parser runs in a Web Worker).'
       )
     }
-    return new AcadRustWorkerDocumentClient({
+    this.workerClient = new AcadRustWorkerDocumentClient({
       workerUrl,
-      timeout: this.getParserWorkerTimeout(data, timeout),
+      timeout: requestTimeout,
       inputFormat: this.opts.inputFormat
     })
+    return this.workerClient
   }
 
   /** Explicit `parserWorkerUrl` wins; else derive from `assetBaseUrl`. */

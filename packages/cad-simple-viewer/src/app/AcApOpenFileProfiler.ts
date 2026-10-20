@@ -7,6 +7,7 @@ import {
   AcDbSysVarManager,
   log
 } from '@mlightcad/data-model'
+import { AcTrGroup, AcTrMTextRenderer } from '@mlightcad/three-renderer'
 
 import type { AcTrView2d } from '../view/AcTrView2d'
 import { getLastFontLoadStats } from './AcApFontLoader'
@@ -14,6 +15,15 @@ import { getLastFontLoadStats } from './AcApFontLoader'
 type StageStats = {
   durationMs: number
 }
+
+/**
+ * How long OPENPROF waits for scene convert before publishing anyway.
+ *
+ * Text-heavy drawings can keep deferred glyph jobs running for minutes; a
+ * profiler that only reports after idle never explains the hang it was meant
+ * to diagnose.
+ */
+const OPENPROF_SCENE_WAIT_TIMEOUT_MS = 120_000
 
 /**
  * Snapshot of the most recent document-open profile for palette / console use.
@@ -59,6 +69,8 @@ export interface AcApOpenFileProfileSnapshot {
   }
   convertPhase?: {
     finishGeometryMs: number
+    /** Portion of `finishGeometryMs` spent in a block's `group.asyncDraw()`. */
+    groupGlyphMs: number
     handleGroupMs: number
     addEntityMs: number
     awaitFontsMs: number
@@ -71,6 +83,24 @@ export interface AcApOpenFileProfileSnapshot {
       parseSite?: 'main' | 'worker'
     }
   }
+  /**
+   * Convert-queue snapshot when the report was published. `pendingEntities`
+   * covers linework convert; `pendingGeometryJobs` covers deferred glyph /
+   * INSERT jobs. A large glyph count with `pendingEntities: 0` means the
+   * overlay is held by text finalize, not by entity conversion.
+   */
+  scene?: {
+    pendingEntities: number
+    convertQueued: number
+    deferredQueued: number
+    deferredActive: number
+    pendingGeometryJobs: number
+    deferredGroupJobs: number
+    deferredGlyphJobs: number
+    claimedObjects: number
+  }
+  /** True when the scene was still busy at the wait timeout. */
+  sceneBusyAtReport?: boolean
 }
 
 /**
@@ -101,6 +131,8 @@ export class AcApOpenFileProfiler {
   private _progressListener?: (args: AcDbProgressdEventArgs) => void
   private _database?: AcDbDatabase
   private _finishScheduled = false
+  /** Scene convert did not reach idle before the wait timeout. */
+  private _sceneBusyTimedOut = false
 
   /**
    * Returns the most recent completed open-file profile, if any.
@@ -114,12 +146,28 @@ export class AcApOpenFileProfiler {
    */
   static isEnabled(database: AcDbDatabase): boolean {
     try {
-      return (
+      if (
         AcDbSysVarManager.instance().getVar(
           AcDbSystemVariables.OPENPROF,
           database
         ) === true
-      )
+      ) {
+        return true
+      }
+    } catch {
+      // Fall through to the URL/localStorage switch.
+    }
+    // Debug escape hatch for hosts that do not expose the sysvar manager to
+    // the console: `?openprof=1` or localStorage['cad-openprof'] = '1'.
+    try {
+      if (typeof window === 'undefined') {
+        return false
+      }
+      const param = new URL(window.location.href).searchParams.get('openprof')
+      if (param === '1' || param === 'true') {
+        return true
+      }
+      return window.localStorage.getItem('cad-openprof') === '1'
     } catch {
       return false
     }
@@ -139,6 +187,8 @@ export class AcApOpenFileProfiler {
     this._active = true
     this._printToConsole = AcApOpenFileProfiler.isEnabled(database)
     this._finishScheduled = false
+    this._sceneBusyTimedOut = false
+    AcTrGroup.resetAsyncDrawTimings()
     this._t0 = performance.now()
     this._readEndMs = 0
     this._stages.clear()
@@ -180,6 +230,7 @@ export class AcApOpenFileProfiler {
     this._active = false
     this._printToConsole = false
     this._finishScheduled = false
+    this._sceneBusyTimedOut = false
     this._database = undefined
     this._activeStage = undefined
     this._stages.clear()
@@ -238,9 +289,30 @@ export class AcApOpenFileProfiler {
     if (!view.isProcessingEntities) {
       return
     }
+    const startedAt = performance.now()
+    let lastLogAt = startedAt
     await new Promise<void>(resolve => {
       const poll = () => {
         if (!view.isProcessingEntities) {
+          resolve()
+          return
+        }
+        const now = performance.now()
+        // Print what is left every 2 s instead of waiting silently for a
+        // report that a text-heavy drawing may delay for minutes.
+        if (this._printToConsole && now - lastLogAt >= 2000) {
+          lastLogAt = now
+          const stats =
+            typeof view.getOpenConvertStats === 'function'
+              ? view.getOpenConvertStats()
+              : null
+          console.log(
+            `[OPENPROF] scene busy +${((now - startedAt) / 1000).toFixed(1)} s`,
+            stats
+          )
+        }
+        if (now - startedAt >= OPENPROF_SCENE_WAIT_TIMEOUT_MS) {
+          this._sceneBusyTimedOut = true
           resolve()
           return
         }
@@ -270,12 +342,18 @@ export class AcApOpenFileProfiler {
     const convertPhase = convertPhaseRaw
       ? {
           finishGeometryMs: convertPhaseRaw.finishGeometry,
+          groupGlyphMs: convertPhaseRaw.groupGlyph,
           handleGroupMs: convertPhaseRaw.handleGroup,
           addEntityMs: convertPhaseRaw.addEntity,
           awaitFontsMs: convertPhaseRaw.awaitFonts,
           fontPreload: convertPhaseRaw.fontPreload
         }
       : undefined
+    const asyncDraw = AcTrGroup.getAsyncDrawTimings()
+    const scene =
+      typeof view.getOpenConvertStats === 'function'
+        ? view.getOpenConvertStats()
+        : undefined
 
     const slowBlocks = [...cache.blockMisses]
       .sort((a, b) => b.buildMs + b.compactMs - (a.buildMs + a.compactMs))
@@ -317,7 +395,9 @@ export class AcApOpenFileProfiler {
         paintCount: progressiveStats.paintCount,
         yieldCount: progressiveStats.yieldCount
       },
-      convertPhase
+      convertPhase,
+      scene,
+      sceneBusyAtReport: this._sceneBusyTimedOut || undefined
     }
     AcApOpenFileProfiler._lastSnapshot = snapshot
 
@@ -342,12 +422,27 @@ export class AcApOpenFileProfiler {
     ]
 
     if (convertPhase) {
+      // `groupGlyph` is only meaningful next to the mode that produced it:
+      // main-thread glyph draw is serial, worker draw runs `min(4, cores)` wide.
+      let mtextMode: string | undefined
+      try {
+        mtextMode = AcTrMTextRenderer.getInstance().getRenderMode()
+      } catch {
+        mtextMode = undefined
+      }
       lines.push(
         `    finishGeometry:   ${convertPhase.finishGeometryMs.toFixed(0)} ms (cumulative)`,
+        `      groupGlyph:     ${convertPhase.groupGlyphMs.toFixed(0)} ms (block asyncDraw inside finishGeometry)`,
+        `        glyphDraw:    ${asyncDraw.glyph.toFixed(0)} ms (pending glyph draw)`,
+        `        bboxRefresh:  ${asyncDraw.bbox.toFixed(0)} ms (wcs child boxes after glyphs)`,
         `    handleGroup:      ${convertPhase.handleGroupMs.toFixed(0)} ms (cumulative)`,
         `    addEntity:        ${convertPhase.addEntityMs.toFixed(0)} ms`,
         // Wall time of preset + STYLE font preload awaited before glyph draw.
-        `    awaitFonts:       ${convertPhase.awaitFontsMs.toFixed(0)} ms (preset+style preload wall)`
+        `    awaitFonts:       ${convertPhase.awaitFontsMs.toFixed(0)} ms (preset+style preload wall)`,
+        `    mtext render mode: ${mtextMode ?? 'unknown'}` +
+          (mtextMode === 'main'
+            ? ' (glyph draw is serial on the main thread)'
+            : ' (glyph draw runs in a worker pool)')
       )
       const fp = convertPhase.fontPreload
       if (fp) {
@@ -357,6 +452,24 @@ export class AcApOpenFileProfiler {
           `    fontPreload preset:     [${(fp.preset ?? fp.workerWarm ?? []).join(', ')}]`,
           `    fontPreload background: [${fp.background.join(', ')}]`,
           `    fontPreload workerSkipped: ${fp.workerSkipped} (already in pool)`
+        )
+      }
+    }
+
+    if (scene) {
+      lines.push(
+        '',
+        '--- scene queue at report time ---',
+        `pending entities: ${scene.pendingEntities}, convert queued: ${scene.convertQueued}`,
+        `deferred: ${scene.deferredQueued} queued + ${scene.deferredActive} active ` +
+          `(group ${scene.deferredGroupJobs}, glyph ${scene.deferredGlyphJobs}), ` +
+          `pending jobs ${scene.pendingGeometryJobs}`,
+        `claimed object ids: ${scene.claimedObjects}`
+      )
+      if (this._sceneBusyTimedOut) {
+        lines.push(
+          `scene still busy after ${(OPENPROF_SCENE_WAIT_TIMEOUT_MS / 1000).toFixed(0)} s ` +
+            '- report published at timeout'
         )
       }
     }

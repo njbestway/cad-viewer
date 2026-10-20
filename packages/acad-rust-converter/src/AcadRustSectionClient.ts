@@ -35,10 +35,25 @@ export interface AcadRustDocumentClient {
     offset: number,
     limit: number
   ): Promise<AcadRustEntity[]>
+  /**
+   * Complete entity lists for several block definitions in one round-trip.
+   * Callers batch only definitions small enough to fit one page budget and
+   * keep {@link blockEntityPage} for oversized ones.
+   */
+  blockEntitiesBatch(
+    handle: number,
+    blockNames: string[]
+  ): Promise<AcadRustBlockEntityGroup[]>
   /** Release the resident document behind `handle`. */
   close(handle: number): Promise<void>
   /** Tear down any transport (worker) resources; safe to call more than once. */
   dispose(): void
+}
+
+/** One block definition returned by {@link AcadRustDocumentClient.blockEntitiesBatch}. */
+export interface AcadRustBlockEntityGroup {
+  name: string
+  entities: AcadRustEntity[]
 }
 
 /** Response payloads the worker can return for a given request id. */
@@ -48,6 +63,8 @@ interface AcadRustWorkerResult {
   dxf?: ArrayBuffer
   handle?: number
   json?: string
+  /** `open` only: wall time of the wasm `dwg_open` read, measured in-worker. */
+  parseMs?: number
 }
 
 interface AcadRustWorkerError {
@@ -103,8 +120,27 @@ export class AcadRustWorkerDocumentClient implements AcadRustDocumentClient {
   private worker: WorkerLike | null = null
   private nextRequestId = 1
   private readonly pending = new Map<number, PendingRequest>()
+  private readonly options: AcadRustWorkerClientOptions
+  /**
+   * Per-request timeout, refreshed by {@link setRequestTimeout} because a
+   * reused client serves files of different sizes (the converter scales the
+   * budget with the input length).
+   */
+  private requestTimeout: number
 
-  constructor(private readonly options: AcadRustWorkerClientOptions) {}
+  constructor(options: AcadRustWorkerClientOptions) {
+    this.options = options
+    this.requestTimeout = options.timeout
+  }
+
+  /**
+   * Update the per-request timeout. A cached client outlives one conversion, so
+   * the next `read()` can hand it a budget sized for the new file without
+   * rebuilding the worker (and re-instantiating the wasm module).
+   */
+  setRequestTimeout(timeout: number): void {
+    this.requestTimeout = Math.max(1, timeout)
+  }
 
   async open(data: ArrayBuffer): Promise<number> {
     // Copy before transfer so the caller's ArrayBuffer is never detached.
@@ -159,6 +195,28 @@ export class AcadRustWorkerDocumentClient implements AcadRustDocumentClient {
     return this.parseJson<AcadRustEntity[]>(result, 'block-entity-page')
   }
 
+  async blockEntitiesBatch(
+    handle: number,
+    blockNames: string[]
+  ): Promise<AcadRustBlockEntityGroup[]> {
+    if (blockNames.length === 0) {
+      return []
+    }
+    // Names travel as one JSON string: a 500-entry array is a few KB, far
+    // cheaper than a nested structured clone, and the worker hands the same
+    // string straight to wasm without re-serializing it.
+    const result = await this.request({
+      id: 0,
+      kind: 'block-batch',
+      handle,
+      names: JSON.stringify(blockNames)
+    })
+    return this.parseJson<AcadRustBlockEntityGroup[]>(
+      result,
+      'block-entities-batch'
+    )
+  }
+
   async close(handle: number): Promise<void> {
     await this.request({ id: 0, kind: 'close', handle })
   }
@@ -192,10 +250,10 @@ export class AcadRustWorkerDocumentClient implements AcadRustDocumentClient {
         reject(
           new Error(
             `acad-rust section request '${String(partial.kind)}' timed out after ` +
-              `${this.options.timeout}ms.`
+              `${this.requestTimeout}ms.`
           )
         )
-      }, this.options.timeout)
+      }, this.requestTimeout)
       this.pending.set(id, { resolve, reject, timer })
       worker.postMessage(message, transfer)
     })
