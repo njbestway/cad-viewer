@@ -453,11 +453,16 @@ watch(isDocumentOpening, opening => {
 </script>
 
 <template>
+  <!--
+    Never put aria-hidden on this host: the toolbar buttons are mounted
+    inside it, so hiding it from assistive technology would also hide any
+    button that still holds keyboard focus. `hidden` alone takes the whole
+    subtree out of the accessibility tree when the toolbar is off.
+  -->
   <div
     ref="hostRef"
     class="ml-vertical-toolbar-host"
     :hidden="!features.isShowToolbar"
-    aria-hidden="true"
   />
 </template>
 
