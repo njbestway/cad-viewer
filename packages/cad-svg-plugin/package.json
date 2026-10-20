@@ -45,13 +45,13 @@
   "devDependencies": {
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/data-model": "^1.15.11",
-    "@mlightcad/mtext-parser": "^1.5.5",
+    "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*"
   },
   "peerDependencies": {
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/data-model": "^1.15.11",
-    "@mlightcad/mtext-parser": "^1.5.5",
+    "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*"
   }
 }

@@ -8,17 +8,17 @@ allowBuilds:
   unrs-resolver: true
   vue-demi: true
 overrides:
-  # '@mlightcad/mtext-renderer' resolves to the local workspace package
-  # (packages/mtext-renderer is a junction to ../mtext-renderer).
+  # Local mtext forks are workspace packages (packages/mtext-renderer and
+  # packages/mtext-parser are junctions to the sibling dev repositories), so
+  # they must not be overridden here.
   '@mlightcad/data-model': '^1.15.11'
   '@mlightcad/libredwg-converter': '^3.15.11'
   '@mlightcad/mtext-input-box': '^0.3.4'
-  '@mlightcad/mtext-parser': '^1.5.5'
   '@mlightcad/ribbon': '^0.1.13'
   '@mlightcad/ui-components': '^0.1.11'
   element-plus: '^2.12.0'
   glob: '^13.0.6'
   lodash-es: '4.17.21'
-  three: '^0.172.0'
+  three: '^0.186.1'
   vue: '^3.4.21'
   vue-i18n: '^11.4.4'

@@ -64,6 +64,9 @@ caddata
 # Local fork link: packages/mtext-renderer is a machine-specific junction to
 # the mtext-renderer dev repository (never commit it).
 /packages/mtext-renderer
+# Local fork link: packages/mtext-parser is a machine-specific junction to
+# the mtext-parser dev repository (never commit it).
+/packages/mtext-parser
 # Local open-time paint benches
 *.ts.bench-bak
 .bench-out/
