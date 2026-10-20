@@ -13,6 +13,16 @@ function resolvePackageEntry(
     // our libraries is often `*.umd.cjs`. Vite example apps import with ESM
     // named exports, so prefer the sibling ESM build when present.
     const resolved = req.resolve(name)
+    // three 0.186 turned `build/three.cjs` into a deprecation shim that calls
+    // `process.emitWarning` before forwarding to the ESM build. Bundling it for
+    // the browser throws `process is not defined`, so always resolve three to
+    // its ESM entry instead of the `require` condition.
+    if (name === 'three' && /[\\/]three\.cjs$/.test(resolved)) {
+      const esm = resolved.replace(/three\.cjs$/, 'three.module.js')
+      if (existsSync(esm)) {
+        return esm
+      }
+    }
     if (resolved.endsWith('.umd.cjs')) {
       const esm = resolved.slice(0, -'.umd.cjs'.length) + '.js'
       if (existsSync(esm)) {

@@ -43,6 +43,11 @@ export class AcTrGroup extends AcTrEntity {
    * leaves and released the need to deep-clone {@link _sourceEntities}.
    */
   private _compacted = false
+  /**
+   * Accumulated {@link asyncDraw} sub-stage timings (OPENPROF diagnostics).
+   * Reset by {@link resetAsyncDrawTimings} at open start.
+   */
+  private static _asyncDrawTimings = { glyph: 0, bbox: 0 }
   /** Per-source-entity INSERT chain from nested block references to this group's block. */
   private _sourceEntitySpatialMatrices = new Map<AcDbObjectId, THREE.Matrix4>()
 
@@ -167,6 +172,16 @@ export class AcTrGroup extends AcTrEntity {
    */
   get isCompacted() {
     return this._compacted
+  }
+
+  /** @returns Accumulated glyph-draw and bbox-refresh milliseconds. */
+  static getAsyncDrawTimings() {
+    return { ...AcTrGroup._asyncDrawTimings }
+  }
+
+  /** Clears {@link getAsyncDrawTimings} counters. */
+  static resetAsyncDrawTimings() {
+    AcTrGroup._asyncDrawTimings = { glyph: 0, bbox: 0 }
   }
 
   /**
@@ -448,8 +463,13 @@ export class AcTrGroup extends AcTrEntity {
    * children can wait for fonts without using the sync fallback path.
    */
   override async asyncDraw(): Promise<void> {
+    const t0 = performance.now()
     await this.asyncDrawPendingGlyphs()
+    const t1 = performance.now()
     this.refreshWcsChildBoxesFromChildren()
+    const t2 = performance.now()
+    AcTrGroup._asyncDrawTimings.glyph += t1 - t0
+    AcTrGroup._asyncDrawTimings.bbox += t2 - t1
   }
 
   /**

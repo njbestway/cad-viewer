@@ -15,13 +15,20 @@ const config: Config = {
       'ts-jest',
       {
         tsconfig: {
-          allowJs: true
-        }
+          allowJs: true,
+          module: 'commonjs',
+          target: 'es2020'
+        },
+        diagnostics: false,
+        isolatedModules: true
       }
     ]
   },
+  // three 0.186 dropped its CommonJS build: `build/three.cjs` now just
+  // `require('./three.module.js')`, which Jest's CJS runtime cannot load.
+  // Let ts-jest transpile three's ESM builds (and addons) to CommonJS.
   transformIgnorePatterns: [
-    '/node_modules/(?!.*(mtext-parser|rbush|quickselect))'
+    '/node_modules/(?!.*(mtext-parser|rbush|quickselect|three))'
   ],
   testPathIgnorePatterns: ['/e2e/', '/__tests__/helpers/'],
   moduleNameMapper: {
