@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@mlightcad/data-model": "^1.15.11",
-    "@mlightcad/mtext-input-box": "^0.3.4",
+    "@mlightcad/mtext-input-box": "^0.3.5",
     "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*",
     "@mlightcad/three-renderer": "workspace:*",

@@ -2362,7 +2362,8 @@ export class AcTrBatchedGroup extends THREE.Group {
         overlayUserData.objectId = objectId
         overlayUserData.batchedObjectId = item.batchedObjectId
         overlayUserData.disposeGeometryOnRemove =
-          batchedObject instanceof AcTrBatchedLine2
+          batchedObject instanceof AcTrBatchedLine2 ||
+          batchedObject instanceof AcTrSharedGeometryBatch
         overlayUserData.previewDrawable = options.mode === 'preview'
         object.renderOrder = containerGroup.renderOrder
         containerGroup.add(object)
@@ -3349,7 +3350,9 @@ export class AcTrBatchedGroup extends THREE.Group {
       clonedDrawable.sharesTemplateGeometry = ownsTexturedMaterial
         ? false
         : sourceDrawable.sharesTemplateGeometry
-      clonedDrawable.bakedWorldMatrix = source.matrixWorld.toArray<number[]>()
+      clonedDrawable.bakedWorldMatrix = source.matrixWorld.toArray(
+        new Array<number>(16)
+      )
       if (sourceDrawable.textEntityTraits) {
         clonedDrawable.textEntityTraits = AcTrMTextColorUtil.cloneEntityTraits(
           sourceDrawable.textEntityTraits
@@ -3450,7 +3453,9 @@ export class AcTrBatchedGroup extends THREE.Group {
     const sourceDrawable = getSceneDrawableUserData(source)
     const clonedDrawable = getSceneDrawableUserData(cloned)
     clonedDrawable.bboxIntersectionCheck = sourceDrawable.bboxIntersectionCheck
-    clonedDrawable.bakedWorldMatrix = source.matrixWorld.toArray<number[]>()
+    clonedDrawable.bakedWorldMatrix = source.matrixWorld.toArray(
+      new Array<number>(16)
+    )
     if (sourceDrawable.textEntityTraits) {
       clonedDrawable.textEntityTraits = AcTrMTextColorUtil.cloneEntityTraits(
         sourceDrawable.textEntityTraits
@@ -3707,8 +3712,8 @@ export class AcTrBatchedGroup extends THREE.Group {
 /**
  * Disposes one preview subset tree created by {@link AcTrBatchedGroup.createPreviewSubset}.
  *
- * Shared batch geometry buffers are never disposed; cloned materials and
- * Line2-owned geometry follow the same rules as highlight overlays.
+ * Shared batch template buffers are never disposed. Overlay clones (Line2
+ * sub-geometry and shared-INSERT previews) are released with the subset.
  *
  * @param group - Preview subset root group to dispose
  */

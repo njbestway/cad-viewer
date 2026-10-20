@@ -7,9 +7,10 @@ settings:
 overrides:
   '@mlightcad/data-model': ^1.15.11
   '@mlightcad/libredwg-converter': ^3.15.11
-  '@mlightcad/mtext-input-box': ^0.3.4
+  '@mlightcad/mtext-input-box': ^0.3.5
   '@mlightcad/ribbon': ^0.1.13
   '@mlightcad/ui-components': ^0.1.11
+  '@types/three': ^0.186.0
   element-plus: ^2.12.0
   glob: ^13.0.6
   lodash-es: 4.17.21
@@ -275,7 +276,7 @@ importers:
         specifier: 0.8.0
         version: 0.8.0
       '@mlightcad/mtext-renderer':
-        specifier: ^0.13.4
+        specifier: ^0.13.5
         version: 0.13.5(@mlightcad/mtext-parser@1.5.5)(three@0.186.1)
       '@mlightcad/three-renderer':
         specifier: workspace:*
@@ -419,8 +420,8 @@ importers:
         specifier: ^1.15.11
         version: 1.15.11
       '@mlightcad/mtext-input-box':
-        specifier: ^0.3.4
-        version: 0.3.4(@mlightcad/mtext-parser@packages+mtext-parser)(@mlightcad/mtext-renderer@packages+mtext-renderer)(three@0.186.1)
+        specifier: ^0.3.5
+        version: 0.3.5(@mlightcad/mtext-parser@packages+mtext-parser)(@mlightcad/mtext-renderer@packages+mtext-renderer)(three@0.186.1)
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -2434,11 +2435,11 @@ packages:
     resolution: {integrity: sha512-P2E+cCRLUWASQEcUaPK5W2WH2QwEliwim3NT323AXp9lJy9eYEugVEnmyG2hXNphRc7Kor09tf2TUtfLLzDeag==, tarball: https://registry.npmmirror.com/@mlightcad/libredwg-web/-/libredwg-web-0.8.0.tgz}
     engines: {node: '>=20'}
 
-  '@mlightcad/mtext-input-box@0.3.4':
-    resolution: {integrity: sha512-9796pxbEGkUgJA9tL8Ks8LwO4rbMJs788XzNvOuwyn+alBvtKZTDZCq8mwUj9NAOxbgDM3NcUBH3qEkG7GdvnA==}
+  '@mlightcad/mtext-input-box@0.3.5':
+    resolution: {integrity: sha512-hE3O3M00YTi8lV+YrdgAerhzqSt1OArwB4f8QlxlWjp2QPUcfu2QhofN0zzPOXrJDgwAPY91QOgMCiDmla12pQ==, tarball: https://registry.npmmirror.com/@mlightcad/mtext-input-box/-/mtext-input-box-0.3.5.tgz}
     peerDependencies:
-      '@mlightcad/mtext-parser': ^1.5.4
-      '@mlightcad/mtext-renderer': ^0.13.3
+      '@mlightcad/mtext-parser': ^1.5.5
+      '@mlightcad/mtext-renderer': ^0.13.5
       three: ^0.186.1
 
   '@mlightcad/mtext-parser@1.5.5':
@@ -2461,7 +2462,7 @@ packages:
     resolution: {integrity: sha512-wFY0X7vnuq1IYdP6JRggb7LHcKho1P8zmcWGtXa6XYthwyKZCUoZCswTXr7J26pbzyhBB7KsiCcCL48iwIevdQ==, tarball: https://registry.npmmirror.com/@mlightcad/shx-parser/-/shx-parser-1.4.5.tgz}
 
   '@mlightcad/text-box-cursor@0.1.1':
-    resolution: {integrity: sha512-Q3uLz+FXG6mLInq/Q1jUNdyjGFdMWZduWA2WO6d+jUqFbWeh4xsn5M/HY+vy1Rs0bvLWZvdRgJeEFVe6nhIihQ==}
+    resolution: {integrity: sha512-Q3uLz+FXG6mLInq/Q1jUNdyjGFdMWZduWA2WO6d+jUqFbWeh4xsn5M/HY+vy1Rs0bvLWZvdRgJeEFVe6nhIihQ==, tarball: https://registry.npmmirror.com/@mlightcad/text-box-cursor/-/text-box-cursor-0.1.1.tgz}
     peerDependencies:
       three: ^0.186.1
 
@@ -8455,7 +8456,7 @@ snapshots:
 
   '@mlightcad/libredwg-web@0.8.0': {}
 
-  '@mlightcad/mtext-input-box@0.3.4(@mlightcad/mtext-parser@packages+mtext-parser)(@mlightcad/mtext-renderer@packages+mtext-renderer)(three@0.186.1)':
+  '@mlightcad/mtext-input-box@0.3.5(@mlightcad/mtext-parser@packages+mtext-parser)(@mlightcad/mtext-renderer@packages+mtext-renderer)(three@0.186.1)':
     dependencies:
       '@mlightcad/mtext-parser': link:packages/mtext-parser
       '@mlightcad/mtext-renderer': link:packages/mtext-renderer

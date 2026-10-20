@@ -24,11 +24,11 @@ const config: Config = {
       }
     ]
   },
-  // three 0.186 dropped its CommonJS build: `build/three.cjs` now just
-  // `require('./three.module.js')`, which Jest's CJS runtime cannot load.
-  // Let ts-jest transpile three's ESM builds (and addons) to CommonJS.
+  // three 0.186's CJS entry re-exports its ESM builds (`three.module.js` /
+  // `three.core.js`), which Jest's CJS runtime cannot load. Let ts-jest
+  // transpile those builds (and addons) to CommonJS.
   transformIgnorePatterns: [
-    '/node_modules/(?!.*(mtext-parser|rbush|quickselect|three))'
+    '/node_modules/(?!.*(mtext-parser|rbush|quickselect|three/build/three))'
   ],
   testPathIgnorePatterns: ['/e2e/', '/__tests__/helpers/'],
   moduleNameMapper: {
