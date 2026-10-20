@@ -89,6 +89,33 @@ function isFilledAt(polygon: AcTrPolygon, x: number, y: number): boolean {
   return hit
 }
 
+/** Sum of the mesh triangle areas (world space) of a polygon. */
+function triangulatedArea(polygon: AcTrPolygon): number {
+  let area = 0
+  polygon.updateMatrixWorld(true)
+  polygon.traverse(object => {
+    if (!(object instanceof THREE.Mesh)) {
+      return
+    }
+    const position = object.geometry.getAttribute('position')
+    const index = object.geometry.getIndex()
+    if (!position || !index) {
+      return
+    }
+    const corners = [0, 1, 2].map(() => new THREE.Vector3())
+    for (let i = 0; i < index.count; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        const vertex = index.getX(i + k)
+        corners[k]
+          .set(position.getX(vertex), position.getY(vertex), 0)
+          .applyMatrix4(object.matrixWorld)
+      }
+      area += new THREE.Triangle(corners[0], corners[1], corners[2]).getArea()
+    }
+  })
+  return area
+}
+
 function createPatternedTraits() {
   const traits = AcTrSubEntityTraitsUtil.createDefaultTraits()
   traits.layer = 'A-HATCH'
@@ -289,6 +316,49 @@ describe('AcTrPolygon self-intersecting hatch loops', () => {
     expect(isFilledAt(polygon, 1437, 650)).toBe(true)
     expect(isFilledAt(polygon, 1425, 628.2)).toBe(true)
     expect(isFilledAt(polygon, 1425, 640)).toBe(false)
+  })
+})
+
+describe('AcTrPolygon self-intersecting border ring (DXF hatch BB1443)', () => {
+  // samples/200.dxf handle BB1443: a SOLID hatch whose single closed polyline
+  // walks an inner and an outer rectangle offset by 0.5, so its left edges
+  // cross. Even-odd semantics fill only the 0.5-wide border (~5,614), not the
+  // 2,691 x 2,922 interior that a naive per-region fill paints solid.
+  const borderLoop = [
+    new AcGePoint2d(235096, 1888990),
+    new AcGePoint2d(237787.5, 1888990),
+    new AcGePoint2d(237787.5, 1892911),
+    new AcGePoint2d(235096, 1892911),
+    new AcGePoint2d(235095.5, 1888989.5),
+    new AcGePoint2d(237788, 1888989.5),
+    new AcGePoint2d(237788, 1892911.5),
+    new AcGePoint2d(235095.5, 1892911.5)
+  ]
+
+  it('fills only the 0.5-wide border, not the whole frame', () => {
+    const area = {
+      tessellate: () => [borderLoop],
+      buildHierarchy: () => ({ children: [{ index: 0, children: [] }] })
+    } as unknown as AcGeArea2d
+
+    const polygon = new AcTrPolygon(
+      area,
+      defaultTraits,
+      new AcTrRenderContext()
+    )
+    polygon.updateMatrixWorld(true)
+
+    // A solid frame ring: bbox area minus inner rectangle.
+    const filled = triangulatedArea(polygon)
+    expect(filled).toBeGreaterThan(5_400)
+    expect(filled).toBeLessThan(6_800)
+    expect(filled).toBeLessThan(100_000)
+
+    // The four strips are filled; the interior stays open.
+    expect(isFilledAt(polygon, 235095.75, 1892500)).toBe(true)
+    expect(isFilledAt(polygon, 237787.7, 1890950)).toBe(true)
+    expect(isFilledAt(polygon, 236441.75, 1888989.75)).toBe(true)
+    expect(isFilledAt(polygon, 236441.75, 1890950)).toBe(false)
   })
 })
 

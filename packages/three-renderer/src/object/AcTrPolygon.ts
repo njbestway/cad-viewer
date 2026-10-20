@@ -18,8 +18,9 @@ import { AcTrRenderContext } from '../renderer/AcTrRenderContext'
 import { AcTrBufferGeometryUtil } from '../util/AcTrBufferGeometryUtil'
 import { AcTrEntity } from './AcTrEntity'
 import {
+  type AcTrHatchLoopRegion,
   hatchLoopHasRenderableArea,
-  resolveSelfIntersectingHatchLoop
+  resolveSelfIntersectingHatchLoopRegions
 } from './AcTrHatchLoopRepair'
 
 function toVector2(points: AcGePoint2dLike[]): THREE.Vector2[] {
@@ -29,21 +30,29 @@ function toVector2(points: AcGePoint2dLike[]): THREE.Vector2[] {
 }
 
 /**
- * True when a hole's first finite vertex lies inside (or on) the outer ring.
- * Used after self-intersect repair splits an outer into several simple regions
- * so each region only receives its own holes.
+ * True when a ring lies inside (or on) another ring.
+ *
+ * Uses a majority vote of the ring's vertices instead of a single vertex:
+ * self-intersect repair produces regions that share their crossing vertex with
+ * the parent ring, and a point-in-polygon test on that shared vertex is
+ * ambiguous (it can report one solid lobe as being inside its sibling).
  */
 function isHoleInsideOuter(
   hole: AcGePoint2dLike[],
   outer: AcGePoint2dLike[]
 ): boolean {
+  let vertices = 0
+  let inside = 0
   for (const point of hole) {
     if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
       continue
     }
-    return AcGeGeometryUtil.isPointInPolygon(point, outer, true)
+    vertices++
+    if (AcGeGeometryUtil.isPointInPolygon(point, outer, true)) {
+      inside++
+    }
   }
-  return false
+  return vertices > 0 && inside * 2 > vertices
 }
 
 function hasFillVertices(geometry: THREE.BufferGeometry | undefined): boolean {
@@ -282,12 +291,10 @@ export class AcTrPolygon extends AcTrEntity {
       }
       // DWG hatch edge paths may self-intersect (T-junctions without a shared
       // vertex). Earcut then fills the concave exterior — repair first.
-      for (const region of resolveSelfIntersectingHatchLoop(points)) {
-        if (region.length < 3) {
-          continue
-        }
-        createGeometry(new THREE.Shape(toVector2(region)))
-      }
+      // The repair emits both solids and holes of the even-odd result; nest
+      // them so holes are not filled as standalone shapes.
+      const regions = resolveSelfIntersectingHatchLoopRegions(points)
+      this.buildRegionShapes(regions).forEach(createGeometry)
     })
 
     for (const pair of holes) {
@@ -300,24 +307,10 @@ export class AcTrPolygon extends AcTrEntity {
       const holePaths = this.buildMergedHolePaths(pointBoundaries, pair[1])
       // Same self-intersection repair as the no-hole path. If the outer splits
       // into several simple regions, only attach holes that lie inside each
-      // region — foreign holes corrupt earcut triangulation.
-      const outerRegions = resolveSelfIntersectingHatchLoop(outerPoints)
-      for (const outerRegion of outerRegions) {
-        if (outerRegion.length < 3) {
-          continue
-        }
-        const shape = new THREE.Shape(toVector2(outerRegion))
-        for (const hole of holePaths) {
-          if (hole.length < 3) {
-            continue
-          }
-          if (!isHoleInsideOuter(hole, outerRegion)) {
-            continue
-          }
-          shape.holes.push(new THREE.Path(toVector2(hole)))
-        }
-        createGeometry(shape)
-      }
+      // region — foreign holes corrupt earcut triangulation. Rings nested in a
+      // repaired outer are its holes and are nested by buildRegionShapes.
+      const outerRegions = resolveSelfIntersectingHatchLoopRegions(outerPoints)
+      this.buildRegionShapes(outerRegions, holePaths).forEach(createGeometry)
     }
 
     node.children.forEach(child => {
@@ -325,6 +318,58 @@ export class AcTrPolygon extends AcTrEntity {
         this.buildHatchGeometry(pointBoundaries, grandchild, geometries)
       })
     })
+  }
+
+  /**
+   * Builds fills from repaired hatch regions.
+   *
+   * PolyBool emits every ring of the rebuilt even-odd polygon, so a ring
+   * nested inside another one is a hole. Its winding is _not_ a hole flag: a
+   * bow-tie comes back as one clockwise and one counter-clockwise lobe, both
+   * solid. Nesting depth is therefore what separates solids from holes, and
+   * each hole is attached to its immediate parent so earcut does not fill it.
+   * `extraHoles` are hierarchy holes of the original outer.
+   */
+  private buildRegionShapes(
+    regions: AcTrHatchLoopRegion[],
+    extraHoles: AcGePoint2dLike[][] = []
+  ): THREE.Shape[] {
+    const rings = regions.filter(region => region.points.length >= 3)
+    if (rings.length === 0) {
+      return []
+    }
+
+    const depths = rings.map((ring, index) =>
+      rings.reduce((depth, other, otherIndex) => {
+        if (otherIndex === index) {
+          return depth
+        }
+        return isHoleInsideOuter(ring.points, other.points) ? depth + 1 : depth
+      }, 0)
+    )
+
+    const shapes: THREE.Shape[] = []
+    rings.forEach((ring, index) => {
+      if (depths[index] % 2 === 1) {
+        return
+      }
+      const shape = new THREE.Shape(toVector2(ring.points))
+      rings.forEach((hole, holeIndex) => {
+        if (
+          depths[holeIndex] === depths[index] + 1 &&
+          isHoleInsideOuter(hole.points, ring.points)
+        ) {
+          shape.holes.push(new THREE.Path(toVector2(hole.points)))
+        }
+      })
+      extraHoles.forEach(hole => {
+        if (hole.length >= 3 && isHoleInsideOuter(hole, ring.points)) {
+          shape.holes.push(new THREE.Path(toVector2(hole)))
+        }
+      })
+      shapes.push(shape)
+    })
+    return shapes
   }
 
   /**

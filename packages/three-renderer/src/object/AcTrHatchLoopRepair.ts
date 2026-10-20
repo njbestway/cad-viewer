@@ -168,25 +168,67 @@ function polyboolEpsilonFor(points: AcGePoint2dLike[]): number {
 }
 
 /**
+ * Signed (shoelace) area of a closed ring, relative to its first vertex so
+ * large survey coordinates do not lose precision.
+ *
+ * Positive means counter-clockwise, negative clockwise.
+ */
+function signedAreaOfRing(points: AcGePoint2dLike[]): number {
+  if (points.length < 3) {
+    return 0
+  }
+  const origin = points[0]
+  let sum = 0
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i]
+    const b = points[(i + 1) % points.length]
+    sum +=
+      (a.x - origin.x) * (b.y - origin.y) - (b.x - origin.x) * (a.y - origin.y)
+  }
+  return sum / 2
+}
+
+/**
+ * A simple ring produced by {@link resolveSelfIntersectingHatchLoopRegions}.
+ *
+ * `signedArea` keeps the winding PolyBool assigned to the rebuilt ring. It is
+ * not a hole flag: a bow-tie comes back as one clockwise and one
+ * counter-clockwise lobe, both solid. Callers that fill the rings must derive
+ * holes from nesting (see `AcTrPolygon.buildRegionShapes`).
+ */
+export interface AcTrHatchLoopRegion {
+  /** Ring vertices without a duplicated closing vertex. */
+  points: AcGePoint2d[]
+  /** Shoelace area; positive counter-clockwise, negative clockwise. */
+  signedArea: number
+}
+
+function toHatchLoopRegion(points: AcGePoint2dLike[]): AcTrHatchLoopRegion {
+  const ring = points.map(p => new AcGePoint2d(p.x, p.y))
+  return { points: ring, signedArea: signedAreaOfRing(ring) }
+}
+
+/**
  * Decomposes a self-intersecting hatch loop into simple even-odd regions.
  *
  * Uses PolyBool's segment rebuild (`segments` → `polygon`), which splits at
  * crossings and emits non-self-intersecting rings earcut can triangulate.
- * Loops that are already simple are returned unchanged.
+ * Loops that are already simple are returned unchanged (winding preserved).
  *
- * @returns One or more simple rings. On failure, returns the original loop.
+ * @returns One or more simple rings with their signed areas. On failure,
+ *          returns the original loop.
  */
-export function resolveSelfIntersectingHatchLoop(
+export function resolveSelfIntersectingHatchLoopRegions(
   points: AcGePoint2dLike[]
-): AcGePoint2d[][] {
+): AcTrHatchLoopRegion[] {
   const ring = openRing(points)
   if (ring.length < 3) {
-    return [ring.map(p => new AcGePoint2d(p.x, p.y))]
+    return [toHatchLoopRegion(ring)]
   }
 
   const epsilon = polyboolEpsilonFor(ring)
   if (!hatchLoopHasSelfIntersection(ring, epsilon)) {
-    return [ring.map(p => new AcGePoint2d(p.x, p.y))]
+    return [toHatchLoopRegion(ring)]
   }
   try {
     const polybool = new PolyBool(new GeometryEpsilon(epsilon))
@@ -198,9 +240,7 @@ export function resolveSelfIntersectingHatchLoop(
     )
     const regions = rebuilt.regions
       .filter(region => region.length >= 3)
-      .map(region =>
-        region.map(p => new AcGePoint2d(p[0], p[1]))
-      )
+      .map(region => toHatchLoopRegion(region.map(p => ({ x: p[0], y: p[1] }))))
     if (regions.length > 0) {
       return regions
     }
@@ -208,5 +248,19 @@ export function resolveSelfIntersectingHatchLoop(
   } catch (error) {
     log.warn(`PolyBool hatch loop repair failed: ${error}, epsilon=${epsilon}`)
   }
-  return [ring.map(p => new AcGePoint2d(p.x, p.y))]
+  return [toHatchLoopRegion(ring)]
+}
+
+/**
+ * Decomposes a self-intersecting hatch loop into simple even-odd rings.
+ *
+ * @deprecated Prefer {@link resolveSelfIntersectingHatchLoopRegions} when the
+ *             caller fills the rings: it also reports each ring's signed area.
+ */
+export function resolveSelfIntersectingHatchLoop(
+  points: AcGePoint2dLike[]
+): AcGePoint2d[][] {
+  return resolveSelfIntersectingHatchLoopRegions(points).map(
+    region => region.points
+  )
 }
