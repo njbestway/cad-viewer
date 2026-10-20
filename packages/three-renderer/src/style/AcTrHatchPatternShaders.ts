@@ -207,11 +207,12 @@ export function createHatchPatternShaderMaterial(
     varying vec3 v_pos;
 
     struct PatternLine {
+        float lineIndex;
         float angle;
         vec2 base;
         vec2 offset;
-        float dashLengths[MAX_PATTERN_SEGMENT_COUNT];
         float patternLength;
+        float duty;
     };
 
     uniform sampler2D u_patternData;
@@ -255,29 +256,49 @@ export function createHatchPatternShaderMaterial(
         return texture2D(u_patternData, uv);
     }
 
+    // Dash lengths start at float index 6 in the u_patternData row. Sample them
+    // on demand instead of copying into a struct array: a dynamic array write
+    // (dashLengths[i] = ...) is not natively addressable in HLSL, so ANGLE
+    // forces the loop to unroll while the compiler marks it [loop], and D3D
+    // rejects the program with X3531.
+    float dashLengthAt(PatternLine patternLine, int i) {
+        float floatIndex = float(i) + 6.0;
+        float texelIndex = floor(floatIndex / 4.0);
+        float comp = mod(floatIndex, 4.0);
+        vec4 t = fetchPatternTexel(patternLine.lineIndex, texelIndex);
+        if (comp < 0.5) return t.r;
+        else if (comp < 1.5) return t.g;
+        else if (comp < 2.5) return t.b;
+        return t.a;
+    }
+
+    // Along-line dash duty: fraction of one pattern period that is ink.
+    // Stipple patterns (GRAVEL) are ~1%, so any area-average fade must scale
+    // by this or it over-brightens by two orders of magnitude. Computed once
+    // per pattern line and cached in PatternLine.duty.
+    float computeDashDuty(PatternLine patternLine) {
+        float positive = 0.0;
+        for (int i = 0; i < ${maxPatternSegmentCount}; i++) {
+            float segmentLength = dashLengthAt(patternLine, i);
+            if (segmentLength > 0.0) {
+                positive += segmentLength;
+            }
+        }
+        return patternLine.patternLength > 0.0
+            ? positive / patternLine.patternLength
+            : 1.0;
+    }
+
     PatternLine loadPatternLine(float lineIndex) {
         PatternLine pl;
+        pl.lineIndex = lineIndex;
         vec4 t0 = fetchPatternTexel(lineIndex, 0.0);
         vec4 t1 = fetchPatternTexel(lineIndex, 1.0);
         pl.angle = t0.r;
         pl.base = t0.gb;
         pl.offset = vec2(t0.a, t1.r);
         pl.patternLength = t1.g;
-
-        // Dash lengths start at float index 6 (t1.ba, then subsequent texels).
-        // Do not use three.js unroll_loop here: it only rewrites [i] /
-        // UNROLLED_LOOP_INDEX, so float(i) would become an undeclared
-        // identifier and the fragment shader would fail to compile.
-        for (int i = 0; i < ${maxPatternSegmentCount}; i++) {
-            float floatIndex = float(i) + 6.0;
-            float texelIndex = floor(floatIndex / 4.0);
-            float comp = mod(floatIndex, 4.0);
-            vec4 t = fetchPatternTexel(lineIndex, texelIndex);
-            if (comp < 0.5) pl.dashLengths[i] = t.r;
-            else if (comp < 1.5) pl.dashLengths[i] = t.g;
-            else if (comp < 2.5) pl.dashLengths[i] = t.b;
-            else pl.dashLengths[i] = t.a;
-        }
+        pl.duty = computeDashDuty(pl);
         return pl;
     }
 
@@ -286,24 +307,6 @@ export function createHatchPatternShaderMaterial(
         vec2 ap = samplePos - a;
         vec2 ab = b - a;
         return abs((ap.x * ab.y) - (ab.x * ap.y)) / max(length(ab), EPSILON);
-    }
-
-    // Along-line dash duty: fraction of one pattern period that is ink.
-    // Stipple patterns (GRAVEL) are ~1%, so any area-average fade must scale
-    // by this or it over-brightens by two orders of magnitude.
-    float dashDuty(PatternLine patternLine) {
-        float positive = 0.0;
-        // Plain loop, not three.js unroll_loop: the sampled dash list is fixed
-        // to maxPatternSegmentCount entries and any unroll pragma in this
-        // shader breaks GLSL compilation (#743).
-        for (int i = 0; i < ${maxPatternSegmentCount}; i++) {
-            if (patternLine.dashLengths[i] > 0.0) {
-                positive += patternLine.dashLengths[i];
-            }
-        }
-        return patternLine.patternLength > 0.0
-            ? positive / patternLine.patternLength
-            : 1.0;
     }
 
     // Draw a repeated line pattern in object/world space with smooth anti-aliasing.
@@ -357,6 +360,7 @@ export function createHatchPatternShaderMaterial(
     }
 
     int getPatternIndex(PatternLine patternLine, float linePosition, float thick, out float distance) {
+        distance = 0.0;
         if (patternLine.patternLength <= 0.0) {
             return -1;
         }
@@ -370,7 +374,7 @@ export function createHatchPatternShaderMaterial(
         // loop index — unroll only rewrites [i] / UNROLLED_LOOP_INDEX.
         float sum = 0.0;
         for (int i = 0; i < ${maxPatternSegmentCount}; i++) {
-            float segmentLength = abs(patternLine.dashLengths[i]);
+            float segmentLength = abs(dashLengthAt(patternLine, i));
             // A dash length of 0 is AutoCAD's "dot" marker: a zero-length
             // element that consumes no along-line distance (sum still
             // advances by the real, zero, segmentLength -- the pattern's
@@ -438,7 +442,7 @@ export function createHatchPatternShaderMaterial(
                 samplePos,
                 mergeSpacing,
                 mergeSpacing,
-                dashDuty(patternLine)
+                patternLine.duty
             );
         }
 
@@ -465,7 +469,7 @@ export function createHatchPatternShaderMaterial(
             return opacity;
         }
 
-        float size = patternLine.dashLengths[index];
+        float size = dashLengthAt(patternLine, index);
         if (size >= 0.0) {
             // Dash segment: draw the line at its true world-space extent. The
             // along-line gating above already limits painting to [dashStart,
@@ -474,7 +478,7 @@ export function createHatchPatternShaderMaterial(
                 samplePos,
                 distanceBetweenLines,
                 thick,
-                dashDuty(patternLine)
+                patternLine.duty
             );
         }
         // Gap segments paint nothing. Previously a gap was painted for up to
