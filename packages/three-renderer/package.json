@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/three-renderer",
-  "version": "1.7.6",
+  "version": "1.7.7-preview.0",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -42,14 +42,14 @@
   "devDependencies": {
     "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*",
-    "@mlightcad/data-model": "^1.15.12",
+    "@mlightcad/data-model": "^1.15.13",
     "@types/three": "^0.186.0",
     "three": "^0.186.1"
   },
   "peerDependencies": {
     "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*",
-    "@mlightcad/data-model": "^1.15.12",
+    "@mlightcad/data-model": "^1.15.13",
     "@velipso/polybool": "^1.1.1",
     "three": "^0.186.1"
   }
