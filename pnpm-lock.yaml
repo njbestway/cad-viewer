@@ -2430,19 +2430,6 @@ packages:
   '@microsoft/tsdoc@0.16.0':
     resolution: {integrity: sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==, tarball: https://registry.npmmirror.com/@microsoft/tsdoc/-/tsdoc-0.16.0.tgz}
 
-<<<<<<< HEAD
-  '@mlightcad/common@1.15.12':
-    resolution: {integrity: sha512-y54j5owzoFBIJ6ww4qmIV3a5PzZXK0M26nnNqEwIsCRqvD/v4HqR2q68vE9hGH7/vbW1nPBYdgydlu2pjZozeg==, tarball: https://registry.npmmirror.com/@mlightcad/common/-/common-1.15.12.tgz}
-
-  '@mlightcad/data-model@1.15.12':
-    resolution: {integrity: sha512-5+cjzFLo/RVkk2+4T/Dox3IWOvt04IqStpLy3nZ4IC2gE3vBqeevS2JhK257FwwepB/w3tCnUh9Rc4M/zIPdsQ==, tarball: https://registry.npmmirror.com/@mlightcad/data-model/-/data-model-1.15.12.tgz}
-
-  '@mlightcad/emf-converter@1.15.12':
-    resolution: {integrity: sha512-J7/nH+aM9ZInmEDPVB+MWapE4hD0hBFu5ndT7/Vjnq5WoleAX3TqbmM+TuMt5iTpuCZCQcm7441qYSEEdDEYyQ==, tarball: https://registry.npmmirror.com/@mlightcad/emf-converter/-/emf-converter-1.15.12.tgz}
-
-  '@mlightcad/geometry-engine@3.15.12':
-    resolution: {integrity: sha512-Zr6+yxTwgOEFrK8UBUwg8SqcahrMrhcOr8g5ZjQaV8hzeriY2ypx7gh9bKY9CVw7iJcWmLP2s7lx8c02cAnopQ==, tarball: https://registry.npmmirror.com/@mlightcad/geometry-engine/-/geometry-engine-3.15.12.tgz}
-=======
   '@mlightcad/common@1.15.13':
     resolution: {integrity: sha512-R/Gxs5ribi1fRreXQoh28v4grw+yNUPZwg+ir9fX9MiHmQgjHIxzYAjOnr2fAgeoN+yki6eXjoBsVJSmsJ/a+A==}
 
@@ -2454,28 +2441,17 @@ packages:
 
   '@mlightcad/geometry-engine@3.15.13':
     resolution: {integrity: sha512-cGcCNOVO5Lk7qAHwts/DgRYL1c3KFSMFYE6Cqi+Wq/Oop4hiHcqHvszWeR/cXHIFsM+Vuw2O0vSGQnCk6+YwFw==}
->>>>>>> upstream/main
     peerDependencies:
       '@mlightcad/common': 1.15.13
 
-<<<<<<< HEAD
-  '@mlightcad/graphic-interface@3.15.12':
-    resolution: {integrity: sha512-V/Ip38U30HduVVAGc1bw/iAwKkIKot6brXjrhVhIlBiEoNkPJB7qOBWut3+a9nkSx+uGwjMv3jBjYdoIRrLrCQ==, tarball: https://registry.npmmirror.com/@mlightcad/graphic-interface/-/graphic-interface-3.15.12.tgz}
-=======
   '@mlightcad/graphic-interface@3.15.13':
     resolution: {integrity: sha512-noYtZg7MJK4V6sKMTWbaQTlYgOmw6HYbhp2i465qZLwvvpY0qpLreOthcDJRCNVUowOU9lRS6aalsvO1XdP0Mg==}
->>>>>>> upstream/main
     peerDependencies:
       '@mlightcad/common': 1.15.13
       '@mlightcad/geometry-engine': 3.15.13
 
-<<<<<<< HEAD
-  '@mlightcad/libredwg-converter@3.15.12':
-    resolution: {integrity: sha512-Ei6g4Z+w5wOPB3fjH8UThuiPfcoSOSW9BvexQJ+YHEBidVbtXCfXw9RayiCJN3azIlQCOjtXt/HnhRC/HEF7Rg==, tarball: https://registry.npmmirror.com/@mlightcad/libredwg-converter/-/libredwg-converter-3.15.12.tgz}
-=======
   '@mlightcad/libredwg-converter@3.15.13':
     resolution: {integrity: sha512-zEMJ+74twDcyJTtIZ1kE3gNXVk4aOteBef9UyDIhbiPOmBNlwDoM9yu9g86n6ngeH9hRJtK/Yc2TcvZRVCEnfA==}
->>>>>>> upstream/main
     peerDependencies:
       '@mlightcad/data-model': ^1.15.13
 
