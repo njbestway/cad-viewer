@@ -95,6 +95,60 @@ describe('block line coalesce', () => {
     expect(distances.getX(7)).toBeCloseTo(15)
   })
 
+  it('keeps survey-scale block lines accurate when merged', () => {
+    // Real geometry: block `A$C3BFC201F` of the mining plan is inserted at
+    // x~3.76e7 with scale 0.375, so its 22.4-unit circle becomes an 8.4-unit
+    // ring whose 50 chords are ~1 unit long - far below the 4-unit float32
+    // step at that magnitude. Staging absolute coordinates in float32 is what
+    // made the ring and its two arcs vanish on screen.
+    const center = { x: 37595245.3145837, y: 3947073.4101060918 }
+    const radius = 22.391823320815295 * 0.375
+    const sides = 50
+    const points: THREE.Vector3[] = []
+    for (let i = 0; i <= sides; i++) {
+      const angle = (i / sides) * Math.PI * 2
+      points.push(
+        new THREE.Vector3(
+          center.x + radius * Math.cos(angle),
+          center.y + radius * Math.sin(angle),
+          0
+        )
+      )
+    }
+
+    const renderer = createRenderer()
+    renderer.beginBlockLineCoalesce()
+    const ring = renderer.lines(points)
+    ring.objectId = 'circle-377185'
+    ring.layerName = '0'
+    const group = renderer.group([ring])
+    renderer.endBlockLineCoalesce()
+
+    const line = coalescedLineSegments(group)
+    const position = line.geometry.getAttribute('position')
+    let maxError = 0
+    let degenerate = 0
+    for (let i = 0; i < position.count; i += 2) {
+      const ax = position.getX(i) + line.position.x
+      const ay = position.getY(i) + line.position.y
+      const bx = position.getX(i + 1) + line.position.x
+      const by = position.getY(i + 1) + line.position.y
+      const expected = points[i / 2]
+      maxError = Math.max(
+        maxError,
+        Math.abs(ax - expected.x),
+        Math.abs(ay - expected.y)
+      )
+      if (ax === bx && ay === by) {
+        degenerate++
+      }
+    }
+
+    // A chord must keep its length and its place, not snap to a 4-unit grid.
+    expect(maxError).toBeLessThan(1e-3)
+    expect(degenerate).toBe(0)
+  })
+
   it('keeps nested block lines off the outer vertex builder', () => {
     const renderer = createRenderer()
     renderer.beginBlockLineCoalesce()

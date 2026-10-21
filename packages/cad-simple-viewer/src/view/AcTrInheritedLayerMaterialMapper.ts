@@ -46,65 +46,81 @@ export class AcTrInheritedLayerMaterialMapper {
     }
 
     const layerTraits = this.getLayerTraits(effectiveLayerName)
-    for (const object of objects) {
-      object.traverse(child => {
-        const inheritsInsertLayer = child.userData.layerName === sourceLayerName
-        if (inheritsInsertLayer) {
-          child.userData.layerName = effectiveLayerName
-        }
 
-        if (!('material' in child)) {
-          return
-        }
-        // Only layer-"0" (or the current source bucket) inherits INSERT traits.
-        // Attributes/text on other layers must keep their own layer materials.
-        if (!inheritsInsertLayer) {
-          return
-        }
-
-        const material = child.material
-        if (Array.isArray(material)) {
-          const materials = material as THREE.Material[]
-          child.material = materials.map(entry => {
-            if (!this.shouldRemap(entry, sourceLayerName)) {
-              return entry
-            }
-            return (
-              this.renderer.getLayerBoundMaterial(
-                this.promoteLayerZeroByLayerColor(entry, sourceLayerName),
-                effectiveLayerName,
-                layerTraits
-              ) ?? entry
-            )
-          })
-          syncStyleMaterialIdFromMaterials(
-            getSceneDrawableUserData(child),
-            child.material as THREE.Material[]
+    const remapNodeMaterial = (node: THREE.Object3D) => {
+      const drawable = node as THREE.Object3D & {
+        material?: THREE.Material | THREE.Material[]
+      }
+      const material = drawable.material
+      if (!material) {
+        return
+      }
+      if (Array.isArray(material)) {
+        const materials = material as THREE.Material[]
+        drawable.material = materials.map(entry => {
+          if (!this.shouldRemap(entry, sourceLayerName)) {
+            return entry
+          }
+          return (
+            this.renderer.getLayerBoundMaterial(
+              this.promoteLayerZeroByLayerColor(entry, sourceLayerName),
+              effectiveLayerName,
+              layerTraits
+            ) ?? entry
           )
-          return
-        }
-
-        if (!this.shouldRemap(material as THREE.Material, sourceLayerName)) {
-          return
-        }
-
-        const remappedMaterial = this.renderer.getLayerBoundMaterial(
-          this.promoteLayerZeroByLayerColor(
-            material as THREE.Material,
-            sourceLayerName
-          ),
-          effectiveLayerName,
-          layerTraits
-        )
-        if (!remappedMaterial) {
-          return
-        }
-        child.material = remappedMaterial
+        })
         syncStyleMaterialIdFromMaterials(
-          getSceneDrawableUserData(child),
-          remappedMaterial
+          getSceneDrawableUserData(node),
+          drawable.material as THREE.Material[]
         )
-      })
+        return
+      }
+      if (!this.shouldRemap(material as THREE.Material, sourceLayerName)) {
+        return
+      }
+
+      const remappedMaterial = this.renderer.getLayerBoundMaterial(
+        this.promoteLayerZeroByLayerColor(
+          material as THREE.Material,
+          sourceLayerName
+        ),
+        effectiveLayerName,
+        layerTraits
+      )
+      if (!remappedMaterial) {
+        return
+      }
+      drawable.material = remappedMaterial
+      syncStyleMaterialIdFromMaterials(
+        getSceneDrawableUserData(node),
+        remappedMaterial
+      )
+    }
+
+    // Coalesced block lines and instanced drawables are emitted as leaves that
+    // carry no userData.layerName of their own; their layer is only propagated
+    // from the enclosing shell during flatten, which runs after remap. Walk with
+    // the nearest authored layer so those layer-0 leaves still inherit the INSERT
+    // layer (colour and scene-layer bucketing) on the first render.
+    const walk = (
+      node: THREE.Object3D,
+      inheritedLayerName: string | undefined
+    ) => {
+      const ownLayerName = node.userData.layerName as string | undefined
+      const sourceLayer = ownLayerName ?? inheritedLayerName
+      // Only layer-"0" (or the current source bucket) inherits INSERT traits.
+      // Attributes/text on other layers must keep their own layer materials.
+      if (sourceLayer === sourceLayerName) {
+        node.userData.layerName = effectiveLayerName
+        remapNodeMaterial(node)
+      }
+      for (const child of node.children) {
+        walk(child, sourceLayer)
+      }
+    }
+
+    for (const object of objects) {
+      walk(object, undefined)
     }
   }
 

@@ -241,6 +241,34 @@ describe('AcTrStyleManager', () => {
     expect(remapped.color.getHex()).toBe(0xff0000)
   })
 
+  it('keeps plain-geometry block lines thin when remapped onto a weighted INSERT layer', () => {
+    // Layer-0 block content coalesces into plain THREE.LineSegments bound to a
+    // cached LineBasicMaterial. Inheriting the INSERT layer's positive
+    // lineweight must NOT upgrade it to a fat LineMaterial (whose shader needs
+    // LineSegmentsGeometry instance attributes), otherwise the plain geometry
+    // renders nothing and the block content disappears.
+    const styleManager = new AcTrStyleManager()
+    const traits = AcTrSubEntityTraitsUtil.createDefaultTraits()
+    traits.layer = '0'
+    traits.color.setByLayer()
+
+    const layerZero = styleManager.getLineMaterial(
+      traits
+    ) as THREE.LineBasicMaterial
+    expect(layerZero).toBeInstanceOf(THREE.LineBasicMaterial)
+
+    const legendColor = new AcCmColor()
+    legendColor.setRGB(0x33 / 255, 0x33 / 255, 0x33 / 255)
+    const remapped = styleManager.getLayerBoundMaterial(layerZero, 'LEGEND', {
+      layer: 'LEGEND',
+      color: legendColor,
+      lineWeight: AcGiLineWeight.LineWeight070
+    })
+
+    expect(remapped).toBeInstanceOf(THREE.LineBasicMaterial)
+    expect(remapped).not.toBeInstanceOf(LineMaterial)
+  })
+
   it('remaps layer-0 foreground ByLayer materials to inherited INSERT layer color', () => {
     const styleManager = new AcTrStyleManager()
     styleManager.currentBackgroundColor = 0x000000
@@ -271,6 +299,43 @@ describe('AcTrStyleManager', () => {
 
     expect(inherited.color.getHex()).toBe(0xffff00)
     expect(getMaterialMetadata(inherited).isForeground).toBe(false)
+  })
+
+  it('keeps INSERT-inherited ByLayer content bound so live layer-colour edits repaint it', () => {
+    // Layer-0 block content promoted for INSERT inheritance carries a concrete
+    // source colour but an isByLayerColor binding. Remapping onto the effective
+    // layer must KEEP that binding (not bake the concrete colour), otherwise the
+    // inherited content stops following later layer-colour edits.
+    const styleManager = new AcTrStyleManager()
+    styleManager.currentBackgroundColor = 0x000000
+    const traits = AcTrSubEntityTraitsUtil.createDefaultTraits()
+    traits.layer = '0'
+    traits.color.setForeground()
+
+    const layerZero = styleManager.getLineMaterial(
+      traits
+    ) as THREE.LineBasicMaterial
+    setMaterialMetadata(layerZero, { isByLayerColor: true })
+
+    const legendColor = new AcCmColor()
+    legendColor.setRGB(0x33, 0x33, 0x33)
+    const remapped = styleManager.getLayerBoundMaterial(layerZero, 'LEGEND', {
+      layer: 'LEGEND',
+      color: legendColor
+    }) as THREE.LineBasicMaterial
+
+    expect(getMaterialMetadata(remapped).isByLayerColor).toBe(true)
+    expect(getMaterialMetadata(remapped).layer).toBe('LEGEND')
+
+    // Editing the LEGEND layer colour must repaint the same material instance.
+    const newLegendColor = new AcCmColor()
+    newLegendColor.setRGB(255, 0, 0)
+    const updates = styleManager.updateLayerMaterial('LEGEND', {
+      layer: 'LEGEND',
+      color: newLegendColor
+    })
+    expect(updates[remapped.id]).toBe(remapped)
+    expect(remapped.color.getHex()).toBe(0xff0000)
   })
 
   it('solid foreground hatches invert with the theme like linework', () => {
@@ -527,6 +592,76 @@ describe('AcTrStyleManager', () => {
 
     styleManager.currentBackgroundColor = 0x000000
     expect(material.color.getHex()).toBe(0xffffff)
+  })
+
+  /**
+   * Regression: block content authored on layer 0 with ByLayer colour asked
+   * for its line material without a layer swatch, so the material was born
+   * white *and* stayed `isForeground: false` — invisible white-on-white on a
+   * light canvas, and unreachable by `changeForeground` or layer rebinding.
+   * Only the MText path passed the swatch, which is why text on the same layer
+   * looked right. The layer table is now consulted at creation.
+   */
+  it('resolves ByLayer line colour from the layer table when no swatch is passed (#464)', () => {
+    const styleManager = new AcTrStyleManager()
+    styleManager.currentBackgroundColor = 0xffffff
+    styleManager.options.resolveLayerColor = layerName =>
+      layerName === '0' ? new AcCmColor().setForeground() : undefined
+
+    const traits = AcTrSubEntityTraitsUtil.createDefaultTraits()
+    traits.layer = '0'
+    traits.color.setByLayer()
+
+    const material = styleManager.getLineMaterial(
+      traits
+    ) as THREE.LineBasicMaterial
+
+    expect(material.color.getHex()).toBe(0x000000)
+    expect(getMaterialMetadata(material).isForeground).toBe(true)
+
+    styleManager.currentBackgroundColor = 0x000000
+    expect(material.color.getHex()).toBe(0xffffff)
+  })
+
+  it('paints ByLayer lines with the absolute colour stored on the layer record', () => {
+    const styleManager = new AcTrStyleManager()
+    const yellow = new AcCmColor()
+    yellow.setRGB(255, 255, 0)
+    styleManager.options.resolveLayerColor = () => yellow
+
+    const traits = AcTrSubEntityTraitsUtil.createDefaultTraits()
+    traits.layer = 'ROAD'
+    traits.color.setByLayer()
+
+    const material = styleManager.getLineMaterial(
+      traits
+    ) as THREE.LineBasicMaterial
+
+    expect(material.color.getHex()).toBe(0xffff00)
+    expect(getMaterialMetadata(material).isForeground).toBe(false)
+  })
+
+  it('repairs a white-fallback ByLayer material once the layer table is reachable', () => {
+    const styleManager = new AcTrStyleManager()
+    styleManager.currentBackgroundColor = 0xffffff
+
+    const traits = AcTrSubEntityTraitsUtil.createDefaultTraits()
+    traits.layer = '0'
+    traits.color.setByLayer()
+
+    const material = styleManager.getLineMaterial(
+      traits
+    ) as THREE.LineBasicMaterial
+    expect(material.color.getHex()).toBe(0xffffff)
+    expect(getMaterialMetadata(material).isForeground).toBe(false)
+
+    styleManager.options.resolveLayerColor = () =>
+      new AcCmColor().setForeground()
+    const again = styleManager.getLineMaterial(traits)
+
+    expect(again).toBe(material)
+    expect(getMaterialMetadata(material).isForeground).toBe(true)
+    expect(material.color.getHex()).toBe(0x000000)
   })
 
   it('marks newly layer-bound ByLayer-on-ACI-7 materials as foreground (#464)', () => {

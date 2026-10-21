@@ -2701,6 +2701,12 @@ export class AcTrView2d extends AcEdBaseView {
     // Reconvert through the same path as initial load so block references are
     // split by layer correctly and deferred MTEXT/SHAPE geometry is drawn.
     void (async () => {
+      // batchConvert does not self-increment: every caller owns the paired
+      // "increase before convert" (see the open drain and export paths). Each
+      // converted entity decreases once in its finally, so an update that
+      // reconverts without incrementing drives _numOfEntitiesToProcess below 0
+      // and trips the "number of entities to process" warning.
+      this._numOfEntitiesToProcess += entities.length
       await this.batchConvert(entities)
       await this.waitUntilDeferredGeometryIdle()
       if (selectedIds.length > 0) {

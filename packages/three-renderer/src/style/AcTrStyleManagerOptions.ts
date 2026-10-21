@@ -1,3 +1,4 @@
+import { AcCmColor } from '@mlightcad/data-model'
 import * as THREE from 'three'
 
 export interface AcTrStyleManagerOptions {
@@ -62,4 +63,15 @@ export interface AcTrStyleManagerOptions {
    * Default is model-space dark background (`ACGI_MODEL_SPACE_BACKGROUND`).
    */
   currentBackgroundColor: number
+
+  /**
+   * Looks up the live layer-table colour for a layer name.
+   *
+   * Material managers consult this whenever a ByLayer request arrives without
+   * an explicit swatch, so those materials are created with the resolved layer
+   * colour instead of the white background fallback. Installed by
+   * `AcTrRenderContext` from the drawn database; when absent, behaviour stays
+   * as before (white fallback until `updateLayerMaterial` runs).
+   */
+  resolveLayerColor?: (layerName: string) => AcCmColor | undefined
 }

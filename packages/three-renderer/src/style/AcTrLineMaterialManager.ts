@@ -79,7 +79,15 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
   ): 'shader' | 'basic' | 'fat' {
     if (options.fatLines) return 'fat'
     if (this.isShaderMaterial(traits, options)) return 'shader'
-    return options.basicMaterialOnly ? 'basic' : 'fat'
+    // Keep the cache-key mode aligned with the material createMaterialImpl
+    // actually produces. A thin `LineBasicMaterial` (basicMaterialOnly or
+    // negative lineweight) must NOT share a `_*_fat_*` key with a real fat
+    // `LineMaterial` of the same layer/colour/lineWidth: resolveLineWidth can
+    // collapse a 0.30mm fat line and a thin line to the same `lineWidth` (1),
+    // so caching would hand a fat LineMaterial to plain `LineSegments`
+    // geometry (e.g. coalesced block lines), which renders nothing.
+    if (options.basicMaterialOnly || traits.lineWeight < 0) return 'basic'
+    return 'fat'
   }
 
   protected createMaterialImpl(

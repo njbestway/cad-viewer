@@ -94,8 +94,8 @@ export abstract class AcTrMaterialManager<T> {
    * Subclasses provide buildKey() and createMaterialImpl().
    *
    * @param layerColorRgb - Optional resolved layer swatch for ByLayer traits
-   *   (e.g. MText `\C256`). When omitted, ByLayer materials fall back to white
-   *   until a later {@link updateLayerMaterial} refresh.
+   *   (e.g. MText `\C256`). When omitted it is looked up from the layer table
+   *   via `options.resolveLayerColor`, so ByLayer materials are not born white.
    * @param layerColor - Optional full layer colour (ACI-7 / foreground tracking).
    */
   getMaterial(
@@ -105,6 +105,11 @@ export abstract class AcTrMaterialManager<T> {
     layerColor?: AcCmColor
   ): THREE.Material {
     const key = this.buildKey(traits, options)
+    const swatch = this.resolveLayerColorSwatch(
+      traits,
+      layerColorRgb,
+      layerColor
+    )
 
     // cache original traits
     if (!this.keyToTraits[key]) {
@@ -123,12 +128,13 @@ export abstract class AcTrMaterialManager<T> {
       // that layer's ByLayer glyphs are affected.
       if (
         traits.color.isByLayer &&
-        typeof layerColorRgb === 'number' &&
+        typeof swatch.layerColorRgb === 'number' &&
         getMaterialMetadata(cached).isForeground !== true
       ) {
-        const swatch =
-          layerColor ?? new AcCmColor().setRGBValue(layerColorRgb)
-        this.refreshMaterialResolvedColor(cached, { color: swatch })
+        const swatchColor =
+          swatch.layerColor ??
+          new AcCmColor().setRGBValue(swatch.layerColorRgb)
+        this.refreshMaterialResolvedColor(cached, { color: swatchColor })
       }
       return cached
     }
@@ -139,9 +145,44 @@ export abstract class AcTrMaterialManager<T> {
       traits,
       options,
       undefined,
-      layerColorRgb,
-      layerColor
+      swatch.layerColorRgb,
+      swatch.layerColor
     )
+  }
+
+  /**
+   * Fills in the layer-table swatch for ByLayer traits whose caller omitted it.
+   *
+   * Lines, points and fills requested without a swatch used to fall back to the
+   * background-resolved white *and* stay `isForeground: false`, so they were
+   * skipped by `changeForeground` and by layer rebinding alike — an ACI-7 layer
+   * on a light canvas then renders white-on-white and disappears. Only the
+   * MText path passed the swatch, which is why text on the same layer looked
+   * right. Consulting the layer table at creation makes every primitive agree
+   * instead of depending on a later {@link updateLayerMaterial} that may never
+   * run for that layer.
+   */
+  private resolveLayerColorSwatch(
+    traits: AcGiSubEntityTraits,
+    layerColorRgb?: number,
+    layerColor?: AcCmColor
+  ): { layerColorRgb?: number; layerColor?: AcCmColor } {
+    if (
+      typeof layerColorRgb === 'number' ||
+      layerColor ||
+      !traits.color?.isByLayer ||
+      !traits.layer
+    ) {
+      return { layerColorRgb, layerColor }
+    }
+    const swatch = this.options.resolveLayerColor?.(traits.layer)
+    if (!swatch) {
+      return { layerColorRgb, layerColor }
+    }
+    return {
+      layerColorRgb: typeof swatch.RGB === 'number' ? swatch.RGB : undefined,
+      layerColor: swatch
+    }
   }
 
   /**
@@ -346,7 +387,8 @@ export abstract class AcTrMaterialManager<T> {
       remappedTraits,
       layerTraits,
       byLayerBindings,
-      material
+      material,
+      true
     )
     const remappedKey = this.buildKey(remappedTraits, remappedTraits)
 
@@ -364,13 +406,18 @@ export abstract class AcTrMaterialManager<T> {
 
     this.keyToTraits[remappedKey] = remappedTraits
     const layerRgb = layerTraits?.color?.RGB
+    const swatch = this.resolveLayerColorSwatch(
+      remappedTraits,
+      typeof layerRgb === 'number' ? layerRgb : undefined,
+      layerTraits?.color
+    )
     return this.createMaterial(
       remappedKey,
       remappedTraits,
       remappedTraits,
       byLayerBindings,
-      typeof layerRgb === 'number' ? layerRgb : undefined,
-      layerTraits?.color
+      swatch.layerColorRgb,
+      swatch.layerColor
     )
   }
 
@@ -404,7 +451,8 @@ export abstract class AcTrMaterialManager<T> {
     traits: AcGiSubEntityTraits & T,
     layerTraits?: Partial<AcGiSubEntityTraits>,
     byLayerBindings?: AcTrByLayerBindingFlags,
-    material?: THREE.Material
+    material?: THREE.Material,
+    preserveThinLineCategory = false
   ) {
     if (!layerTraits) return
 
@@ -418,7 +466,20 @@ export abstract class AcTrMaterialManager<T> {
       layerTraits.color &&
       !traits.color.isByLayer
     ) {
-      traits.color = layerTraits.color.clone()
+      if (byLayerBindings?.isByLayerColor === true) {
+        // The content is ByLayer-bound (per material metadata) even though the
+        // stored source colour was already resolved to a concrete value (e.g.
+        // layer-0 ACI 7 promoted during INSERT inheritance). Preserve ByLayer
+        // semantics: the effective colour comes from the layer swatch at
+        // creation time, and live layer-colour edits repaint the shared
+        // `*_ByLayer_*` material in place. Baking the concrete colour here
+        // would drop the binding and make the cache key collide with - and
+        // reuse - an explicit-colour entity's unbound material on the same RGB,
+        // so the inherited content would stop following its layer.
+        traits.color.setByLayer()
+      } else {
+        traits.color = layerTraits.color.clone()
+      }
     }
 
     if (isByLayerLineType && layerTraits.lineType) {
@@ -426,7 +487,21 @@ export abstract class AcTrMaterialManager<T> {
     }
 
     if (isByLayerLineWeight && layerTraits.lineWeight != null) {
-      traits.lineWeight = layerTraits.lineWeight
+      // Block line coalescing emits plain `LineSegments` geometry bound to a
+      // cached `LineBasicMaterial`. When such layer-0 content is remapped onto
+      // a weighted INSERT layer, inheriting that lineweight rebuilds the
+      // material as a fat `LineMaterial` whose shader needs
+      // `LineSegmentsGeometry` instance attributes; the plain geometry then
+      // renders nothing and the block content silently disappears. Only the
+      // INSERT-inheritance path (`getLayerBoundMaterial`) opts into preserving
+      // the thin category; layer-level edits keep upgrading basic→fat so that
+      // geometry-rebuilding callers stay in contract.
+      const keepThin =
+        preserveThinLineCategory &&
+        material instanceof THREE.LineBasicMaterial
+      if (!keepThin) {
+        traits.lineWeight = layerTraits.lineWeight
+      }
     }
 
     if (isByLayerTransparency && layerTraits.transparency) {

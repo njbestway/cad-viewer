@@ -50,6 +50,12 @@ export class AcTrRenderContext extends AcGiContext {
     super()
     this.styleManager = styleManager
     this.batchDrawPolicy = batchDrawPolicy
+    // Read the database lazily: callers assign it after construction
+    // (`bindDrawDatabase`, export renderers) and may swap it for overlays.
+    // ByLayer material requests consult this so they are created with the real
+    // layer swatch instead of the white background fallback.
+    this.styleManager.options.resolveLayerColor = layerName =>
+      this.database?.tables.layerTable.getAt(layerName)?.color
   }
 
   /**
