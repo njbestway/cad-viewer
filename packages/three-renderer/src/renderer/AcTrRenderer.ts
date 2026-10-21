@@ -851,11 +851,13 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
     //     path never consults `lineType`, so the pattern silently disappears on
     //     a polyline that also has width, even though the identical width-less
     //     polyline renders it correctly through the line path.
-    //  2. The band is needle-thin (width far below its own extent). Filled at
-    //     true width it collapses to well under one device pixel and vanishes,
-    //     making a thin *wide* polyline LESS visible than a width-less one (which
-    //     the line path floors at >=1px). Rebuilding the centerline lets it draw
-    //     as a hairline. Real fills and hatches keep their solid fill.
+    //  2. The band is needle-thin (even its WIDEST part sits far below its own
+    //     extent). Filled at true width it collapses to well under one device
+    //     pixel and vanishes, making a thin *wide* polyline LESS visible than a
+    //     width-less one (which the line path floors at >=1px). Rebuilding the
+    //     centerline lets it draw as a hairline. Real fills, hatches, and mixed
+    //     bands that carry a genuinely wide feature (a lead-in line ending in a
+    //     solid arrowhead) keep their fill.
     // Anything else (hatches, collapsed or self-revisiting bands) falls through
     // to normal fill.
     const centerline = this.widePolylineStrokeCenterline(area)
@@ -920,12 +922,21 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
       return null
     }
     if (!hasPattern) {
-      // Continuous (or empty pattern): only override the fill when the band is a
-      // needle-thin sliver that would vanish sub-pixel; leave genuine fills.
-      if (!(
-        band.diagonal > 0 &&
-        band.minWidth / band.diagonal < THIN_WIDE_POLYLINE_RATIO
-      )) {
+      // Continuous (or empty pattern): only override the fill when even the
+      // WIDEST part of the band would collapse below one device pixel. Using
+      // maxWidth (not minWidth) is what makes the test mean "the fill vanishes"
+      // rather than "some part of the band is thin": a mixed band such as a
+      // lead-in line whose tapering arrowhead sits on otherwise zero-width
+      // segments has minWidth ~ 0, so a minimum-based gate wrongly flattened
+      // the whole thing (arrowhead included) to a hairline. A band that carries
+      // any genuinely wide region keeps its solid fill; the zero-width leader is
+      // still drawn by the data model's companion centerline stroke.
+      if (
+        !(
+          band.diagonal > 0 &&
+          band.maxWidth / band.diagonal < THIN_WIDE_POLYLINE_RATIO
+        )
+      ) {
         return null
       }
     }

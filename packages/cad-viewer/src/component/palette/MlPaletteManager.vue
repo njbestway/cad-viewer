@@ -111,7 +111,11 @@ import {
   acapRunDatabaseEdit,
   AcEdOpenMode
 } from '@mlightcad/cad-simple-viewer'
-import { AcDbEntityProperties } from '@mlightcad/data-model'
+import {
+  type AcDbEntity,
+  type AcDbEntityProperties,
+  type AcDbEntityRuntimeProperty
+} from '@mlightcad/data-model'
 import {
   type MlOverflowTab,
   MlOverflowTabs,
@@ -330,6 +334,95 @@ const propertyRefreshTick = ref(0)
 const propertiesEditable = computed(
   () => docOpenMode.value === AcEdOpenMode.Write
 )
+
+/**
+ * A lightweight polyline vertex as stored in the data model's `vertices`
+ * accessor. Position lives on `x`/`y`; each vertex carries a `startWidth` and
+ * `endWidth` (both `undefined` when the segment is hairline). There is no
+ * separate constant-width field: a "global width" is just every vertex sharing
+ * the same start and end width (DXF group 43).
+ */
+interface MlPolylineVertex {
+  x: number
+  y: number
+  bulge?: number
+  startWidth?: number
+  endWidth?: number
+}
+
+/**
+ * Reads the live vertex array of a polyline entity through its public
+ * `geometry.vertices` accessor (no private field access), so the panel and the
+ * write path can mutate the exact objects the entity serializes from.
+ */
+function polylineVerticesOf(entity: AcDbEntity): MlPolylineVertex[] | undefined {
+  const verticesProp = entity.properties?.groups
+    ?.find(group => group.groupName === 'geometry')
+    ?.properties.find(item => item.name === 'vertices')
+  const arr = verticesProp?.accessor.get()
+  return Array.isArray(arr) ? (arr as MlPolylineVertex[]) : undefined
+}
+
+/**
+ * The single constant width shared by every vertex, or `undefined` when widths
+ * vary per vertex (mirrors the data model's `resolveConstantWidth`).
+ */
+function constantWidthOf(
+  vertices?: MlPolylineVertex[]
+): number | undefined {
+  if (!vertices?.length) return undefined
+  let common: number | undefined
+  for (const vertex of vertices) {
+    const start = vertex.startWidth ?? 0
+    const end = vertex.endWidth ?? 0
+    if (start !== end) return undefined
+    if (common === undefined) common = start
+    else if (common !== start) return undefined
+  }
+  return common
+}
+
+/**
+ * Adds the polyline-only vertex-width controls the data model does not expose:
+ * per-vertex `startWidth`/`endWidth` on the `vertices` array, and a scalar
+ * `globalWidth` (constant width) in the `others` group. `entity.properties`
+ * returns a freshly built object each call, so these additions never
+ * accumulate across recomputes.
+ */
+function augmentPolylineProperties(
+  entity: AcDbEntity
+): AcDbEntityProperties {
+  const props = entity.properties
+  if (props.type !== 'Polyline') return props
+
+  const verticesProp = props.groups
+    .find(group => group.groupName === 'geometry')
+    ?.properties.find(item => item.name === 'vertices')
+  const schema = verticesProp?.itemSchema
+  if (schema) {
+    for (const name of ['startWidth', 'endWidth']) {
+      if (!schema.properties.some(item => item.name === name)) {
+        schema.properties.push({ name, type: 'float', editable: true })
+      }
+    }
+  }
+
+  const others = props.groups.find(group => group.groupName === 'others')
+  if (others && !others.properties.some(item => item.name === 'globalWidth')) {
+    const globalWidth: AcDbEntityRuntimeProperty = {
+      name: 'globalWidth',
+      type: 'float',
+      editable: true,
+      accessor: {
+        get: () => constantWidthOf(polylineVerticesOf(entity))
+      }
+    }
+    others.properties.unshift(globalWidth)
+  }
+
+  return props
+}
+
 const propertyRows = computed(() => {
   propertyRefreshTick.value
   const list: AcDbEntityProperties[] = []
@@ -341,7 +434,7 @@ const propertyRows = computed(() => {
     // Use getEntityById which works for entities in any layout (model space or paper space)
     const entity = blockTable.getEntityById(id)
     if (!entity) continue
-    list.push(entity.properties)
+    list.push(augmentPolylineProperties(entity))
     locked.push(AcApLayerService.isEntityOnLockedLayer(db, entity))
   }
   return { list, locked }
@@ -378,6 +471,8 @@ function handleUpdateProperty(payload: {
   groupName: string
   propertyName: string
   newValue: unknown
+  arrayItemName?: string
+  arrayItemIndex?: number
 }) {
   const db = AcApDocManager.instance.curDocument?.database
   if (!db) return
@@ -395,6 +490,38 @@ function handleUpdateProperty(payload: {
       if (!entity || AcApLayerService.isEntityOnLockedLayer(db, entity)) {
         continue
       }
+
+      // Polyline vertex widths are not exposed as runtime properties by the
+      // data model, so route them onto the live vertex array read through the
+      // write-opened entity's own `vertices` accessor (same objects the entity
+      // serializes from, so the edit persists with the transaction and undo).
+      if (entity.properties?.type === 'Polyline') {
+        if (
+          payload.arrayItemName === 'vertices' &&
+          payload.arrayItemIndex != null
+        ) {
+          const vertex = polylineVerticesOf(entity)?.[payload.arrayItemIndex]
+          if (vertex) {
+            ;(vertex as unknown as Record<string, unknown>)[
+              payload.propertyName
+            ] = payload.newValue
+          }
+          continue
+        }
+        if (
+          payload.groupName === 'others' &&
+          payload.propertyName === 'globalWidth'
+        ) {
+          const parsed = Number(payload.newValue)
+          const width = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+          for (const vertex of polylineVerticesOf(entity) ?? []) {
+            vertex.startWidth = width
+            vertex.endWidth = width
+          }
+          continue
+        }
+      }
+
       const property = entity.properties?.groups
         ?.find(group => group.groupName === payload.groupName)
         ?.properties.find(item => item.name === payload.propertyName)

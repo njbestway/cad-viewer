@@ -326,6 +326,14 @@ const emit = defineEmits<{
       groupName: string
       propertyName: string
       newValue: unknown
+      /**
+       * For edits of a single array element: the name of the parent array
+       * property (e.g. `vertices`). Lets the host route the write to the right
+       * element instead of a group-level property of the same key name.
+       */
+      arrayItemName?: string
+      /** For array element edits: the 0-based index of the edited element. */
+      arrayItemIndex?: number
     }
   ): void
 }>()
@@ -374,6 +382,8 @@ type MlDisplayPropertyRow = MlDisplayRowBase &
     __min?: number
     __max?: number
     __isArrayIndex?: boolean
+    __arrayItemName?: string
+    __arrayItemIndex?: number
   }
 
 type MlDisplayGroupRow = MlDisplayRowBase & {
@@ -640,6 +650,7 @@ function expandEntity(entity: AcDbEntityProperties): MlDisplayRow[] {
 
       /* ===== element property rows ===== */
       if (prop.itemSchema) {
+        const itemIndex = arrayIndexMap.value[key] - 1
         for (const itemProp of prop.itemSchema.properties) {
           children.push({
             id: `g-${gi}-p-${pi}-${itemProp.name}`,
@@ -648,6 +659,8 @@ function expandEntity(entity: AcDbEntityProperties): MlDisplayRow[] {
             editable: itemProp.editable,
             isGroup: false,
             __groupName: group.groupName,
+            __arrayItemName: prop.name,
+            __arrayItemIndex: itemIndex,
             accessor: {
               get: () => element[itemProp.name],
               set: (v: unknown) => {
@@ -723,7 +736,9 @@ function onPropertyChange(row: MlDisplayPropertyRow, newValue: unknown) {
   emit('update-property', {
     groupName: row.__groupName ?? '',
     propertyName: row.name,
-    newValue
+    newValue,
+    arrayItemName: row.__arrayItemName,
+    arrayItemIndex: row.__arrayItemIndex
   })
 }
 </script>

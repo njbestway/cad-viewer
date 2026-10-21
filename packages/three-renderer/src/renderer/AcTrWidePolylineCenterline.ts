@@ -17,6 +17,8 @@ export interface AcTrWidePolylineBand {
   centerline: AcGePoint3d[]
   /** Smallest cap-edge width across all segment quads (drawing units). */
   minWidth: number
+  /** Largest cap-edge width across all segment quads (drawing units). */
+  maxWidth: number
   /** Bounding-box diagonal of the band (drawing units), a scale reference. */
   diagonal: number
 }
@@ -104,18 +106,25 @@ export function measureOffsetEdgeBand(
 
   const score = (
     map: (i: number) => number
-  ): { centerline: AcGePoint3d[]; avgGap: number; minWidth: number } => {
+  ): {
+    centerline: AcGePoint3d[]
+    avgGap: number
+    minWidth: number
+    maxWidth: number
+  } => {
     const centerline: AcGePoint3d[] = []
     let sum = 0
     let minWidth = Number.POSITIVE_INFINITY
+    let maxWidth = 0
     for (let i = 0; i < a.length; i++) {
       const q = b[map(i)]
       const gap = dist2(a[i], q)
       sum += gap
       if (gap < minWidth) minWidth = gap
+      if (gap > maxWidth) maxWidth = gap
       centerline.push(mid(a[i], q))
     }
-    return { centerline, avgGap: sum / a.length, minWidth }
+    return { centerline, avgGap: sum / a.length, minWidth, maxWidth }
   }
 
   // Direct pairing (i -> i) vs reversed (i -> n-1-i); the smaller average gap is
@@ -133,6 +142,7 @@ export function measureOffsetEdgeBand(
     centerline: best.centerline,
     // Paired edges sit `minWidth` apart, so that gap is the polyline width.
     minWidth: best.minWidth,
+    maxWidth: best.maxWidth,
     diagonal: bboxDiagonal(all)
   }
 }
@@ -182,6 +192,7 @@ export function measureWidePolylineBand(
   // rightStart] after dropping the closing duplicate.
   const quads: AcGePoint2dLike[][] = []
   let minWidth = Number.POSITIVE_INFINITY
+  let maxWidth = 0
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
@@ -198,6 +209,9 @@ export function measureWidePolylineBand(
     const width = (dist(pts[0], pts[3]) + dist(pts[1], pts[2])) / 2
     if (width < minWidth) {
       minWidth = width
+    }
+    if (width > maxWidth) {
+      maxWidth = width
     }
     for (const p of pts) {
       if (p.x < minX) minX = p.x
@@ -233,6 +247,7 @@ export function measureWidePolylineBand(
   return {
     centerline,
     minWidth: Number.isFinite(minWidth) ? minWidth : 0,
+    maxWidth: Number.isFinite(maxWidth) ? maxWidth : 0,
     diagonal: Math.hypot(maxX - minX, maxY - minY)
   }
 }

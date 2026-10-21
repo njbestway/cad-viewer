@@ -223,6 +223,9 @@ export default {
 
     vertices: 'الرؤوس',
     closed: 'مغلق',
+    startWidth: 'عرض البداية',
+    endWidth: 'عرض النهاية',
+    globalWidth: 'العرض العام',
 
     image: 'صورة',
     width: 'العرض',

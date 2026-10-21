@@ -1906,15 +1906,62 @@ function mapEntity(entity: AcadRustEntity, target: AcDbBlockTableRecord): boolea
       }
       const record = new AcDbPolyline()
       const cw = p.constant_width ?? 0
-      p.vertices.forEach((v, i) => {
-        record.addVertexAt(
-          i,
-          new AcGePoint2d(v.location.x, v.location.y),
-          v.bulge ?? 0,
-          v.start_width || cw,
-          v.end_width || cw
-        )
-      })
+      const WIDTH_EPSILON = 1e-6
+      const src = p.vertices.map(v => ({
+        x: v.location.x,
+        y: v.location.y,
+        bulge: v.bulge ?? 0,
+        sw: Math.max(0, v.start_width || cw),
+        ew: Math.max(0, v.end_width || cw)
+      }))
+      // @mlightcad/data-model's createWidthProfile samples a vertex's width from
+      // the PREVIOUS segment's end width and ignores every non-first vertex's
+      // start width, so a width discontinuity at a vertex (a solid arrowhead
+      // tapering off a hairline leader) loses the wide side and renders as a
+      // bare line. For an OPEN polyline that has such a step, re-emit the path
+      // with a duplicated joint vertex per step so the outgoing width survives.
+      // Continuous, single-taper and closed polylines keep the faithful 1:1
+      // mapping (no vertex-count change, so parity is preserved).
+      let hasStep = false
+      if (!p.is_closed) {
+        for (let i = 1; i < src.length - 1; i++) {
+          if (Math.abs(src[i].sw - src[i - 1].ew) > WIDTH_EPSILON) {
+            hasStep = true
+            break
+          }
+        }
+      }
+      if (hasStep) {
+        const samples: { x: number; y: number; bulge: number; w: number }[] = []
+        for (let i = 0; i < src.length; i++) {
+          const cur = src[i]
+          if (i === 0) {
+            samples.push({ x: cur.x, y: cur.y, bulge: cur.bulge, w: cur.sw })
+            continue
+          }
+          const incoming = src[i - 1].ew
+          if (Math.abs(cur.sw - incoming) > WIDTH_EPSILON) {
+            // Close the incoming segment at its end width, then start the
+            // outgoing segment at its own (different) width -> a zero-length
+            // joint that the model renders as the width step / arrow base.
+            samples.push({ x: cur.x, y: cur.y, bulge: 0, w: incoming })
+            samples.push({ x: cur.x, y: cur.y, bulge: cur.bulge, w: cur.sw })
+          } else {
+            samples.push({ x: cur.x, y: cur.y, bulge: cur.bulge, w: cur.sw })
+          }
+        }
+        const W = samples.map(s => s.w)
+        samples.forEach((s, k) => {
+          // Model: width@vertex0 = sw, width@vertex_k = previous ew. So set this
+          // vertex's ew to the NEXT sample's width; its own sw only matters at 0.
+          const ew = k + 1 < W.length ? W[k + 1] : s.w
+          record.addVertexAt(k, new AcGePoint2d(s.x, s.y), s.bulge, W[k], ew)
+        })
+      } else {
+        src.forEach((v, i) => {
+          record.addVertexAt(i, new AcGePoint2d(v.x, v.y), v.bulge, v.sw, v.ew)
+        })
+      }
       record.closed = !!p.is_closed
       record.elevation = p.elevation ?? 0
       if (p.thickness) {
@@ -1955,6 +2002,55 @@ function mapEntity(entity: AcadRustEntity, target: AcDbBlockTableRecord): boolea
       let polyType = AcDbPoly2dType.SimplePoly
       if (bits & 4) polyType = AcDbPoly2dType.CubicSplinePoly
       else if (bits & 2) polyType = AcDbPoly2dType.FitCurvePoly
+      // A heavy POLYLINE that carries width renders as a solid band in AutoCAD,
+      // but AcDb2dPolyline has no width support at all (its worldDraw emits only a
+      // hairline centerline and its start/end-width ctor args are unused). When the
+      // path is a *simple* (non fit/spline) polyline whose effective width - the
+      // per-vertex width, or the polyline-level default when a vertex leaves it at
+      // zero - clears the render epsilon, remap it onto AcDbPolyline (LWPOLYLINE)
+      // so the width profile survives import, rendering and editing. Fit/spline and
+      // zero-width polylines keep the faithful AcDb2dPolyline mapping untouched.
+      // Threshold mirrors the data-model's AcDbPolyline WIDTH_EPSILON (1e-6).
+      const RENDABLE_WIDTH_EPSILON = 1e-6
+      const defaultStartWidth = p.start_width ?? 0
+      const defaultEndWidth = p.end_width ?? 0
+      const hasRenderableWidth =
+        polyType === AcDbPoly2dType.SimplePoly &&
+        p.vertices.some(
+          v =>
+            (v.start_width || defaultStartWidth) > RENDABLE_WIDTH_EPSILON ||
+            (v.end_width || defaultEndWidth) > RENDABLE_WIDTH_EPSILON
+        )
+      if (hasRenderableWidth) {
+        const wide = new AcDbPolyline()
+        p.vertices.forEach((v, i) => {
+          wide.addVertexAt(
+            i,
+            new AcGePoint2d(v.location.x, v.location.y),
+            v.bulge ?? 0,
+            v.start_width || defaultStartWidth,
+            v.end_width || defaultEndWidth
+          )
+        })
+        wide.closed = closed
+        wide.elevation = p.elevation ?? 0
+        if (p.thickness) {
+          wide.thickness = p.thickness
+        }
+        const wideNormal = p.normal
+        if (
+          wideNormal &&
+          !(wideNormal.x === 0 && wideNormal.y === 0 && wideNormal.z === 1)
+        ) {
+          wide.normal = new AcGeVector3d(
+            wideNormal.x,
+            wideNormal.y,
+            wideNormal.z
+          )
+        }
+        place(target, wide, p.common)
+        return true
+      }
       const record = new AcDb2dPolyline(
         polyType,
         p.vertices.map(v => new AcGePoint3d(v.location.x, v.location.y, v.location.z)),
