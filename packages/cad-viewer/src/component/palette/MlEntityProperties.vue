@@ -22,7 +22,7 @@
         <el-option
           v-for="(item, idx) in entityPropsList"
           :key="idx"
-          :label="item.type"
+          :label="formatEntityOptionLabel(item as AcDbEntityProperties)"
           :value="idx"
         />
       </el-select>
@@ -69,6 +69,7 @@
               <ml-color-dropdown
                 v-if="row.type === 'color'"
                 :model-value="row.accessor.get()"
+                :display-color="resolveColorDisplay(row.accessor.get())"
                 disabled
               />
               <span
@@ -112,19 +113,92 @@
               <ml-color-dropdown
                 v-else-if="row.type === 'color'"
                 :model-value="row.accessor.get()"
-                @color-change="
-                  (v: AcCmColor) => onPropertyChange(row as MlDisplayPropertyRow, v)
-                "
-              />
-
-              <el-switch
-                v-else-if="row.type === 'boolean'"
-                :model-value="row.accessor.get()"
-                @change="
-                  (v: string | number | boolean) =>
+                :display-color="resolveColorDisplay(row.accessor.get())"
+                @update:model-value="
+                  (v: AcCmColor | undefined) =>
                     onPropertyChange(row as MlDisplayPropertyRow, v)
                 "
               />
+
+              <ml-layer-select
+                v-else-if="isLayerField(row as MlDisplayPropertyRow)"
+                :model-value="String(row.accessor.get() ?? '')"
+                :options="layerOptions ?? []"
+                @update:model-value="
+                  (v: string) => onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
+              />
+
+              <ml-line-type-select
+                v-else-if="row.type === 'linetype'"
+                :model-value="String(row.accessor.get() ?? '')"
+                @update:model-value="
+                  (v: string) => onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
+              />
+
+              <ml-line-weight-select
+                v-else-if="row.type === 'lineweight'"
+                :model-value="row.accessor.get() as AcGiLineWeight"
+                @update:model-value="
+                  (v: AcGiLineWeight) =>
+                    onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
+              />
+
+              <el-select
+                v-else-if="isTransparencyField(row as MlDisplayPropertyRow)"
+                :model-value="
+                  transparencyOptionValue(row.accessor.get() as AcCmTransparency)
+                "
+                @change="
+                  (v: string) =>
+                    onTransparencyChange(row as MlDisplayPropertyRow, v)
+                "
+              >
+                <el-option label="ByLayer" value="ByLayer" />
+                <el-option label="ByBlock" value="ByBlock" />
+              </el-select>
+
+              <el-input-number
+                v-else-if="isElevationField(row as MlDisplayPropertyRow)"
+                :controls="false"
+                :model-value="row.accessor.get()"
+                :step="0.1"
+                @change="
+                  (v: number | undefined) => {
+                    if (v != null) {
+                      onPropertyChange(row as MlDisplayPropertyRow, v)
+                    }
+                  }
+                "
+              />
+
+              <el-input-number
+                v-else-if="isLinetypeScaleField(row as MlDisplayPropertyRow)"
+                :controls="false"
+                :model-value="row.accessor.get()"
+                :step="0.1"
+                @change="
+                  (v: number | undefined) => {
+                    if (v != null) {
+                      onPropertyChange(row as MlDisplayPropertyRow, v)
+                    }
+                  }
+                "
+              />
+
+              <el-select
+                v-else-if="isBooleanChoiceField(row as MlDisplayPropertyRow)"
+                :model-value="row.accessor.get()"
+                @change="
+                  (v: boolean) =>
+                    onPropertyChange(row as MlDisplayPropertyRow, v)
+                "
+              >
+                <el-option :label="entityPropEnum('Yes')" :value="true" />
+                <el-option :label="entityPropEnum('No')" :value="false" />
+              </el-select>
 
               <el-input-number
                 v-else-if="row.type === 'int'"
@@ -182,6 +256,7 @@
 import {
   AcCmColor,
   AcCmTransparency,
+  AcDbDatabase,
   AcDbEntityProperties,
   AcDbEntityPropertyGroup,
   AcDbEntityRuntimeProperty,
@@ -194,7 +269,6 @@ import {
   ElMessage,
   ElOption,
   ElSelect,
-  ElSwitch,
   ElTable,
   ElTableColumn
 } from 'element-plus'
@@ -202,11 +276,25 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { entityPropEnum, entityPropName } from '../../locale'
-import { MlColorDropdown, MlHatchPatternDropdown } from '../common'
+import { MlColorDropdown, MlHatchPatternDropdown, MlLayerSelect, MlLineTypeSelect, MlLineWeightSelect } from '../common'
 
 const { t } = useI18n()
 
 /* ================= props / emits ================= */
+
+/**
+ * Layer entry consumed by {@link MlLayerSelect} for the layer property row.
+ * Structurally matches the option shape the select component expects.
+ */
+interface MlLayerOption {
+  value: string
+  name: string
+  cssColor: string
+  isOn: boolean
+  isLocked: boolean
+  isFrozen: boolean
+  lineType?: string
+}
 
 const props = defineProps<{
   entityPropsList?: AcDbEntityProperties[] | null
@@ -217,6 +305,18 @@ const props = defineProps<{
    * follows that entity.
    */
   entityLocked?: boolean[]
+  /**
+   * Active document database, used to resolve ByLayer colors into the
+   * concrete layer swatch shown in the color dropdown. Optional so the panel
+   * still renders (falling back to the neutral placeholder) when unavailable.
+   */
+  database?: AcDbDatabase | null
+  /**
+   * Render-ready layer entries for the layer dropdown, supplied by the host
+   * (which owns the reactive layer list). Optional so the row falls back to a
+   * plain text editor when unavailable.
+   */
+  layerOptions?: MlLayerOption[]
 }>()
 
 const emit = defineEmits<{
@@ -285,6 +385,21 @@ type MlDisplayRow = MlDisplayGroupRow | MlDisplayPropertyRow
 
 /* ================= helpers ================= */
 
+/**
+ * Label for an entity in the top selector: the entity type with its handle
+ * merged in, e.g. `Polyline(1058E9)`. The handle is read from the `general`
+ * group (the table no longer shows it as its own row). Falls back to the bare
+ * type when the handle is unavailable.
+ */
+function formatEntityOptionLabel(entity: AcDbEntityProperties): string {
+  if (entity == null) return ''
+  const handle = entity.groups
+    .find(group => group.groupName === 'general')
+    ?.properties.find(item => item.name === 'handle')?.accessor.get()
+  const text = handle != null ? String(handle) : ''
+  return text ? `${entity.type}(${text})` : entity.type
+}
+
 function isArrayProperty(p: AcDbEntityRuntimeProperty): boolean {
   return p.type === 'array' && !!p.itemSchema
 }
@@ -307,9 +422,10 @@ function formatDisplayValue(row: MlDisplayPropertyRow): string {
   // Placeholder row from el-table-column collection (see getPropertyName).
   if (row == null || row.accessor == null) return ''
   const v = row.accessor.get()
+  if (typeof v === 'boolean') {
+    return entityPropEnum(v ? 'Yes' : 'No')
+  }
   switch (row.type) {
-    case 'boolean':
-      return v ? 'True' : 'False'
     case 'enum':
       return entityPropEnum(row.options?.find(o => o.value === v)?.label ?? '')
     case 'color':
@@ -318,6 +434,14 @@ function formatDisplayValue(row: MlDisplayPropertyRow): string {
       return AcGiLineWeight[v as number]
     case 'transparency':
       return (v as AcCmTransparency).toString()
+    case 'float':
+      // Read-only computed statistics (diameter / perimeter / area, lengths,
+      // ...) carry raw double precision; show two decimals like CAD palettes.
+      return typeof v === 'number' && Number.isFinite(v)
+        ? v.toFixed(2)
+        : v != null
+          ? String(v)
+          : ''
     default:
       return v != null ? String(v) : ''
   }
@@ -347,6 +471,40 @@ async function copyReadonlyValue(row: MlDisplayPropertyRow) {
   }
 }
 
+/* ================= color display ================= */
+
+/**
+ * Layer name of the entity currently shown in the table, used to resolve
+ * ByLayer colors. Returns undefined for merged multi-entity views where the
+ * layer differs across the selection.
+ */
+function activeLayerName(): string | undefined {
+  const layerProp = activeEntityProperties.value?.groups
+    .find(group => group.groupName === 'general')
+    ?.properties.find(item => item.name === 'layer')
+  const value = layerProp?.accessor.get()
+  return typeof value === 'string' ? value : undefined
+}
+
+/**
+ * Resolves the concrete swatch color shown next to a color property. A
+ * ByLayer color has no intrinsic RGB, so it is resolved through the entity's
+ * layer (mirrors the ribbon property dropdown); ByBlock and unresolved layers
+ * fall back to the neutral placeholders used across the UI.
+ */
+function resolveColorDisplay(color?: AcCmColor): string {
+  if (!color) return ''
+  if (color.isByLayer) {
+    const layerName = activeLayerName()
+    const layerColor = layerName
+      ? props.database?.tables.layerTable.getAt(layerName)?.color
+      : undefined
+    return layerColor?.cssColor || '#7b8794'
+  }
+  if (color.isByBlock) return '#a0a8b8'
+  return color.cssColor || '#7b8794'
+}
+
 /* ================= rows ================= */
 
 const tableRows = computed<MlDisplayRow[]>(() => {
@@ -365,11 +523,72 @@ function isHatchPatternField(row: MlDisplayPropertyRow) {
   return propertyName === 'patternname' || propertyName === 'pattern'
 }
 
+/**
+ * The `layer` general property is edited through the layer dropdown instead
+ * of a free-text box.
+ */
+function isLayerField(row: MlDisplayPropertyRow) {
+  return row.type === 'string' && row.name === 'layer'
+}
+
+/**
+ * `linetypeScale` is shown as a plain numeric text box (no spinner) that only
+ * accepts valid decimal values, unlike the other float geometry fields.
+ */
+function isLinetypeScaleField(row: MlDisplayPropertyRow) {
+  return row.type === 'float' && row.name === 'linetypeScale'
+}
+
+/**
+ * `elevation` is a geometry distance that should accept decimals, so it uses a
+ * plain numeric box (no spinner) like `linetypeScale` rather than the generic
+ * float editor.
+ */
+function isElevationField(row: MlDisplayPropertyRow) {
+  return row.type === 'float' && row.name === 'elevation'
+}
+
+/**
+ * Transparency only exposes the ByLayer / ByBlock inheritance modes here, so
+ * it is edited through a dropdown instead of the free-text box it would
+ * otherwise fall into. By-alpha values map to no option (empty selection).
+ */
+function isTransparencyField(row: MlDisplayPropertyRow) {
+  return !row.__isArrayIndex && row.type === 'transparency'
+}
+
+function transparencyOptionValue(t?: AcCmTransparency): string {
+  if (!t) return 'ByLayer'
+  if (t.isByLayer) return 'ByLayer'
+  if (t.isByBlock) return 'ByBlock'
+  return ''
+}
+
+function onTransparencyChange(row: MlDisplayPropertyRow, method: string) {
+  onPropertyChange(row, AcCmTransparency.fromString(method))
+}
+
+/**
+ * Whether the row is a boolean choice rendered as a Yes/No dropdown. Besides
+ * real `boolean` properties, the data model mislabels some boolean flags (for
+ * example the polyline `closed` flag) as `float` while their accessor still
+ * get/sets a boolean, so detect those by the returned value type.
+ */
+function isBooleanChoiceField(row: MlDisplayPropertyRow): boolean {
+  if (row.__isArrayIndex) return false
+  return row.type === 'boolean' || typeof row.accessor.get() === 'boolean'
+}
+
 function expandEntity(entity: AcDbEntityProperties): MlDisplayRow[] {
   return entity.groups.map((group, gi) => {
     const children: MlDisplayPropertyRow[] = []
 
     group.properties.forEach((prop, pi) => {
+      // The handle is an internal identifier with little editing value; it is
+      // surfaced in the entity selector at the top (type + handle) instead of
+      // occupying a table row.
+      if (group.groupName === 'general' && prop.name === 'handle') return
+
       if (!isArrayProperty(prop)) {
         children.push({
           ...prop,

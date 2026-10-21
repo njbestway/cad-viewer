@@ -5,6 +5,7 @@ import {
   AcDbFileType,
   acdbHostApplicationServices,
   AcDbOpenDatabaseOptions,
+  AcDbSystemVariables,
   AcDbSysVarManager,
   log
 } from '@mlightcad/data-model'
@@ -86,7 +87,9 @@ import {
   AcEdCalculateSizeCallback,
   AcEdCommand,
   AcEdCommandStack,
+  AcEdCorsorType,
   AcEdOpenMode,
+  AcEdViewMode,
   eventBus
 } from '../editor'
 import { AcApPluginManager } from '../plugin/AcApPluginManager'
@@ -1983,8 +1986,24 @@ export class AcApDocManager {
     addSystemCommand('redo', 'redo', new AcApRedoCmd())
     addSystemCommand('zoom', 'zoom', new AcApZoomCmd())
 
+    // LTSCALE ships without a sysvar descriptor in the data model, so the
+    // command line could not set it and no `sysVarChanged` fired for it. Register
+    // it as a database-backed number: the `LTSCALE` command becomes available and
+    // writes route through `db.ltscale`, whose setter dispatches `sysVarChanged`
+    // (recorded for undo inside the command transaction, replayed on commit and
+    // on undo/redo) — see `AcTrView2d._onSysVarChanged`.
+    const sysVarManager = AcDbSysVarManager.instance()
+    if (!sysVarManager.getDescriptor(AcDbSystemVariables.LTSCALE)) {
+      sysVarManager.registerVar({
+        name: AcDbSystemVariables.LTSCALE,
+        type: 'number',
+        isDbVar: true,
+        defaultValue: 1
+      })
+    }
+
     // Register system variables as commands
-    const sysVars = AcDbSysVarManager.instance().getAllDescriptors()
+    const sysVars = sysVarManager.getAllDescriptors()
     sysVars.forEach(sysVar => {
       register.addCommand(
         AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
@@ -2349,6 +2368,13 @@ export class AcApDocManager {
       // layout tabs snapshot the correct active layout.
       syncCurrentSpaceFromTileMode(db)
       this.setActiveLayout(view, db)
+      // A freshly opened drawing always starts in selection mode. The canvas
+      // element (and its CSS cursor) is reused across opens, so a grab cursor
+      // left over from PAN mode on the previous drawing would otherwise hover
+      // over the new view even though its mode is already SELECTION. Reset
+      // both so mode and cursor stay in sync, mirroring AcApSelectCmd.
+      view.mode = AcEdViewMode.SELECTION
+      view.setCursor(AcEdCorsorType.Crosshair)
       view.syncDisplaySysVars(db)
       this.events.documentActivated.dispatch({
         doc,

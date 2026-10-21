@@ -61,6 +61,8 @@ export default {
     InvisibleLeader: 'بدون',
     StraightLeader: 'مستقيم',
     SplineLeader: 'منحنى',
+    Yes: 'نعم',
+    No: 'لا',
 
     AtLeast: 'على الأقل',
     Exactly: 'بالضبط',

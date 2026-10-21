@@ -2,6 +2,7 @@ import { AcApDocManager } from '../app'
 import { runMarkupEdit } from '../command/markup/AcApMarkupHistory'
 import { runMeasurementEdit } from '../command/measure/AcApMeasurementHistory'
 import { MEASUREMENT_LAYER } from '../command/measure/AcApMeasurementStore'
+import { AcEdCorsorType, AcEdViewMode } from '../editor'
 import { AcEdMTextEditor } from '../editor/input/ui/AcEdMTextEditor'
 import type { AcTrView2d } from './AcTrView2d'
 
@@ -56,6 +57,12 @@ export class AcEdViewKeyHandler {
 
     switch (e.code) {
       case 'Escape':
+        // ESC cancels the transient pan tool and returns to selection mode,
+        // matching standard CAD behavior; otherwise it only clears selection.
+        if (this.view.mode === AcEdViewMode.PAN) {
+          this.view.mode = AcEdViewMode.SELECTION
+          this.view.setCursor(AcEdCorsorType.Crosshair)
+        }
         this.view.selectionSet.clear()
         this.view.htmlTransientManager.deselectAll()
         this.view.isHtmlDirty = true

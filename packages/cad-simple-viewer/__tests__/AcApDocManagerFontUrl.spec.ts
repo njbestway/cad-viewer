@@ -308,9 +308,17 @@ jest.mock('@mlightcad/data-model', () => ({
     DXF: 'DXF',
     DWG: 'DWG'
   },
+  AcDbSystemVariables: {
+    LTSCALE: 'LTSCALE',
+    CELTSCALE: 'CELTSCALE',
+    MODELBKCOLOR: 'MODELBKCOLOR',
+    PAPERBKCOLOR: 'PAPERBKCOLOR'
+  },
   AcDbSysVarManager: {
     instance: jest.fn(() => ({
-      getAllDescriptors: jest.fn(() => [])
+      getAllDescriptors: jest.fn(() => []),
+      getDescriptor: jest.fn(() => undefined),
+      registerVar: jest.fn()
     }))
   },
   AcGeBox2d: jest.fn(),

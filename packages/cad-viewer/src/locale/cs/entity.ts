@@ -209,7 +209,9 @@ export default {
     ToleranceContent: 'Tolerance',
     InvisibleLeader: 'Žádný',
     StraightLeader: 'Přímý',
-    SplineLeader: 'Spline'
+    SplineLeader: 'Spline',
+    Yes: 'Ano',
+    No: 'Ne'
   },
   property: {
     general: 'Obecné',

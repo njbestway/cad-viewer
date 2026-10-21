@@ -209,7 +209,9 @@ export default {
     ToleranceContent: '公差',
     InvisibleLeader: '无',
     StraightLeader: '直线',
-    SplineLeader: '样条曲线'
+    SplineLeader: '样条曲线',
+    Yes: '是',
+    No: '否'
   },
   property: {
     general: '常规',

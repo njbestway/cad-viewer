@@ -27,6 +27,10 @@
           <ml-entity-properties
             :entity-props-list="properties"
             :entity-locked="propertyEntityLocked"
+            :database="propertyDatabase"
+            :layer-options="layerOptions"
+            :editable="propertiesEditable"
+            @update-property="handleUpdateProperty"
           />
         </div>
         <div
@@ -103,7 +107,9 @@
 <script setup lang="ts">
 import {
   AcApDocManager,
-  AcApLayerService
+  AcApLayerService,
+  acapRunDatabaseEdit,
+  AcEdOpenMode
 } from '@mlightcad/cad-simple-viewer'
 import { AcDbEntityProperties } from '@mlightcad/data-model'
 import {
@@ -112,11 +118,16 @@ import {
   MlToolPalette
 } from '@mlightcad/ui-components'
 import { ElConfigProvider } from 'element-plus'
-import { computed, defineAsyncComponent, nextTick, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { store } from '../../app'
-import { useSelectionSet, useViewerRect } from '../../composable'
+import {
+  useDocument,
+  useLayers,
+  useSelectionSet,
+  useViewerRect
+} from '../../composable'
 import { toolPaletteTabName, toolPaletteTitle } from '../../locale'
 import MlBlocksPalette from './MlBlocksPalette.vue'
 import MlCadScriptPanel from './MlCadScriptPanel.vue'
@@ -301,7 +312,26 @@ watch(
 )
 
 const { selectionSet } = useSelectionSet()
+const { openMode: docOpenMode } = useDocument()
+const { layers } = useLayers(AcApDocManager.instance)
+/**
+ * Bumped after every panel edit so `propertyRows` recomputes and the
+ * controlled dropdowns (layer / linetype / lineweight) re-read the freshly
+ * written database values instead of snapping back to the pre-edit state.
+ */
+const propertyRefreshTick = ref(0)
+/**
+ * The entity-properties panel only renders editable controls when the active
+ * document is opened in Write mode; `MlEntityProperties` hides every editor
+ * (falling back to read-only text) when `editable` is false. Property writes
+ * go through `openEntityForWrite`, which requires Write mode, so gate the
+ * editors on it too.
+ */
+const propertiesEditable = computed(
+  () => docOpenMode.value === AcEdOpenMode.Write
+)
 const propertyRows = computed(() => {
+  propertyRefreshTick.value
   const list: AcDbEntityProperties[] = []
   const locked: boolean[] = []
   const db = AcApDocManager.instance.curDocument?.database
@@ -318,6 +348,62 @@ const propertyRows = computed(() => {
 })
 const properties = computed(() => propertyRows.value.list)
 const propertyEntityLocked = computed(() => propertyRows.value.locked)
+const propertyDatabase = computed(
+  () => AcApDocManager.instance.curDocument?.database ?? null
+)
+const layerOptions = computed(() =>
+  layers.map(layer => ({
+    value: layer.name,
+    name: layer.name,
+    cssColor: layer.cssColor || '#7b8794',
+    isOn: layer.isOn,
+    isLocked: layer.isLocked,
+    isFrozen: layer.isFrozen,
+    lineType: layer.linetype
+  }))
+)
+
+/**
+ * Writes a property edited in the entity-properties panel back to every
+ * selected entity, inside a single undo group, and repaints through the
+ * database's entityModified event (bound to `view.updateEntity`).
+ *
+ * Mirrors the ribbon property dropdown edit path (`acapRunDatabaseEdit` +
+ * `openEntityForWrite`) so locked layers are skipped and undo captures the
+ * before-state. The child panel emits only the descriptor coordinates
+ * (groupName + propertyName); the actual mutation goes through the
+ * write-opened entity's own property accessor so it participates in undo.
+ */
+function handleUpdateProperty(payload: {
+  groupName: string
+  propertyName: string
+  newValue: unknown
+}) {
+  const db = AcApDocManager.instance.curDocument?.database
+  if (!db) return
+
+  const ids = [...selectionSet.value]
+  if (ids.length === 0) return
+
+  acapRunDatabaseEdit(db, 'Property', () => {
+    for (const id of ids) {
+      const existing = db.tables.blockTable.getEntityById(id)
+      if (existing && AcApLayerService.isEntityOnLockedLayer(db, existing)) {
+        continue
+      }
+      const entity = db.openEntityForWrite(id)
+      if (!entity || AcApLayerService.isEntityOnLockedLayer(db, entity)) {
+        continue
+      }
+      const property = entity.properties?.groups
+        ?.find(group => group.groupName === payload.groupName)
+        ?.properties.find(item => item.name === payload.propertyName)
+      property?.accessor?.set?.(payload.newValue)
+    }
+  })
+
+  propertyRefreshTick.value++
+}
 </script>
 
 <style scoped>

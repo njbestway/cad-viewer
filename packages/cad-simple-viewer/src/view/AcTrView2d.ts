@@ -377,6 +377,13 @@ export class AcTrView2d extends AcEdBaseView {
   private _fontLoadedRedrawTimer: ReturnType<typeof setTimeout> | null = null
   private _fontLoadedRedrawEpoch = 0
   /**
+   * Debounce for the full regen triggered by a live `LTSCALE`/`CELTSCALE`
+   * change. A single command commit dispatches one `sysVarChanged`, but a
+   * non-transactional write (property panel, programmatic `db.ltscale =`) can
+   * dispatch twice (manager + db setter), so coalesce bursts into one regen.
+   */
+  private _linetypeScaleRegenTimer: ReturnType<typeof setTimeout> | null = null
+  /**
    * `performance.now()` when convert and deferred glyph jobs last reached
    * idle together. Zero until that first transition. Used to ignore the
    * open-time `fontLoaded` regen that replays the loading spinner.
@@ -691,6 +698,8 @@ export class AcTrView2d extends AcEdBaseView {
     const sysVarManager = AcDbSysVarManager.instance()
     const modelBkVar = AcDbSystemVariables.MODELBKCOLOR.toLowerCase()
     const paperBkVar = AcDbSystemVariables.PAPERBKCOLOR.toLowerCase()
+    const ltscaleVar = AcDbSystemVariables.LTSCALE.toLowerCase()
+    const celtscaleVar = AcDbSystemVariables.CELTSCALE.toLowerCase()
     this._onSysVarChanged = args => {
       const nameLower = args.name.toLowerCase()
       if (nameLower === modelBkVar || nameLower === paperBkVar) {
@@ -706,6 +715,24 @@ export class AcTrView2d extends AcEdBaseView {
         this.applyCanvasBackground(
           readLayoutBackgroundColor(database, isModelSpace)
         )
+        return
+      }
+      // LTSCALE / CELTSCALE are baked into the linetype shader `scale` uniform
+      // and complex-line-type geometry at material / geometry build time, and the
+      // material cache key omits them — so a live change cannot repaint via a
+      // redraw. Push the new values to this view's renderer and force a full
+      // regen (clear + reconvert) so cached materials are disposed and rebuilt
+      // against the new scale. The value reaches us through `db.ltscale` /
+      // `db.celtscale`, whose setters dispatch `sysVarChanged` on commit and on
+      // undo/redo, so Ctrl+Z re-triggers this path and reverts the density.
+      if (nameLower === ltscaleVar || nameLower === celtscaleVar) {
+        const database = args.database
+        if (!database) return
+        this.ltscale = database.ltscale
+        this.celtscale = database.celtscale
+        if (this.isActiveManagedView()) {
+          this.scheduleLinetypeScaleRegen()
+        }
       }
     }
     sysVarManager.events.sysVarChanged.addEventListener(this._onSysVarChanged)
@@ -3467,6 +3494,10 @@ export class AcTrView2d extends AcEdBaseView {
         this._onSysVarChanged
       )
     }
+    if (this._linetypeScaleRegenTimer != null) {
+      clearTimeout(this._linetypeScaleRegenTimer)
+      this._linetypeScaleRegenTimer = null
+    }
     if (this._onSettingsModified) {
       AcApSettingManager.instance.events.modified.removeEventListener(
         this._onSettingsModified
@@ -4051,6 +4082,22 @@ export class AcTrView2d extends AcEdBaseView {
       clearTimeout(this._fontLoadedRedrawTimer)
       this._fontLoadedRedrawTimer = null
     }
+  }
+
+  /**
+   * Coalesces a live `LTSCALE`/`CELTSCALE` change into one full regen. The
+   * renderer's `ltscale`/`celtscale` are already updated by the caller; regen
+   * disposes the cached linetype materials (via `clear` -> `renderer.dispose`)
+   * and reconverts entities so they rebuild against the new scale.
+   */
+  private scheduleLinetypeScaleRegen() {
+    if (this._linetypeScaleRegenTimer != null) {
+      clearTimeout(this._linetypeScaleRegenTimer)
+    }
+    this._linetypeScaleRegenTimer = setTimeout(() => {
+      this._linetypeScaleRegenTimer = null
+      AcApDocManager.instance.regen()
+    }, 50)
   }
 
   /**
