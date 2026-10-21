@@ -18,7 +18,8 @@
 // Wrapping the slice in a `Cursor` without `to_vec` avoids copying the whole
 // DWG once more inside wasm memory on top of the wasm-bindgen array handoff.
 //
-// Slice 0 spike findings (checked against the vendored acadrust 0.6.3 source,
+// Slice 0 spike findings (checked against the vendored acadrust source - 0.6.3
+// at spike time, still valid on the pinned 0.6.5,
 // not guessed from docs) that made the sectioned approach viable without any
 // wrapper crate or fork:
 //   * `CadDocument` derives `Serialize` under the (already enabled) `serde`

@@ -30,7 +30,7 @@ dumper = ["dep:anyhow"]
 # Locked to the version validated in the Phase 0 spike (Gate 0). acadrust is
 # MPL-2.0 (file-level copyleft) and compiles cleanly for wasm32 because its
 # memmap2/rayon dependencies are gated behind cfg(not(target_arch = "wasm32")).
-acadrust = { version = "0.6.3", features = ["serde"] }
+acadrust = { version = "0.6.5", features = ["serde"] }
 # Needed directly (not just transitively via `acadrust`'s `serde` feature) to
 # name the `serde::Serialize` trait bound in `to_json`'s generic signature;
 # `derive` lets the batched-block reply serialize a plain struct instead of an

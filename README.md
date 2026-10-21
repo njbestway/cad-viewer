@@ -257,7 +257,7 @@ Legend:
 * [x] DWG loading
 * [x] Export to self-contained offline HTML (embedded viewer)
 * [x] Large file streaming / incremental loading
-* [ ] ⏳ File version compatibility (R12–Latest)
+* [x] File version compatibility (R12–Latest) — DXF and DWG read span AC1009 (R12) → AC1032 (latest) via acadrust 0.6.5 (native pre-R13 DWG codec; covered by `packages/acad-rust-converter/rust/tests/r12_dwg_read.rs`)
 
 #### Data Model
 
@@ -387,7 +387,7 @@ Legend:
 #### Property Palette
 
 * [x] Selected entity properties
-* [ ] Layer, color, linetype editing
+* [x] Layer, color, linetype editing — wired in the entity Property Palette (layer/color/linetype plus transparency & elevation editors)
 * [x] Live update on change
 
 #### Panels & UI
