@@ -8,7 +8,7 @@ export const agentCs = {
   tab: 'Agent',
   title: 'CAD Agent',
   settings: 'Nastavení',
-  clear: 'Vymazat',
+  clear: 'Nový chat',
   close: 'Zavřít',
   provider: 'Poskytovatel',
   providerDeepseek: 'DeepSeek',
@@ -19,6 +19,8 @@ export const agentCs = {
   providerAnthropic: 'Anthropic',
   providerOpenaiCompatible: 'Kompatibilní s OpenAI',
   baseUrl: 'Základní URL',
+  baseUrlHint:
+    'U většiny bran musí obsahovat /v1, např. https://ai-api.example.com/v1. Pouze hostitel se doplní automaticky.',
   model: 'Model',
   visionModels: 'Vizuální modely',
   textModels: 'Pouze textové modely',
@@ -31,10 +33,16 @@ export const agentCs = {
   emptyHint:
     'Popište, co se má nakreslit, nebo přiložte referenční obrázek (skica, snímek obrazovky, půdorys).',
   toolPrefix: 'nástroj',
-  inputPlaceholder: 'Popište geometrii, kterou chcete vytvořit…',
+  copyTool: 'Kopírovat volání nástroje (vstup a výstup)',
+  toolCopied: 'Zkopírováno',
+  inputPlaceholder: 'Popište svůj požadavek…',
   attachImage: 'Přiložit obrázek',
   removeAttachment: 'Odebrat',
   imageAlt: 'Přiložený obrázek',
+  imageOnlyRequest:
+    'Prosím analyzujte přiložený referenční obrázek (nebo obrázky) a pomozte mi jej nakreslit v CADu.',
+  prepareImageFailed:
+    'Přípravu přiloženého obrázku se nepodařilo dokončit. Zkuste menší PNG nebo JPEG.',
   errorTitle: 'Něco se pokazilo',
   dismissError: 'Zavřít',
   send: 'Odeslat',
@@ -43,9 +51,10 @@ export const agentCs = {
   agentMode: 'Režim agenta',
   agentModeSimple: 'Jednoduchý',
   agentModeHighInference: 'Vysoká inference',
-  agentModeSimpleHint: 'Rychlý — bez ověření snímkem obrazovky po nakreslení.',
+  agentModeSimpleHint:
+    'Výchozí. Rychlý — pouze sebekontrola přes měřicí API; bez snímků a vizuálního ověření.',
   agentModeHighInferenceHint:
-    'Ověří výkres snímkem obrazovky + vizuálním modelem (až 5 kol). Vyžaduje vizuální model.',
+    'Volitelné pro složité úlohy. Povolí snímky a ověří výkres snímkem + vizuálním modelem (až 5 kol). Vyžaduje vizuální model.',
   highInferenceRequiresVision:
     'Režim vysoké inference vyžaduje model s podporou obrazu.',
   verificationTitle: 'Ověření výkresu',

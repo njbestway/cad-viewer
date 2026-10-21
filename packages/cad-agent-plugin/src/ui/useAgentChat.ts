@@ -24,7 +24,10 @@ export interface AgentChatSessionConfig {
 export function createAgentChat(getConfig: () => AgentChatSessionConfig) {
   return new Chat({
     transport: createAgentChatTransport(
-      () => createCadAgent({ ...getConfig().settings }),
+      () => {
+        const { settings, options } = getConfig()
+        return createCadAgent({ ...settings }, { ...options })
+      },
       () => ({ ...getConfig().settings }),
       () => ({ ...getConfig().options })
     )
@@ -42,6 +45,11 @@ export function useAgentChatRef(getConfig: () => AgentChatSessionConfig) {
 
   /** Discards the current session and builds a new agent from latest settings. */
   const resetChat = () => {
+    try {
+      chat.value.stop()
+    } catch {
+      // ignore stop errors when tearing down
+    }
     chat.value = createAgentChat(getConfig)
   }
 

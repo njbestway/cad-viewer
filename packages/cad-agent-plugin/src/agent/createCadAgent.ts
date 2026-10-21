@@ -22,7 +22,9 @@ import {
   MAX_VERIFICATION_ATTEMPTS,
   verifyDrawing
 } from './drawingVerifier'
-import { CAD_AGENT_SYSTEM_PROMPT } from './systemPrompt'
+import { normalizeInlineFileData } from './normalizeInlineFileData'
+import { skipDataUrlDownload } from './skipDataUrlDownload'
+import { buildCadAgentSystemPrompt } from './systemPrompt'
 import {
   appendAssistantText,
   appendVerificationReview,
@@ -39,7 +41,10 @@ function wasAborted(
 
 /** Runtime options that affect agent behavior beyond LLM settings. */
 export interface AgentChatOptions {
-  /** When `high-inference`, screenshot verification runs after each drawing round. */
+  /**
+   * When `high-inference`, screenshot verification runs after rounds that
+   * invoked CAD tools (skipped when the agent only replied with text).
+   */
   agentMode: AgentMode
 }
 
@@ -47,13 +52,17 @@ export interface AgentChatOptions {
  * Builds an AI SDK agent configured for CAD drawing with tool calling.
  *
  * @param settings - LLM provider credentials and model selection.
+ * @param options - Runtime options (agent mode controls screenshots / verification).
  * @returns An agent that streams responses and can invoke {@link createCadTools}.
  */
-export function createCadAgent(settings: LlmSettings) {
+export function createCadAgent(
+  settings: LlmSettings,
+  options: AgentChatOptions = { agentMode: 'simple' }
+) {
   return new Agent({
     model: createModelFromSettings(settings),
-    system: CAD_AGENT_SYSTEM_PROMPT,
-    tools: createCadTools(),
+    system: buildCadAgentSystemPrompt(options.agentMode),
+    tools: createCadTools({ agentMode: options.agentMode }),
     stopWhen: stepCountIs(10)
   })
 }
@@ -68,13 +77,21 @@ async function streamAgentRound(options: {
   write: UIMessageChunkWriter
 }): Promise<UIMessage[]> {
   const { agent, workingMessages, abortSignal, write } = options
-  const modelMessages = await convertToModelMessages(workingMessages, {
-    tools: agent.tools
-  })
+  const modelMessages = normalizeInlineFileData(
+    await convertToModelMessages(workingMessages, {
+      tools: agent.tools,
+      // Incomplete tool calls (e.g. input-streaming cut off) must not poison the
+      // next round's prompt — especially after a huge script arg failed mid-stream.
+      ignoreIncompleteToolCalls: true
+    })
+  )
+  // Agent.stream typings omit streamText extras; both options are forwarded at runtime.
   const result = agent.stream({
     prompt: modelMessages,
-    abortSignal
-  })
+    abortSignal,
+    // Skip redundant fetch of inline image data URLs (can stall large attachments).
+    experimental_download: skipDataUrlDownload
+  } as Parameters<Agent['stream']>[0])
 
   let finishedMessages = workingMessages
   const uiStream = result.toUIMessageStream({
@@ -93,11 +110,28 @@ async function streamAgentRound(options: {
   return finishedMessages
 }
 
+/** Counts CAD tool-call parts in UI messages (e.g. `tool-execute_cad_script`). */
+function countCadToolParts(messages: UIMessage[]): number {
+  let count = 0
+  for (const message of messages) {
+    if (!message.parts?.length) continue
+    for (const part of message.parts) {
+      if (typeof part?.type === 'string' && part.type.startsWith('tool-')) {
+        count += 1
+      }
+    }
+  }
+  return count
+}
+
 /**
  * Creates a {@link ChatTransport} that runs the agent in-process (no HTTP server).
  *
- * In high-inference mode, captures a drawing screenshot after each agent round
- * and loops until verification passes or {@link MAX_VERIFICATION_ATTEMPTS} is reached.
+ * In high-inference mode, after a round that invoked CAD tools, captures a
+ * drawing screenshot and loops until verification passes or
+ * {@link MAX_VERIFICATION_ATTEMPTS} is reached. An initial text-only round
+ * (e.g. clarifying questions) skips verification; once retries have started,
+ * text-only turns still consume the attempt budget instead of exiting early.
  */
 export function createAgentChatTransport(
   getAgent: () => Agent,
@@ -138,6 +172,7 @@ export function createAgentChatTransport(
             let verificationAttempts = 0
 
             while (!abortSignal?.aborted) {
+              const toolPartsBefore = countCadToolParts(workingMessages)
               workingMessages = await streamAgentRound({
                 agent,
                 workingMessages,
@@ -146,6 +181,43 @@ export function createAgentChatTransport(
               })
 
               if (abortSignal?.aborted) break
+
+              // Skip screenshot verification when the first round is text-only
+              // (clarifying questions). After a failed verification, a text-only
+              // turn must not abandon the loop — keep consuming the retry budget.
+              if (countCadToolParts(workingMessages) <= toolPartsBefore) {
+                if (verificationAttempts === 0) {
+                  break
+                }
+
+                verificationAttempts += 1
+                if (verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
+                  appendAssistantText(
+                    write,
+                    `\n${agentT('verificationMaxAttempts')}`
+                  )
+                  break
+                }
+
+                workingMessages = [
+                  ...workingMessages,
+                  {
+                    id: generateId(),
+                    role: 'user',
+                    parts: [
+                      {
+                        type: 'text',
+                        text: buildVerificationFeedbackMessage(
+                          verificationAttempts,
+                          MAX_VERIFICATION_ATTEMPTS,
+                          'No execute_cad_script call was made. Please apply a corrective script for the outstanding verification feedback.'
+                        )
+                      }
+                    ]
+                  }
+                ]
+                continue
+              }
 
               verificationAttempts += 1
 

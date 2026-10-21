@@ -8,7 +8,7 @@ export const agentEn = {
   tab: 'Agent',
   title: 'CAD Agent',
   settings: 'Settings',
-  clear: 'Clear',
+  clear: 'New chat',
   close: 'Close',
   provider: 'Provider',
   providerDeepseek: 'DeepSeek',
@@ -19,6 +19,8 @@ export const agentEn = {
   providerAnthropic: 'Anthropic',
   providerOpenaiCompatible: 'OpenAI Compatible',
   baseUrl: 'Base URL',
+  baseUrlHint:
+    'Must include /v1 for most gateways, e.g. https://ai-api.example.com/v1. Host-only URLs are auto-corrected.',
   model: 'Model',
   visionModels: 'Vision models',
   textModels: 'Text-only models',
@@ -31,10 +33,15 @@ export const agentEn = {
   emptyHint:
     'Describe what to draw, or attach a reference image (sketch, screenshot, floor plan).',
   toolPrefix: 'tool',
-  inputPlaceholder: 'Describe the geometry to create…',
+  copyTool: 'Copy tool call (input & output)',
+  toolCopied: 'Copied',
+  inputPlaceholder: 'Describe your request…',
   attachImage: 'Attach image',
   removeAttachment: 'Remove',
   imageAlt: 'Attached image',
+  imageOnlyRequest:
+    'Please analyze the attached reference image(s) and help me draw this in CAD.',
+  prepareImageFailed: 'Failed to prepare the attached image. Try a smaller PNG or JPEG.',
   errorTitle: 'Something went wrong',
   dismissError: 'Dismiss',
   send: 'Send',
@@ -43,9 +50,10 @@ export const agentEn = {
   agentMode: 'Agent mode',
   agentModeSimple: 'Simple',
   agentModeHighInference: 'High inference',
-  agentModeSimpleHint: 'Fast — no screenshot verification after drawing.',
+  agentModeSimpleHint:
+    'Default. Fast — measure-API self-check only; no screenshots or vision verification.',
   agentModeHighInferenceHint:
-    'Verifies the drawing with screenshot + vision model (up to 5 rounds). Requires a vision model.',
+    'Opt-in for complex tasks. Allows screenshots and verifies with screenshot + vision model (up to 5 rounds). Requires a vision model.',
   highInferenceRequiresVision:
     'High inference mode requires a vision-capable model.',
   verificationTitle: 'Drawing verification',

@@ -6,7 +6,7 @@ export const agentAr = {
   title: 'وكيل CAD',
 
   settings: 'الإعدادات',
-  clear: 'مسح',
+  clear: 'محادثة جديدة',
   close: 'إغلاق',
 
   provider: 'المزوّد',
@@ -25,6 +25,9 @@ export const agentAr = {
 
   baseUrl:
     'عنوان Base URL',
+
+  baseUrlHint:
+    'يجب أن يتضمن /v1 لمعظم البوابات، مثل https://ai-api.example.com/v1. يتم تصحيح عنوان المضيف فقط تلقائيًا.',
 
   model:
     'النموذج',
@@ -59,8 +62,14 @@ export const agentAr = {
   toolPrefix:
     'أداة',
 
+  copyTool:
+    'نسخ استدعاء الأداة (الإدخال والإخراج)',
+
+  toolCopied:
+    'تم النسخ',
+
   inputPlaceholder:
-    'صف الهندسة التي تريد إنشاءها…',
+    'صف طلبك…',
 
   attachImage:
     'إرفاق صورة',
@@ -70,6 +79,12 @@ export const agentAr = {
 
   imageAlt:
     'الصورة المرفقة',
+
+  imageOnlyRequest:
+    'يرجى تحليل الصورة المرجعية المرفقة ومساعدتي في رسمها في CAD.',
+
+  prepareImageFailed:
+    'تعذّر تجهيز الصورة المرفقة. جرّب ملف PNG أو JPEG أصغر.',
 
   errorTitle:
     'حدث خطأ',
@@ -96,10 +111,10 @@ export const agentAr = {
     'استدلال متقدم',
 
   agentModeSimpleHint:
-    'سريع — بدون التحقق من الرسم باستخدام لقطة شاشة بعد الإنشاء.',
+    'الافتراضي. سريع — تحقق ذاتي عبر واجهة القياس فقط؛ بدون لقطات أو تحقق بصري.',
 
   agentModeHighInferenceHint:
-    'يتحقق من الرسم باستخدام لقطة شاشة ونموذج رؤية، حتى 5 محاولات. يتطلب نموذجًا يدعم الرؤية.',
+    'اختياري للمهام المعقدة. يسمح بلقطات الشاشة ويتحقق باللقطة + نموذج رؤية، حتى 5 محاولات. يتطلب نموذجًا يدعم الرؤية.',
 
   highInferenceRequiresVision:
     'وضع الاستدلال المتقدم يتطلب نموذجًا يدعم الرؤية.',
