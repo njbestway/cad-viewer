@@ -760,7 +760,7 @@ function mapHeader(db: AcDbDatabase, h: AcadRustHeader): void {
   db.celweight = h.current_line_weight
   db.lwdisplay = h.lineweight_display
   db.psltscale = h.paper_space_linetype_scaling
-  db.tilemode = h.show_model_space
+  db.tilemode = h.show_model_space ? 1 : 0
   db.orthomode = h.ortho_mode ? 1 : 0
   db.osmode = h.object_snap_mode
   db.pdmode = h.point_display_mode
