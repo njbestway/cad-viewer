@@ -154,10 +154,29 @@ export class AcTrBaseView {
    */
   resetRaycaster(point: AcGePoint2dLike, threshold: number) {
     const ndcCoord = this._camera.wcs2Ndc(point, this._width, this._height)
+    const camera = this._camera.internalCamera
     this._raycaster.setFromCamera(
       new THREE.Vector2(ndcCoord.x, ndcCoord.y),
-      this._camera.internalCamera
+      camera
     )
+
+    // THREE's `setFromCamera` places an orthographic pick ray's origin in the
+    // camera plane (z = position.z) pointing along -Z. The 2D view renders
+    // entities with positive elevation above that plane on purpose — the
+    // render loop grows `camera.near` negative (syncDepthRangeToScene) so far
+    // out elevations stay visible — but every ray distance test clamps to
+    // t >= 0 (`Ray.distanceSqToSegment`, `intersectsSphere`, `intersectBox`,
+    // `distance < raycaster.near`), so those entities sit *behind* the origin
+    // and can never be picked. Re-anchor the origin on the near plane, which
+    // is above all rendered content, so elevation-offset circles / arcs /
+    // splines / polylines remain pickable while the WCS line/point threshold
+    // keeps its perpendicular-distance meaning.
+    if (camera.isOrthographicCamera && camera.near < 0) {
+      this._raycaster.ray.origin
+        .set(ndcCoord.x, ndcCoord.y, -1)
+        .unproject(camera)
+    }
+
     this._raycaster.params.Line.threshold = threshold
     this._raycaster.params.Points.threshold = threshold
 

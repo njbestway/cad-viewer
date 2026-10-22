@@ -54,10 +54,19 @@ export class AcEdGripPreviewJig extends AcEdPreviewJig<AcGePoint3dLike> {
   }
 
   computeOffset(point: AcGePoint3dLike): AcGeVector3d {
+    // The drag cursor resolves on the z=0 view plane (see
+    // `AcEdGripEditSession.resolveWcs`), while the grip base keeps the
+    // entity's true elevation. Subtracting them in 3D would inject a bogus
+    // Z delta — dragging an elevated circle's center grip (z = 31,110,344)
+    // to empty space would translate the entity by -31,110,344 and flatten
+    // its Z to 0 (and would inflate quadrant-grip radii via the 3D
+    // distance-to-center). This view is strictly 2D (orthographic, plan
+    // only), so grip stretch is an XY-plane operation, matching the point
+    // prompt layer which also pins z to 0; entity elevation is preserved.
     return new AcGeVector3d(
       point.x - this._gripBaseWcs.x,
       point.y - this._gripBaseWcs.y,
-      (point.z ?? 0) - (this._gripBaseWcs.z ?? 0)
+      0
     )
   }
 

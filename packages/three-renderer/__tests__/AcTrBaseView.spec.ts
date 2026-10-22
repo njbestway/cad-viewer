@@ -134,3 +134,53 @@ describe('AcTrBaseView camera fitting', () => {
     expect(visible.worldHeight).toBeCloseTo(200, 5)
   })
 })
+
+describe('AcTrBaseView pick raycaster vs elevated geometry', () => {
+  // Handles like 0x1B39 in 人员定位立体图20250530.dxf: a Circle at WCS
+  // z = 31,110,344 renders because the 2D view grows camera.near negative
+  // (syncDepthRangeToScene), but THREE's orthographic setFromCamera puts the
+  // pick-ray origin in the camera plane, leaving such entities behind the
+  // ray where every t >= 0 clamped distance test misses them.
+  const ELEVATED_Z = 31_110_344.241
+
+  it('lifts the pick ray above high-elevation geometry when near is grown negative', () => {
+    const view = new TestView(createMockRenderer(), 800, 600)
+    const camera = view.internalCamera
+    camera.near = -32_000_000
+    camera.updateProjectionMatrix()
+    // `unproject` works off matrixWorld; the render loop keeps it current.
+    camera.updateMatrixWorld(true)
+
+    const raycaster = view.resetRaycaster({ x: 2134.061, y: 1045.076 }, 1)
+
+    expect(raycaster.ray.origin.z).toBeGreaterThan(ELEVATED_Z)
+
+    // A chord of the elevated circle passing under the cursor must be within
+    // the WCS line threshold of the pick ray (was astronomically far before
+    // the origin lift because the segment sat behind the camera plane).
+    const start = new THREE.Vector3(2134.061 - 5, 1045.076, ELEVATED_Z)
+    const end = new THREE.Vector3(2134.061 + 5, 1045.076, ELEVATED_Z)
+    expect(raycaster.ray.distanceSqToSegment(start, end, undefined, undefined)).toBeLessThan(1)
+
+    // And the hit distance along the ray stays inside raycaster.near/far.
+    const hit = raycaster.ray.intersectBox(
+      new THREE.Box3(start, end),
+      new THREE.Vector3()
+    )
+    expect(hit).not.toBeNull()
+    const distance = raycaster.ray.origin.distanceTo(hit!)
+    expect(distance).toBeGreaterThanOrEqual(raycaster.near)
+    expect(distance).toBeLessThanOrEqual(raycaster.far)
+  })
+
+  it('keeps the camera-plane ray origin for ordinary flat drawings', () => {
+    const view = new TestView(createMockRenderer(), 800, 600)
+    const camera = view.internalCamera
+    expect(camera.near).toBeGreaterThan(0)
+    camera.updateMatrixWorld(true)
+
+    const raycaster = view.resetRaycaster({ x: 10, y: 20 }, 1)
+
+    expect(raycaster.ray.origin.z).toBeCloseTo(camera.position.z, 3)
+  })
+})

@@ -31,14 +31,25 @@ dumper = ["dep:anyhow"]
 # MPL-2.0 (file-level copyleft) and compiles cleanly for wasm32 because its
 # memmap2/rayon dependencies are gated behind cfg(not(target_arch = "wasm32")).
 #
-# Pinned to =0.6.4, NOT the latest 0.6.5: 0.6.5 regressed the DWG section
-# reader and aborts valid drawings (e.g. samples/高山.dwg) with "Invalid DWG
-# array count <n>: <m> record bits remain" at the pre-existing checked_count
-# guard (merged_reader.rs) because a new miscount desyncs the bit reader at a
-# type_code=37 record. 0.6.3/0.6.4 both decode it fully (244,756 entities);
-# 0.6.4 is the newest known-good and keeps the Phase 4 entity coverage.
-# Do not bump to 0.6.5 until upstream fixes that reader desync.
-acadrust = { version = "=0.6.4", features = ["serde"] }
+# ACIS framing history (resolved):
+#   The published 0.6.5 crate rewrote read_acis_entity_impl and miscounted bits
+#   inside REGION records, so the (correct, pre-existing) checked_count guard
+#   fired and dwg_open aborted on valid drawings (samples/高山.dwg, handle
+#   0x2317A, type_code=37: "Invalid DWG array count 149: 69 record bits remain").
+#   Upstream has SINCE FIXED this on main via commits bc57ddd (read silhouette
+#   counts independently of isolines) + 6618601 (fix ACIS wireframe tail /
+#   has_extra_gate). The fix is NOT yet on crates.io - v0.6.5 is the last
+#   release - so the next 0.6.6 will carry it. Verified: main-tip decoding of
+#   高山.dwg yields 244,756 entities / 0 skipped, identical to the =0.6.4 golden.
+#
+# [LOCAL PATH DEPENDENCY - DO NOT COMMIT] This absolute path to a local
+#   acadrust checkout (with the upstream fix merged) is only for local wasm
+#   rebuilds/verification on this machine; it breaks other clones and CI.
+#   Committable options: keep the known-good `=0.6.4` pin below, OR git-pin
+#   `acadrust = { git = "https://github.com/hakanaktt/acadrust", rev =
+#   "6ca47e6" }` until 0.6.6 lands, then bump the pin to `=0.6.6`.
+# acadrust = { version = "=0.6.4", features = ["serde"] }
+acadrust = { path = "E:/home/dxf-gis/acadrust", features = ["serde"] }
 # Needed directly (not just transitively via `acadrust`'s `serde` feature) to
 # name the `serde::Serialize` trait bound in `to_json`'s generic signature;
 # `derive` lets the batched-block reply serialize a plain struct instead of an
