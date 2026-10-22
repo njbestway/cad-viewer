@@ -30,7 +30,15 @@ dumper = ["dep:anyhow"]
 # Locked to the version validated in the Phase 0 spike (Gate 0). acadrust is
 # MPL-2.0 (file-level copyleft) and compiles cleanly for wasm32 because its
 # memmap2/rayon dependencies are gated behind cfg(not(target_arch = "wasm32")).
-acadrust = { version = "0.6.5", features = ["serde"] }
+#
+# Pinned to =0.6.4, NOT the latest 0.6.5: 0.6.5 regressed the DWG section
+# reader and aborts valid drawings (e.g. samples/高山.dwg) with "Invalid DWG
+# array count <n>: <m> record bits remain" at the pre-existing checked_count
+# guard (merged_reader.rs) because a new miscount desyncs the bit reader at a
+# type_code=37 record. 0.6.3/0.6.4 both decode it fully (244,756 entities);
+# 0.6.4 is the newest known-good and keeps the Phase 4 entity coverage.
+# Do not bump to 0.6.5 until upstream fixes that reader desync.
+acadrust = { version = "=0.6.4", features = ["serde"] }
 # Needed directly (not just transitively via `acadrust`'s `serde` feature) to
 # name the `serde::Serialize` trait bound in `to_json`'s generic signature;
 # `derive` lets the batched-block reply serialize a plain struct instead of an
