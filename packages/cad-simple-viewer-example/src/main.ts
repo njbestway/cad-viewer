@@ -45,7 +45,6 @@ import { getGoogleDriveEnvConfig } from './googleDriveEnv'
 import { getOneDriveEnvConfig } from './onedriveEnv'
 import { registerLazyPlugins } from './register'
 import { registerAcadRustConverter } from './registerAcadRust'
-import { isAcadTsEnabled, registerAcadTsConverter } from './registerAcadTs'
 import { registerLibreDwgConverter } from './registerLibreDwg'
 import { SCRIPT_TOOLBAR_ITEM } from './scriptToolbarItem'
 
@@ -914,12 +913,6 @@ class CadViewerApp {
       // Local fork: re-register the DWG slot with the copyleft-free acadrust
       // converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
       registerAcadRustConverter(`./workers/${ACADRUST_PARSER_WORKER_FILE}`)
-      // Verification opt-in: `?acadts=1` re-registers the DWG slot with the
-      // experimental acad-ts parser (MIT, pure TS, main-thread) so its real
-      // parse output can be eyeballed against acad-rust / LibreDWG.
-      if (isAcadTsEnabled()) {
-        registerAcadTsConverter()
-      }
       AcApDocManager.createInstance({
         container: this.container,
         busyIndicatorHost: this.viewerPane,

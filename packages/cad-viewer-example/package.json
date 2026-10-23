@@ -50,7 +50,6 @@
     "@mlightcad/data-model": "1.15.14",
     "@mlightcad/libredwg-converter": "3.15.14",
     "@mlightcad/acad-rust-converter": "workspace:*",
-    "@mlightcad/acad-ts-converter": "workspace:*",
     "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*",
     "@mlightcad/three-renderer": "workspace:*",

@@ -120,16 +120,6 @@ importers:
         specifier: 1.15.14
         version: 1.15.14
 
-  packages/acad-ts-converter:
-    dependencies:
-      '@node-projects/acad-ts':
-        specifier: link:../../../acad-ts
-        version: link:../../../acad-ts
-    devDependencies:
-      '@mlightcad/data-model':
-        specifier: 1.15.14
-        version: 1.15.14
-
   packages/cad-agent-core:
     dependencies:
       acorn:
@@ -526,9 +516,6 @@ importers:
       '@mlightcad/acad-rust-converter':
         specifier: workspace:*
         version: link:../acad-rust-converter
-      '@mlightcad/acad-ts-converter':
-        specifier: workspace:*
-        version: link:../acad-ts-converter
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core
@@ -716,9 +703,6 @@ importers:
       '@mlightcad/acad-rust-converter':
         specifier: workspace:*
         version: link:../acad-rust-converter
-      '@mlightcad/acad-ts-converter':
-        specifier: workspace:*
-        version: link:../acad-ts-converter
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core

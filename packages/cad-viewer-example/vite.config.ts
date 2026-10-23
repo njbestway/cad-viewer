@@ -17,7 +17,6 @@ import {
   MTEXT_RENDERER_WORKER_FILE
 } from '../../tools/worker-assets.mjs'
 import { examplePeerPackageAliases, exampleRollupOutput } from '../vite-config/pluginRollupOutput'
-import { fixEncodedSourceMapUrl } from '../vite-config/pluginSourceMapUrl'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const VIEWER_RUNTIME_SRC = '../cad-html-plugin/dist/viewer-runtime.iife.js'
@@ -269,9 +268,6 @@ export default defineConfig(({ command, mode }) => {
     : `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
 
   const plugins = [
-    // acad-ts ships `CadTemplate[T].js`, whose tsc-generated sourceMappingURL
-    // is URL-encoded and therefore unreadable by Vite's dev server.
-    fixEncodedSourceMapUrl(),
     vue(),
     svgLoader(),
     viteStaticCopy({
