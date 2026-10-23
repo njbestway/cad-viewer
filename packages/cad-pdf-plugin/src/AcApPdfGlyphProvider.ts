@@ -67,16 +67,18 @@ export function createViewerPdfGlyphProvider(): AcPdfGlyphProvider {
     ) {
       try {
         const renderer = AcTrMTextRenderer.getInstance()
+        // Vector PDF extracts Mesh/Line BufferGeometry. Scene-level placement
+        // mode leaves empty groups — force per-entity merge for this draw only.
         const object = (await renderer.asyncRenderMText(
           // AcGi and mtext-renderer attachment enums are structurally compatible
           // at runtime but diverge in the TypeScript type graph.
-          data as never,
+          { ...(data as object), meshGlyphOutputMode: 'merge' } as never,
           style as never,
           toMTextColorSettings(colorSettings) as never
         )) as SceneNode
         const contents =
-          (data as { contents?: string }).contents ??
-          (data as { text?: string }).text ??
+          (data as { contents?: string }).contents ||
+          (data as { text?: string }).text ||
           ''
         const { primitives, colorGroups, box } = extractGlyphPrimitives(
           object,
@@ -84,8 +86,18 @@ export function createViewerPdfGlyphProvider(): AcPdfGlyphProvider {
           data.position?.y ?? 0
         )
         return { primitives, colorGroups, actualText: contents, box }
-      } catch {
-        return { primitives: empty, actualText: '', box: emptyBox }
+      } catch (error) {
+        // Keep the source string so PDF ActualText / diagnostics still work
+        // when tessellation throws (uninitialized renderer, missing fonts…).
+        const contents =
+          (data as { contents?: string }).contents ||
+          (data as { text?: string }).text ||
+          ''
+        console.warn(
+          '[cad-pdf-plugin] MTEXT glyph render failed; vector geometry omitted',
+          error instanceof Error ? error.message : error
+        )
+        return { primitives: empty, actualText: contents, box: emptyBox }
       }
     },
     async renderShape(shape: AcGiShapeData, style?: AcGiTextStyle) {
@@ -101,7 +113,11 @@ export function createViewerPdfGlyphProvider(): AcPdfGlyphProvider {
           shape.position?.y ?? 0
         )
         return { primitives, box }
-      } catch {
+      } catch (error) {
+        console.warn(
+          '[cad-pdf-plugin] SHAPE glyph render failed; vector geometry omitted',
+          error instanceof Error ? error.message : error
+        )
         return { primitives: empty, box: emptyBox }
       }
     }

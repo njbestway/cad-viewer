@@ -111,13 +111,22 @@ export class AcTrMText extends AcTrGlyphEntity {
     const source = this._text as MTextData
     const position = source.position
     const flat = { x: position.x, y: position.y, z: 0 }
-    if (this._wcsNormal) {
-      const { directionVector: _omit, ...rest } = source as MTextData & {
-        directionVector?: unknown
-      }
-      return { ...rest, position: flat } as MTextData
+    // Open/convert paths pick via mesh AABB (`bboxIntersectionCheck`), not
+    // per-glyph char boxes. Skipping them avoids 100k+ bbox copies on text-
+    // heavy drawings. Callers that need char-level hit testing can set
+    // `collectCharBoxes: true` on the source payload.
+    const payload = {
+      ...source,
+      position: flat,
+      collectCharBoxes: source.collectCharBoxes ?? false
+    } as MTextData
+    if (!this._wcsNormal) {
+      return payload
     }
-    return { ...source, position: flat }
+    const { directionVector: _omit, ...rest } = payload as MTextData & {
+      directionVector?: unknown
+    }
+    return { ...rest, position: flat } as MTextData
   }
 
   /**
