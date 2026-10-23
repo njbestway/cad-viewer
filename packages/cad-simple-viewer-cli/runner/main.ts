@@ -1,4 +1,4 @@
-import { AcDbAcadRustConverter } from '@mlightcad/acad-rust-converter'
+import { AcDbAcadRustConverter } from '@njbestway/acad-rust-converter'
 import { registerLazyHtmlPlugin } from '@mlightcad/cad-html-plugin/register'
 import { registerLazyPdfPlugin } from '@mlightcad/cad-pdf-plugin/register'
 import {

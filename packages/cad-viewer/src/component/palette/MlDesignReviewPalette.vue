@@ -227,7 +227,9 @@ const commitComment = () => {
   updateMeta(id, { comment: next })
 }
 
-const onLabelEnter = (event: KeyboardEvent) => {
+const onLabelEnter = (event: Event | KeyboardEvent) => {
+  // `el-input` types its keydown emit as `Event | KeyboardEvent`.
+  if (!(event instanceof KeyboardEvent)) return
   if (event.isComposing || event.keyCode === 229) return
   event.preventDefault()
   commitText()

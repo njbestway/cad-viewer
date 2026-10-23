@@ -185,8 +185,9 @@ const statusText = computed(() => {
     : text
 })
 
-const onEnter = (event: KeyboardEvent) => {
-  void find.submit(event.shiftKey)
+const onEnter = (event: Event | KeyboardEvent) => {
+  // `el-input` types its keydown emit as `Event | KeyboardEvent`.
+  void find.submit(event instanceof KeyboardEvent ? event.shiftKey : false)
 }
 
 /** Find button: search and jump to the first hit (same as the first Enter). */

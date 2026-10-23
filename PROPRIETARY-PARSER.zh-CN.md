@@ -127,7 +127,7 @@
 
 ## GPL 合规
 
-各 example 包默认的开源 DWG 加载路径现为 `@mlightcad/acad-rust-converter`（acadrust，**MPL-2.0**）— 无著佐权传导的解析器，其文件级许可证不会传导到您的应用。旧版 GPL-3.0 路径为：
+各 example 包默认的开源 DWG 加载路径现为 `@njbestway/acad-rust-converter`（acadrust，**MPL-2.0**）— 无著佐权传导的解析器，其文件级许可证不会传导到您的应用。旧版 GPL-3.0 路径为：
 
 | 包 | 许可证 | 作用 |
 |----|--------|------|
@@ -135,9 +135,9 @@
 
 DXF 加载使用 `@mlightcad/data-model` 中内置的 MIT 解析器，无需专有解析器。
 
-若您**替换 LibreDWG converter**（改用专有解析器或无著佐权的 `@mlightcad/acad-rust-converter`），并从构建中**移除 GPL 依赖**，应用可仅依赖 **MIT 授权**的 cad-viewer 技术栈（`data-model`、`cad-simple-viewer`、渲染器、插件等），不存在 GPL 传导问题。
+若您**替换 LibreDWG converter**（改用专有解析器或无著佐权的 `@njbestway/acad-rust-converter`），并从构建中**移除 GPL 依赖**，应用可仅依赖 **MIT 授权**的 cad-viewer 技术栈（`data-model`、`cad-simple-viewer`、渲染器、插件等），不存在 GPL 传导问题。
 
-**您可以从依赖图中完全移除 GPL 包** — 包括 LibreDWG 相关包 — 从而**不向客户分发任何 GPL 代码**，前提是所有 DWG 摄入均通过专有解析器或 acadrust converter 完成。若采用 acadrust（MPL-2.0）方案，则需额外保留许可证声明，并使接收方能够获取 acadrust 源码；参见 `packages/acad-rust-converter/LICENSE` 与 `packages/acad-rust-converter/NOTICE`。
+**您可以从依赖图中完全移除 GPL 包** — 包括 LibreDWG 相关包 — 从而**不向客户分发任何 GPL 代码**，前提是所有 DWG 摄入均通过专有解析器或 acadrust converter 完成。若采用 acadrust（MPL-2.0）方案，则需额外保留许可证声明，并使接收方能够获取 acadrust 源码；参见 `@njbestway/acad-rust-converter` 包内随附的 `LICENSE` 与 `NOTICE`。
 
 ---
 

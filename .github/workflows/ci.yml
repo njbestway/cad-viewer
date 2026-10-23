@@ -48,23 +48,6 @@ jobs:
       - name: Lint code
         run: pnpm lint
 
-      # @mlightcad/acad-rust-converter compiles a Rust crate to wasm32 as part
-      # of `pnpm run build` (see packages/acad-rust-converter/scripts/build-wasm.mjs),
-      # which shells out to `cargo` + a pinned `wasm-bindgen` CLI. Provide that
-      # toolchain here or the build step fails with ENOENT on the runner.
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache cargo
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: packages/acad-rust-converter/rust
-
-      - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
-
       - name: Build projects
         env:
           NODE_OPTIONS: --max-old-space-size=4096
@@ -189,21 +172,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      # Release also runs `pnpm run build`, so it needs the same Rust toolchain
-      # as the build job (see the build job comment above).
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache cargo
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: packages/acad-rust-converter/rust
-
-      - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
 
       - name: Build projects
         run: |

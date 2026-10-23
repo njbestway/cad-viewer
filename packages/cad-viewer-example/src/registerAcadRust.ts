@@ -12,12 +12,12 @@
  * (`inputFormat: 'dxf'`) stays available for ad-hoc verification — re-register
  * it over `AcDbFileType.DXF` if needed.
  */
-import { AcDbAcadRustNativeConverter } from '@mlightcad/acad-rust-converter'
 import {
   AcDbDatabaseConverterManager,
   AcDbFileType,
   log
 } from '@mlightcad/data-model'
+import { AcDbAcadRustNativeConverter } from '@njbestway/acad-rust-converter'
 
 export function registerAcadRustConverter(parserWorkerUrl: string): void {
   const manager = AcDbDatabaseConverterManager.instance

@@ -89,8 +89,8 @@ need DWG must add a converter dependency, deploy its worker (+ wasm) assets,
 register the converter, and optionally pass `webworkerFileUrls.dwgParser` for
 readiness checks.
 
-The recommended open-source converter is `@mlightcad/acad-rust-converter` —
-acadrust (Rust/WASM) transcoding DWG → DXF under the **MPL-2.0** license, whose
+The recommended open-source converter is `@njbestway/acad-rust-converter` —
+acadrust (Rust/WASM) parsing DWG under the **MPL-2.0** license, whose
 file-level copyleft does not propagate to your app:
 
 ```typescript
@@ -103,7 +103,7 @@ import {
   AcDbDatabaseConverterManager,
   AcDbFileType
 } from '@mlightcad/data-model'
-import { AcDbAcadRustConverter } from '@mlightcad/acad-rust-converter'
+import { AcDbAcadRustConverter } from '@njbestway/acad-rust-converter'
 
 const dwgParserUrl = `./workers/${ACADRUST_PARSER_WORKER_FILE}`
 AcDbDatabaseConverterManager.instance.register(

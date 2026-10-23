@@ -8,13 +8,13 @@
  *   → does NOT copy LibreDWG (GPL) — hosts/examples must depend on
  *     @mlightcad/libredwg-converter and copy those assets themselves
  *   → does NOT copy acadrust — hosts/examples must depend on
- *     @mlightcad/acad-rust-converter and copy those assets themselves
+ *     @njbestway/acad-rust-converter and copy those assets themselves
  *
  * Consumer (examples):
  *   node tools/copy-workers.mjs dist/workers
  *   → copies *-worker.js from @mlightcad/cad-simple-viewer/dist
  *   → copies LibreDWG worker + wasm from @mlightcad/libredwg-converter when present
- *   → copies acadrust worker + wasm from @mlightcad/acad-rust-converter when present
+ *   → copies acadrust worker + wasm from @njbestway/acad-rust-converter when present
  */
 import {
   copyFileSync,

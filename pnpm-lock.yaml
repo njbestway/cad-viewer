@@ -114,12 +114,6 @@ importers:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.57.0)(@types/node@24.12.4)(async-validator@4.2.5)(axios@1.14.0)(postcss@8.5.8)(sass@1.98.0)(search-insights@2.17.3)(typescript@5.9.3)
 
-  packages/acad-rust-converter:
-    devDependencies:
-      '@mlightcad/data-model':
-        specifier: 1.15.14
-        version: 1.15.14
-
   packages/cad-agent-core:
     dependencies:
       acorn:
@@ -187,9 +181,6 @@ importers:
 
   packages/cad-diff-viewer-example:
     dependencies:
-      '@mlightcad/acad-rust-converter':
-        specifier: workspace:*
-        version: link:../acad-rust-converter
       '@mlightcad/cad-diff-viewer':
         specifier: workspace:*
         version: link:../cad-diff-viewer
@@ -211,6 +202,9 @@ importers:
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
+      '@njbestway/acad-rust-converter':
+        specifier: 0.1.0
+        version: 0.1.0(@mlightcad/data-model@1.15.14)
       three:
         specifier: ^0.186.1
         version: 0.186.1
@@ -461,9 +455,6 @@ importers:
 
   packages/cad-simple-viewer-cli:
     dependencies:
-      '@mlightcad/acad-rust-converter':
-        specifier: workspace:*
-        version: link:../acad-rust-converter
       '@mlightcad/cad-html-plugin':
         specifier: workspace:*
         version: link:../cad-html-plugin
@@ -491,6 +482,9 @@ importers:
       '@mlightcad/pdf-renderer':
         specifier: workspace:*
         version: link:../pdf-renderer
+      '@njbestway/acad-rust-converter':
+        specifier: 0.1.0
+        version: 0.1.0(@mlightcad/data-model@1.15.14)
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -513,9 +507,6 @@ importers:
 
   packages/cad-simple-viewer-example:
     dependencies:
-      '@mlightcad/acad-rust-converter':
-        specifier: workspace:*
-        version: link:../acad-rust-converter
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core
@@ -564,6 +555,9 @@ importers:
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
+      '@njbestway/acad-rust-converter':
+        specifier: 0.1.0
+        version: 0.1.0(@mlightcad/data-model@1.15.14)
       lodash-es:
         specifier: 4.17.21
         version: 4.17.21
@@ -700,9 +694,6 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.31(typescript@5.9.3))
-      '@mlightcad/acad-rust-converter':
-        specifier: workspace:*
-        version: link:../acad-rust-converter
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core
@@ -748,6 +739,9 @@ importers:
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
+      '@njbestway/acad-rust-converter':
+        specifier: 0.1.0
+        version: 0.1.0(@mlightcad/data-model@1.15.14)
       element-plus:
         specifier: ^2.12.0
         version: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
@@ -2592,6 +2586,11 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
+
+  '@njbestway/acad-rust-converter@0.1.0':
+    resolution: {integrity: sha512-2313SKFeFPhuVGICaz9XyKxk2leRaa/tWXV3MRfLROFEhH1ogdrfwQd3L7PNXnsOILfLRkgB5nsCnLExWdOSGQ==}
+    peerDependencies:
+      '@mlightcad/data-model': 1.15.14
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -8595,6 +8594,10 @@ snapshots:
       '@emnapi/runtime': 1.10.0
       '@tybys/wasm-util': 0.10.2
     optional: true
+
+  '@njbestway/acad-rust-converter@0.1.0(@mlightcad/data-model@1.15.14)':
+    dependencies:
+      '@mlightcad/data-model': 1.15.14
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

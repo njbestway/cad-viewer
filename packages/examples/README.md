@@ -24,7 +24,7 @@ A full-featured CAD viewer application built with Vue.js and Element Plus.
 - Vue 3 with Composition API
 - Element Plus UI components
 - UnoCSS for styling
-- acadrust (`@mlightcad/acad-rust-converter`, MPL-2.0) for DWG file support
+- acadrust (`@njbestway/acad-rust-converter`, MPL-2.0) for DWG file support
 
 ### 2. CAD Simple Viewer Demo (`/cad-simple-viewer/`)
 A minimal, lightweight CAD viewer focusing on core functionality.

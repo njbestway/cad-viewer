@@ -225,7 +225,7 @@ These optimizations enable CAD-Viewer to smoothly render complex CAD drawings wi
 
 ## Known Issues
 
-The default open-source DWG path is [`@mlightcad/acad-rust-converter`](./packages/acad-rust-converter/README.md), built on [acadrust](https://github.com/hakanaktt/acadrust) — pure Rust compiled to WebAssembly under the **MPL-2.0** license. It is a copyleft-free replacement for the legacy GPL-3.0 `@mlightcad/libredwg-converter`: its file-level copyleft does **not** propagate to your application, so closed-source commercial products can parse DWG without GPL obligations. The example packages register it for `AcDbFileType.DWG` by transcoding DWG → DXF in a worker and handing the DXF to the built-in MIT converter. `@mlightcad/cad-simple-viewer` itself still does **not** depend on or register any DWG converter — host apps opt in explicitly.
+The default open-source DWG path is [`@njbestway/acad-rust-converter`](https://www.npmjs.com/package/@njbestway/acad-rust-converter), built on [acadrust](https://github.com/hakanaktt/acadrust) — pure Rust compiled to WebAssembly under the **MPL-2.0** license. It is a copyleft-free replacement for the legacy GPL-3.0 `@mlightcad/libredwg-converter`: its file-level copyleft does **not** propagate to your application, so closed-source commercial products can parse DWG without GPL obligations. The example packages register it for `AcDbFileType.DWG` and run it in a worker. `@mlightcad/cad-simple-viewer` itself still does **not** depend on or register any DWG converter — host apps opt in explicitly.
 
 The older [LibreDWG](https://github.com/LibreDWG/libredwg) converter (`@mlightcad/libredwg-converter`) remains available as a GPL-3.0 alternative, but it is no longer the recommended open-source path: its entity coverage is limited, its WASM bundle is much larger, startup is slower, memory usage is higher, very large DWG files may hit out-of-memory errors, and it carries GPL propagation considerations.
 
@@ -257,7 +257,7 @@ Legend:
 * [x] DWG loading
 * [x] Export to self-contained offline HTML (embedded viewer)
 * [x] Large file streaming / incremental loading
-* [x] File version compatibility (R12–Latest) — DXF and DWG read span AC1009 (R12) → AC1032 (latest) via acadrust 0.6.5 (native pre-R13 DWG codec; covered by `packages/acad-rust-converter/rust/tests/r12_dwg_read.rs`)
+* [x] File version compatibility (R12–Latest) — DXF and DWG read span AC1009 (R12) → AC1032 (latest) via acadrust 0.6.6 (native pre-R13 DWG codec; covered by `rust/tests/r12_dwg_read.rs` in the [converter repository](https://github.com/njbestway/acad-rust-converter))
 
 #### Data Model
 
@@ -460,6 +460,6 @@ Contributions are welcome! Please open issues or pull requests for bug fixes, ne
 
 The cad-viewer monorepo is primarily [MIT](LICENSE) licensed.
 
-DXF loading uses the built-in MIT parser in `@mlightcad/data-model`. DWG loading is **opt-in**: `@mlightcad/cad-simple-viewer` does not depend on any copyleft DWG package. For open-source DWG support, prefer [`@mlightcad/acad-rust-converter`](./packages/acad-rust-converter/README.md) — built on acadrust (**MPL-2.0**, file-level copyleft that does not propagate to your app) and registered by the example packages — by deploying its worker + wasm and registering the converter. The legacy `@mlightcad/libredwg-converter` (GPL-3.0) is still available when you can distribute GPL code. If you ship a closed-source product and cannot distribute GPL code, use the copyleft-free acadrust converter or the [**proprietary DWG parser**](./PROPRIETARY-PARSER.md) instead.
+DXF loading uses the built-in MIT parser in `@mlightcad/data-model`. DWG loading is **opt-in**: `@mlightcad/cad-simple-viewer` does not depend on any copyleft DWG package. For open-source DWG support, prefer [`@njbestway/acad-rust-converter`](https://www.npmjs.com/package/@njbestway/acad-rust-converter) — built on acadrust (**MPL-2.0**, file-level copyleft that does not propagate to your app) and registered by the example packages — by deploying its worker + wasm and registering the converter. The legacy `@mlightcad/libredwg-converter` (GPL-3.0) is still available when you can distribute GPL code. If you ship a closed-source product and cannot distribute GPL code, use the copyleft-free acadrust converter or the [**proprietary DWG parser**](./PROPRIETARY-PARSER.md) instead.
 
 → **Commercial parser:** [PROPRIETARY-PARSER.md](./PROPRIETARY-PARSER.md) (scope, licensing, pricing, integration, GPL compliance, support)

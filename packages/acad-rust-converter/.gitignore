@@ -1,6 +1,0 @@
-# Rust build artifacts (rebuilt by scripts/build-wasm.mjs).
-rust/target/
-
-# wasm-bindgen generated glue + wasm (rebuilt by scripts/build-wasm.mjs).
-wasm/pkg/
-rust/_*

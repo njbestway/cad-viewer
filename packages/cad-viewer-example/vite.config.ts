@@ -163,8 +163,7 @@ export default defineConfig(({ command, mode }) => {
     'pdf-renderer',
     'three-renderer',
     'cad-simple-viewer',
-    'cad-viewer',
-    'acad-rust-converter'
+    'cad-viewer'
   ]
   const linkLocalDataModel =
     command === 'serve' &&
@@ -184,7 +183,7 @@ export default defineConfig(({ command, mode }) => {
       replacement: resolve(__dirname, '../cad-pdf-plugin/src/register.ts')
     })
     aliases.push({
-      find: /^@mlightcad\/(cad-svg-plugin|cad-pdf-plugin|pdf-renderer|three-renderer|cad-simple-viewer|cad-viewer|acad-rust-converter)$/,
+      find: /^@mlightcad\/(cad-svg-plugin|cad-pdf-plugin|pdf-renderer|three-renderer|cad-simple-viewer|cad-viewer)$/,
       replacement: resolve(__dirname, '../$1/src')
     })
     if (linkLocalMtextRenderer) {
