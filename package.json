@@ -39,13 +39,13 @@
     "preview:simple": "nx run @mlightcad/cad-simple-viewer-example:preview",
     "preview:html-converter": "nx run @mlightcad/cad-simple-viewer-example:preview:html-converter",
     "preview:diff": "nx run @mlightcad/cad-diff-viewer-example:preview",
-    "pre-serve": "nx run @mlightcad/cad-viewer-examples:pre-serve",
+    "pre-serve": "nx run @mlightcad/cad-demo-gallery:pre-serve",
     "publish:viewer": "pnpm -r publish --access public --no-git-checks",
     "publish:viewer:preview": "pnpm -r publish --access public --no-git-checks --tag preview",
     "release": "node tools/release.mjs",
     "sync:versions": "node tools/sync-versions.mjs",
     "sync:versions:check": "node tools/sync-versions.mjs --check",
-    "serve": "nx run @mlightcad/cad-viewer-examples:serve",
+    "serve": "nx run @mlightcad/cad-demo-gallery:serve",
     "test": "jest",
     "test:e2e": "pnpm --filter @mlightcad/cad-viewer-example test:e2e",
     "use:dwg-converter": "node tools/use-dwg-converter.mjs"
@@ -73,6 +73,7 @@
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "lint-staged": "^15.2.7",
+    "mermaid": "^11.17.2",
     "nx": "20.0.4",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
@@ -84,7 +85,8 @@
     "typescript-eslint": "^8.4.0",
     "vite": "^6.4.3",
     "vite-plugin-static-copy": "^4.1.1",
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17"
   },
   "lint-staged": {
     "*.{ts,js,vue}": [
