@@ -426,6 +426,84 @@ importers:
         specifier: ^2.1.6
         version: 2.2.12(typescript@5.9.3)
 
+  packages/cad-editor-ol:
+    devDependencies:
+      '@element-plus/icons-vue':
+        specifier: ^2.3.1
+        version: 2.3.2(vue@3.5.31(typescript@5.9.3))
+      '@mlightcad/cad-script-plugin':
+        specifier: workspace:*
+        version: link:../cad-script-plugin
+      '@mlightcad/cad-simple-viewer':
+        specifier: workspace:*
+        version: link:../cad-simple-viewer
+      '@mlightcad/data-model':
+        specifier: 1.15.14
+        version: 1.15.14
+      '@mlightcad/ribbon':
+        specifier: 0.1.13
+        version: 0.1.13(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
+      '@mlightcad/three-renderer':
+        specifier: workspace:*
+        version: link:../three-renderer
+      '@mlightcad/three-viewcube':
+        specifier: 0.0.9
+        version: 0.0.9(three@0.186.1)
+      '@mlightcad/ui-components':
+        specifier: 0.1.11
+        version: 0.1.11(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
+      '@njbestway/acad-rust-converter':
+        specifier: 0.1.0
+        version: 0.1.0(@mlightcad/data-model@1.15.14)
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.8
+        version: 6.0.8(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
+      '@vue/language-core':
+        specifier: ^3.1.5
+        version: 3.3.13
+      '@vueuse/core':
+        specifier: ^11.1.0
+        version: 11.3.0(vue@3.5.31(typescript@5.9.3))
+      element-plus:
+        specifier: ^2.12.0
+        version: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
+      lodash-es:
+        specifier: 4.17.21
+        version: 4.17.21
+      sass:
+        specifier: ^1.95.1
+        version: 1.98.0
+      three:
+        specifier: ^0.186.1
+        version: 0.186.1
+      vite:
+        specifier: ^6.4.3
+        version: 6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3)
+      vite-plugin-dts:
+        specifier: ^5.0.3
+        version: 5.0.3(@microsoft/api-extractor@7.58.0(@types/node@24.12.4))(@vue/language-core@3.3.13)(esbuild@0.25.12)(rollup@4.60.1)(typescript@5.9.3)(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))
+      vite-plugin-lib-inject-css:
+        specifier: ^2.2.2
+        version: 2.2.2(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))
+      vite-plugin-static-copy:
+        specifier: ^4.1.1
+        version: 4.1.1(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))
+      vite-svg-loader:
+        specifier: ^5.1.1
+        version: 5.1.1(vue@3.5.31(typescript@5.9.3))
+      vue:
+        specifier: ^3.4.21
+        version: 3.5.31(typescript@5.9.3)
+      vue-eslint-parser:
+        specifier: ^10.4.0
+        version: 10.4.0(eslint@9.39.4)
+      vue-i18n:
+        specifier: ^11.4.4
+        version: 11.4.4(vue@3.5.31(typescript@5.9.3))
+      vue-tsc:
+        specifier: ^2.1.6
+        version: 2.2.12(typescript@5.9.3)
+
   packages/cad-google-drive-plugin:
     devDependencies:
       '@mlightcad/cad-simple-viewer':

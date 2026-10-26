@@ -108,7 +108,16 @@ export class AcTrMTextRenderer {
    * {@link AcTrMeshGlyphWorldBatch} instead of per-entity merged meshes.
    * Effective only on main-thread render mode (worker falls back to merge).
    */
-  private _meshGlyphInstancing = true
+  /**
+   * Scene-level InstancedMesh batching for TrueType mesh glyphs (#795).
+   *
+   * Kept off by default: with `placement` output mode the CJK TrueType glyphs
+   * of shipped drawings render as overlapping, vertically sliced shapes
+   * (fonts like simsun/simhei), while the per-entity `merge` path — in use
+   * before #795 — draws them correctly. Re-enable once the upstream placement
+   * fix lands; `setMeshGlyphInstancing(true)` still opts in explicitly.
+   */
+  private _meshGlyphInstancing = false
   private _meshGlyphBatch = new AcTrMeshGlyphWorldBatch()
   /**
    * Fonts successfully pushed into the active worker pool (or main renderer)
