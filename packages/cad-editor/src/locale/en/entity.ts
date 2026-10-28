@@ -231,6 +231,7 @@ export default {
     patternName: 'Name',
     patternAngle: 'Angle',
     patternScale: 'Scale',
+    annotative: 'Annotative',
     patternDouble: 'Double',
     associative: 'Associative',
     backgroundColor: 'Background Color',

@@ -231,6 +231,7 @@ export default {
     patternName: 'Název',
     patternAngle: 'Úhel',
     patternScale: 'Měřítko',
+    annotative: 'Anotační',
     patternDouble: 'Dvojité',
     associative: 'Asociativní',
     backgroundColor: 'Barva pozadí',

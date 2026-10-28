@@ -207,8 +207,17 @@ jest.mock('../src/command', () => {
     'AcApConvertToPngCmd',
     'AcApEntityPreviewCmd',
     'AcApCopyCmd',
+    'AcApDimAlignedCmd',
+    'AcApDimAngularCmd',
+    'AcApDimArcCmd',
+    'AcApDimBaselineCmd',
+    'AcApDimContinueCmd',
+    'AcApDimDiameterCmd',
     'AcApDimLinearCmd',
+    'AcApDimOrdinateCmd',
+    'AcApDimRadiusCmd',
     'AcApEllipseCmd',
+    'AcApObjectScaleCmd',
     'AcApEraseCmd',
     'AcApHideObjectsCmd',
     'AcApHatchCmd',
@@ -312,13 +321,22 @@ jest.mock('@mlightcad/data-model', () => ({
     LTSCALE: 'LTSCALE',
     CELTSCALE: 'CELTSCALE',
     MODELBKCOLOR: 'MODELBKCOLOR',
-    PAPERBKCOLOR: 'PAPERBKCOLOR'
+    PAPERBKCOLOR: 'PAPERBKCOLOR',
+    CANNOSCALE: 'CANNOSCALE',
+    ANNOALLVISIBLE: 'ANNOALLVISIBLE'
   },
   AcDbSysVarManager: {
     instance: jest.fn(() => ({
       getAllDescriptors: jest.fn(() => []),
       getDescriptor: jest.fn(() => undefined),
-      registerVar: jest.fn()
+      registerVar: jest.fn(),
+      events: {
+        sysVarChanged: {
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn(),
+          dispatch: jest.fn()
+        }
+      }
     }))
   },
   AcGeBox2d: jest.fn(),

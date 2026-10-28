@@ -231,6 +231,7 @@ export default {
     patternName: 'Ad',
     patternAngle: 'Açı',
     patternScale: 'Ölçek',
+    annotative: 'Açıklamalı',
     patternDouble: 'Çift',
     associative: 'İlişkisel',
     backgroundColor: 'Arka Plan Rengi',

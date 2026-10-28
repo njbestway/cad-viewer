@@ -231,6 +231,7 @@ export default {
     patternName: '图案名',
     patternAngle: '角度',
     patternScale: '比例',
+    annotative: '注释性',
     patternDouble: '双向',
     associative: '关联',
     backgroundColor: '背景颜色',

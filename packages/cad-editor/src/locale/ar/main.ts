@@ -33,6 +33,7 @@ export default {
     group: {
       ...enMain.ribbon.group,
       draw: 'رسم',
+      dimension: 'أبعاد',
       modify: 'تعديل',
       layer: 'الطبقات',
       properties: 'الخصائص',
@@ -76,6 +77,7 @@ export default {
       circle: 'دائرة',
       arc: 'قوس',
       ellipse: 'قطع ناقص',
+      dimension: 'أبعاد',
       spline: 'منحنى',
       sketch: 'رسم حر',
       revcloud: 'سحابة مراجعة',
@@ -416,6 +418,9 @@ export default {
 
       text:
         'أنشئ نصًا متعدد الأسطر داخل الرسم.',
+
+      dimension:
+        'أنشئ الأبعاد باستخدام عدة طرق إنشائية.',
 
       move:
         'انقل العناصر المحددة إلى موضع جديد.',
