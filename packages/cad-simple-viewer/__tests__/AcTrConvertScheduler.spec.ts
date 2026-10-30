@@ -140,4 +140,35 @@ describe('convert wave scheduler', () => {
     expect(scheduler.stats.maxSliceMs).toBe(55.5)
     expect(scheduler.stats.entities).toBe(1536)
   })
+
+  test('reports a wave that was abandoned without an endWave', () => {
+    // Phase 2.13 Task D2: the slice loop closes the wave in a `finally`, so an
+    // early return for a replaced document still balances. This counter is what
+    // lets the browser test assert the balance instead of trusting the code.
+    const scheduler = new AcTrConvertScheduler({ enabled: true, budgetMs: 16 })
+    expect(scheduler.stats.openWaves).toBe(0)
+
+    scheduler.beginWave(0)
+    expect(scheduler.stats.openWaves).toBe(1)
+    scheduler.endWave(10)
+    expect(scheduler.stats.openWaves).toBe(0)
+
+    // Reset must not hide an abandoned wave either.
+    scheduler.beginWave(20)
+    scheduler.resetStats()
+    expect(scheduler.stats.openWaves).toBe(1)
+    expect(scheduler.stats.waves).toBe(0)
+
+    // A double close is clamped instead of going negative.
+    scheduler.endWave(30)
+    scheduler.endWave(40)
+    expect(scheduler.stats.openWaves).toBe(0)
+  })
+
+  test('a disabled scheduler keeps the wave balance at zero', () => {
+    const scheduler = new AcTrConvertScheduler({ enabled: false, budgetMs: 16 })
+    scheduler.beginWave(0)
+    scheduler.endWave(10)
+    expect(scheduler.stats).toMatchObject({ waves: 0, openWaves: 0, yields: 0, slices: 0 })
+  })
 })

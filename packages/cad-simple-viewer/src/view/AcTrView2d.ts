@@ -183,6 +183,16 @@ export interface AcTrLatencyExperimentOptions {
   convertSliceBudgetMs: number
   /** Upper bound on entities per convert slice. */
   convertSliceMax: number
+  /**
+   * Entities per *preparation* chunk inside a wave prefix. `0` (the production
+   * default) keeps classify/bump synchronous in one task.
+   *
+   * Only the two loops that touch local arrays and revision counters are
+   * chunked. `removeEntities` stays atomic: splitting it would expose a scene
+   * whose drawables and spatial index disagree, which is not observable state
+   * this build is allowed to hand out.
+   */
+  wavePrefixChunkMax: number
   /** Deferred glyph/INSERT jobs allowed to run in parallel. */
   deferredGeometryConcurrency: number
   /** Wall time a deferred burst may run before it yields (ms). */
@@ -197,6 +207,7 @@ const DEFAULT_LATENCY_EXPERIMENT: AcTrLatencyExperimentOptions = {
   progressiveOpenYieldBudgetMs: 32,
   convertSliceBudgetMs: 64,
   convertSliceMax: AC_TR_ENTITY_UPDATE_SLICE_MAX,
+  wavePrefixChunkMax: 0,
   deferredGeometryConcurrency: 8,
   deferredGeometryYieldBudgetMs: 50
 }
@@ -219,6 +230,20 @@ const DEFAULT_LATENCY_EXPERIMENT: AcTrLatencyExperimentOptions = {
  *   re-checked between fragments and not only once before the first one.
  * - `committed` — the drawable is in the scene, so only a removal can undo it.
  *
+ * Phase 2.13 adds the wave-level stages below. They fire from
+ * {@link AcTrView2d.applyEntityUpdates}, pass an empty object id, and exist so a
+ * test can pause *between* the prefix and a slice, or between a resumed yield
+ * and the epoch re-validation that follows it.
+ *
+ * - `wavePrefix` — a coalesced wave was taken, nothing has been removed or
+ *   invalidated yet.
+ * - `waveFirstSlice` — the first `batchConvert` slice resolved.
+ * - `waveYieldPending` — about to ask the scheduler whether to leave the task.
+ * - `waveYieldResumed` — the macrotask boundary resolved, the epoch has *not*
+ *   been re-checked yet.
+ * - `waveLastSlice` — the final slice is about to convert.
+ * - `waveEnd` — every slice is converted and the wave is closing.
+ *
  * Used by {@link AcTrView2d.setConvertDebugHook}; production never installs a
  * hook, so every stage costs one falsy field check.
  */
@@ -228,6 +253,12 @@ export type AcTrConvertDebugStage =
   | 'beforeCommit'
   | 'groupLayer'
   | 'committed'
+  | 'wavePrefix'
+  | 'waveFirstSlice'
+  | 'waveYieldPending'
+  | 'waveYieldResumed'
+  | 'waveLastSlice'
+  | 'waveEnd'
 
 /**
  * Options to customize view
@@ -3614,6 +3645,31 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * Runs the test hook for one wave-level stage and reports whether the wave may
+   * continue.
+   *
+   * Reads the field on every call instead of caching it, so a test can drop the
+   * hook from inside a paused stage. Callers guard on the return value, so a
+   * production wave pays one falsy check per slice and no extra microtask.
+   *
+   * The hook is itself a suspension point, which means it can outlive the
+   * document the wave belongs to. Returning `false` when the epoch moved keeps a
+   * paused wave from converting the old entity list into the new session's scene;
+   * the caller then bails out of the whole wave instead of continuing with a
+   * stale reference.
+   */
+  private async pauseWave(
+    stage: AcTrConvertDebugStage,
+    epoch: number
+  ): Promise<boolean> {
+    const hook = this._convertDebugHook
+    if (hook) {
+      await hook(stage, '')
+    }
+    return epoch === this._convertEpoch
+  }
+
+  /**
    * Runs the test hook for one stage and reports whether the session is still
    * the one the task was started in (the hook may await for a long time).
    */
@@ -3727,87 +3783,181 @@ export class AcTrView2d extends AcEdBaseView {
   private async applyEntityUpdates(entities: AcDbEntity[]): Promise<void> {
     if (entities.length === 0) return
 
+    // A wave belongs to the document that queued it. The epoch is taken *before*
+    // the first suspension point, not after: `applyEntityUpdates` awaits the open
+    // drain and, in a debug build, a pause hook, and a document swap that lands
+    // during either of them would otherwise be read as the current epoch. The
+    // wave would then claim ids and commit geometry into the new session — the
+    // exact "old task writes into new state" case Task D exists to rule out.
+    const epoch = this._convertEpoch
+
     // A progressive open drain may still be converting these ids. Removing the
     // drawable while that pass is between `drawEntity` and `_scene.addEntity`
     // would let it commit stale geometry right after our removal, and the two
     // convert passes would race for the same claim. Wait for it to settle.
     if (this._convertDrainPromise) {
       await this._convertDrainPromise.catch(() => undefined)
+      if (epoch !== this._convertEpoch) return
     }
 
-    const objectIds: AcDbObjectId[] = []
+    // Task D pause point: the wave is taken, but nothing has been classified,
+    // removed or invalidated yet. Holding here is what makes "prefix versus
+    // concurrent edit" testable instead of timing-dependent.
+    if (!(await this.pauseWave('wavePrefix', epoch))) return
+
+    // Phase timings for the report. `recordPhase` is a no-op on a disabled
+    // scheduler, so this costs one branch per phase, not per entity.
+    const phaseClock = this._convertScheduler
+    // Phase 2.13 Task E3 - chunk the *preparation* half of the wave only.
+    //
+    // `classify` fills local arrays and `bump` invalidates revisions, so a yield
+    // between two chunks leaves the scene exactly as it was before the wave
+    // started: an outside reader observes "wave not started", never "half
+    // removed". `removeEntities` stays atomic on purpose; splitting it would
+    // expose drawables and a spatial index that disagree, which needs the
+    // versioned ready state described in PHASE213_WAVE_PREFIX_DESIGN.md.
+    //
+    // Zero - the production default - adds no yield at all and restores the
+    // single-task prefix byte for byte.
+    const prefixChunk = Math.max(0, this._latencyExperiment.wavePrefixChunkMax)
+    let phaseStart = performance.now()
+    // Declared outside the `try` because the highlight refresh after the wave
+    // still needs it.
     const selectedIds: AcDbObjectId[] = []
-    const convertible: AcDbEntity[] = []
-    const seen = new Set<string>()
+    // Entities this wave registered as pending, and how many a convert pass
+    // actually took. A cancelled wave handled fewer than it promised, and the
+    // difference has to come back out of the counter (see the `finally`).
+    let pendingAdded = 0
+    let handled = 0
+    phaseClock.beginWave(performance.now())
 
-    for (let i = 0; i < entities.length; i++) {
-      const item = entities[i]
-      const objectId = String(item?.objectId ?? '')
-      if (!objectId || seen.has(objectId)) continue
-      seen.add(objectId)
-      objectIds.push(item.objectId)
-      if (this.selectionSet.has(item.objectId)) selectedIds.push(item.objectId)
-      // Erased while the id was still queued: converting it would append ghost
-      // geometry for a database object that no longer exists.
-      if (this._erasedConvertObjectIds.has(objectId)) continue
-      convertible.push(item)
-    }
+    // `endWave` closes in a `finally`: every `return` below abandons the wave
+    // for a *newer* document, and a wave left open would attribute the next
+    // wave's span to this one.
+    try {
+      const objectIds: AcDbObjectId[] = []
+      const convertible: AcDbEntity[] = []
+      const seen = new Set<string>()
 
-    // Only drop drawables that are actually in the scene. Removing a claimed id
-    // that has not been committed yet would delete nothing while
-    // `batchConvert` still skips it below (it sees the claim), so the entity
-    // would disappear and never come back - e.g. Undo re-appending an id that
-    // `entityModified` already put in this wave.
-    const removable: AcDbObjectId[] = []
-    for (let i = 0; i < objectIds.length; i++) {
-      if (this._scene.hasEntity(objectIds[i])) removable.push(objectIds[i])
-    }
-    if (removable.length > 0) {
-      // One pass over layouts/layers/batches regardless of the wave size, so
-      // 50,000 single-id removals collapse into one compaction per container.
-      this._scene.removeEntities(removable)
-    }
-    this._isDirty = true
-
-    if (convertible.length > 0) {
-      const epoch = this._convertEpoch
-      // Re-assert the invalidation immediately before converting. `onEnqueue`
-      // already bumped the generation, but a convert pass that started in the
-      // window since then may have claimed the id again; `batchConvert` skips
-      // claimed ids, so the wave would silently drop the entity.
-      for (let i = 0; i < convertible.length; i++) {
-        const objectId = String(convertible[i]?.objectId ?? '')
-        if (!objectId) continue
-        this._entityConvertGeneration.set(
-          objectId,
-          (this._entityConvertGeneration.get(objectId) ?? 0) + 1
-        )
-        this._claimedConvertObjectIds.delete(objectId)
-      }
-      // batchConvert does not self-increment: every caller owns the paired
-      // "increase before convert" (see the open drain and addEntity).
-      this._numOfEntitiesToProcess += convertible.length
-      // Slice the convert so one huge wave still yields like the open drain:
-      // a 50,000-entity MOVE must not block the main thread in one call.
-      const sliceSize = Math.max(1, this._latencyExperiment.convertSliceMax)
-      const scheduler = this._convertScheduler
-      scheduler.beginWave(performance.now())
-      for (let offset = 0; offset < convertible.length; offset += sliceSize) {
-        if (epoch !== this._convertEpoch) return
-        // The slice loop owns the slices, so it must own the yield too: `await`
-        // on `batchConvert` resumes in a microtask and leaves the task open for
-        // the whole wave (98 slices, 2834 ms in the 50k profile).
-        if (await scheduler.maybeYield(performance.now())) {
+      for (let i = 0; i < entities.length; i++) {
+        const item = entities[i]
+        const objectId = String(item?.objectId ?? '')
+        if (!objectId || seen.has(objectId)) continue
+        seen.add(objectId)
+        objectIds.push(item.objectId)
+        if (this.selectionSet.has(item.objectId)) selectedIds.push(item.objectId)
+        // Erased while the id was still queued: converting it would append ghost
+        // geometry for a database object that no longer exists.
+        if (this._erasedConvertObjectIds.has(objectId)) continue
+        convertible.push(item)
+        if (prefixChunk > 0 && seen.size % prefixChunk === 0) {
+          phaseClock.recordPhase('classify', performance.now() - phaseStart)
+          phaseStart = performance.now()
+          await phaseClock.maybeYield(performance.now())
           if (epoch !== this._convertEpoch) return
         }
-        const count = Math.min(sliceSize, convertible.length - offset)
-        const sliceStarted = performance.now()
-        await this.batchConvert(convertible.slice(offset, offset + sliceSize))
-        scheduler.recordSlice(performance.now() - sliceStarted, count)
       }
-      scheduler.endWave(performance.now())
-      if (epoch !== this._convertEpoch) return
-      await this.waitUntilDeferredGeometryIdle()
+
+      // Only drop drawables that are actually in the scene. Removing a claimed id
+      // that has not been committed yet would delete nothing while
+      // `batchConvert` still skips it below (it sees the claim), so the entity
+      // would disappear and never come back - e.g. Undo re-appending an id that
+      // `entityModified` already put in this wave.
+      const removable: AcDbObjectId[] = []
+      for (let i = 0; i < objectIds.length; i++) {
+        if (this._scene.hasEntity(objectIds[i])) removable.push(objectIds[i])
+        if (prefixChunk > 0 && (i + 1) % prefixChunk === 0) {
+          phaseClock.recordPhase('classify', performance.now() - phaseStart)
+          phaseStart = performance.now()
+          await phaseClock.maybeYield(performance.now())
+          if (epoch !== this._convertEpoch) return
+        }
+      }
+      phaseClock.recordPhase('classify', performance.now() - phaseStart)
+      phaseStart = performance.now()
+      if (removable.length > 0) {
+        // One pass over layouts/layers/batches regardless of the wave size, so
+        // 50,000 single-id removals collapse into one compaction per container.
+        this._scene.removeEntities(removable)
+      }
+      phaseClock.recordPhase('removal', performance.now() - phaseStart)
+      phaseStart = performance.now()
+      this._isDirty = true
+
+      if (convertible.length > 0) {
+        // Re-assert the invalidation immediately before converting. `onEnqueue`
+        // already bumped the generation, but a convert pass that started in the
+        // window since then may have claimed the id again; `batchConvert` skips
+        // claimed ids, so the wave would silently drop the entity.
+        for (let i = 0; i < convertible.length; i++) {
+          const objectId = String(convertible[i]?.objectId ?? '')
+          if (!objectId) continue
+          this._entityConvertGeneration.set(
+            objectId,
+            (this._entityConvertGeneration.get(objectId) ?? 0) + 1
+          )
+          this._claimedConvertObjectIds.delete(objectId)
+          if (prefixChunk > 0 && (i + 1) % prefixChunk === 0) {
+            phaseClock.recordPhase('bump', performance.now() - phaseStart)
+            phaseStart = performance.now()
+            await phaseClock.maybeYield(performance.now())
+            if (epoch !== this._convertEpoch) return
+          }
+        }
+        phaseClock.recordPhase('bump', performance.now() - phaseStart)
+        // batchConvert does not self-increment: every caller owns the paired
+        // "increase before convert" (see the open drain and addEntity).
+        this._numOfEntitiesToProcess += convertible.length
+        pendingAdded = convertible.length
+        // Slice the convert so one huge wave still yields like the open drain:
+        // a 50,000-entity MOVE must not block the main thread in one call.
+        const sliceSize = Math.max(1, this._latencyExperiment.convertSliceMax)
+        const total = convertible.length
+        for (let offset = 0; offset < total; offset += sliceSize) {
+          if (epoch !== this._convertEpoch) return
+          if (!(await this.pauseWave('waveYieldPending', epoch))) return
+          // The slice loop owns the slices, so it must own the yield too: `await`
+          // on `batchConvert` resumes in a microtask and leaves the task open for
+          // the whole wave (98 slices, 2834 ms in the 50k profile).
+          if (await phaseClock.maybeYield(performance.now())) {
+            // The epoch is re-checked *after* this stage, not before it: a
+            // document swap during the yield is exactly the window this hook
+            // has to be able to hold open.
+            if (!(await this.pauseWave('waveYieldResumed', epoch))) return
+          }
+          const count = Math.min(sliceSize, total - offset)
+          if (offset + sliceSize >= total) {
+            if (!(await this.pauseWave('waveLastSlice', epoch))) return
+          }
+          const sliceStarted = performance.now()
+          await this.batchConvert(convertible.slice(offset, offset + sliceSize))
+          handled += count
+          const sliceMs = performance.now() - sliceStarted
+          phaseClock.recordSlice(sliceMs, count)
+          phaseClock.recordPhase('convert', sliceMs)
+          if (offset === 0) {
+            if (!(await this.pauseWave('waveFirstSlice', epoch))) return
+          }
+        }
+        if (epoch !== this._convertEpoch) return
+        if (!(await this.pauseWave('waveEnd', epoch))) return
+        const idleStarted = performance.now()
+        await this.waitUntilDeferredGeometryIdle()
+        phaseClock.recordPhase('idle', performance.now() - idleStarted)
+      }
+    } finally {
+      // A wave abandoned for a newer document leaves the entities it never
+      // converted counted as pending forever; nothing else decrements them, and
+      // `getSceneReadiness()` would answer `pending-entities` for the rest of the
+      // session. Restore exactly the remainder, so a cancelled wave is
+      // indistinguishable from one that never ran.
+      if (epoch !== this._convertEpoch && pendingAdded > handled) {
+        this._numOfEntitiesToProcess = Math.max(
+          0,
+          this._numOfEntitiesToProcess - (pendingAdded - handled)
+        )
+      }
+      phaseClock.endWave(performance.now())
     }
 
     if (selectedIds.length > 0) {

@@ -81,6 +81,15 @@ export interface AcTrConvertSchedulerStats {
   budgetMs: number
   /** Convert waves that went through the scheduler. */
   waves: number
+  /**
+   * Waves opened by {@link AcTrConvertScheduler.beginWave} that have not been
+   * closed by {@link AcTrConvertScheduler.endWave} yet.
+   *
+   * Zero whenever no wave is running. A non-zero value at rest means a wave
+   * was abandoned on an early return, which would make the next wave report a
+   * span that includes both.
+   */
+  openWaves: number
   /** `batchConvert` calls the scheduler paced. */
   slices: number
   /** Entities handed to those slices. */
@@ -95,6 +104,15 @@ export interface AcTrConvertSchedulerStats {
   lastTaskMs: number
   /** Last completed wave's total duration, yields included. */
   lastWaveMs: number
+  /**
+   * Per-phase durations of the last completed wave, in milliseconds.
+   *
+   * Phases are named by the caller (`prefix`, `removal`, `convert`, `idle`),
+   * because the split between the wave prefix and the conversion is what
+   * decides whether a remaining long task can be interrupted at all: the prefix
+   * is a synchronous state change, a slice is not.
+   */
+  lastWavePhases: Record<string, number>
   /** Yield primitive actually used. */
   yieldPrimitive: 'scheduler.yield' | 'MessageChannel' | 'setTimeout'
 }
@@ -121,10 +139,12 @@ export class AcTrConvertScheduler {
 
   private _waveStartMs = 0
   private _lastResumeMs = 0
+  private _wavePhases: Record<string, number> = {}
   private _stats: AcTrConvertSchedulerStats = {
     enabled: false,
     budgetMs: ACTR_CONVERT_SCHEDULER_DEFAULT.budgetMs,
     waves: 0,
+    openWaves: 0,
     slices: 0,
     entities: 0,
     yields: 0,
@@ -132,6 +152,7 @@ export class AcTrConvertScheduler {
     maxTaskMs: 0,
     lastTaskMs: 0,
     lastWaveMs: 0,
+    lastWavePhases: {},
     yieldPrimitive: 'setTimeout'
   }
 
@@ -171,6 +192,9 @@ export class AcTrConvertScheduler {
       enabled: this._options.enabled,
       budgetMs: this._options.budgetMs,
       waves: 0,
+      // Deliberately preserved: a reset must not hide a wave that is still
+      // open, or the pairing assertion would pass without a pairing.
+      openWaves: this._stats.openWaves,
       slices: 0,
       entities: 0,
       yields: 0,
@@ -178,13 +202,26 @@ export class AcTrConvertScheduler {
       maxTaskMs: 0,
       lastTaskMs: 0,
       lastWaveMs: 0,
+      lastWavePhases: { ...this._wavePhases },
       yieldPrimitive: this._primitive
     }
   }
 
   /** Snapshot for tests and reports. */
   get stats(): Readonly<AcTrConvertSchedulerStats> {
-    return { ...this._stats, yieldPrimitive: this._primitive }
+    return { ...this._stats, lastWavePhases: { ...this._wavePhases }, yieldPrimitive: this._primitive }
+  }
+
+  /**
+   * Adds one phase duration to the wave currently being measured.
+   *
+   * Phases accumulate by name, so a caller can time every slice as `convert`
+   * without allocating per slice. Cleared by {@link beginWave}; a disabled
+   * scheduler ignores it, which keeps the production path to one boolean test.
+   */
+  recordPhase(name: string, ms: number): void {
+    if (!this._options.enabled) return
+    this._wavePhases[name] = Math.round(((this._wavePhases[name] ?? 0) + ms) * 10) / 10
   }
 
   /**
@@ -195,7 +232,9 @@ export class AcTrConvertScheduler {
     if (!this._options.enabled) return
     this._waveStartMs = now
     this._lastResumeMs = now
+    this._wavePhases = {}
     this._stats.waves++
+    this._stats.openWaves++
   }
 
   /**
@@ -230,6 +269,9 @@ export class AcTrConvertScheduler {
     this.recordTaskSpan(now)
     this._stats.lastTaskMs = Math.round((now - this._lastResumeMs) * 10) / 10
     this._stats.lastWaveMs = Math.round((now - this._waveStartMs) * 10) / 10
+    this._stats.lastWavePhases = { ...this._wavePhases }
+    // Clamped so a double close cannot fake a negative depth.
+    this._stats.openWaves = Math.max(0, this._stats.openWaves - 1)
   }
 
   private recordTaskSpan(now: number): void {
