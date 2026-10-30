@@ -2,6 +2,16 @@ import { defineConfig, devices } from '@playwright/test'
 
 const PORT = 4173
 const BASE_URL = `http://127.0.0.1:${PORT}`
+/**
+ * Phase 2.12 Task E runs the same spec against the dev server and against the
+ * production bundle. A scheduling change can look different once Vite stops
+ * serving module-per-file and the tree is minified, so `P212_SERVE=prod`
+ * switches the webServer to `vite preview` over an existing `dist`.
+ *
+ *   pnpm --filter @mlightcad/cad-editor-demo exec vite build
+ *   $env:P212_SERVE='prod'; npx playwright test e2e/tests/phase212-browser-ab.spec.ts
+ */
+const SERVE = process.env.P212_SERVE === 'prod' ? 'preview' : 'dev'
 const defaultChannel = process.platform === 'win32' ? 'msedge' : 'chrome'
 const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL ?? defaultChannel
 
@@ -23,7 +33,7 @@ export default defineConfig({
     video: 'off'
   },
   webServer: {
-    command: `pnpm dev --host 127.0.0.1 --port ${PORT}`,
+    command: `pnpm ${SERVE} --host 127.0.0.1 --port ${PORT}`,
     url: BASE_URL,
     // Avoid accidentally reusing unrelated local processes that happen to bind the port.
     // We always start a dedicated Vite server for e2e to keep behavior stable across shells.

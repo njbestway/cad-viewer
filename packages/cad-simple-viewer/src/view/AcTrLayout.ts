@@ -5,6 +5,11 @@ import {
   AcTrEntityPreview,
   AcTrGroup,
   AcTrMTextRenderer,
+  addSlotLifecycleMetrics,
+  createSlotLifecycleTotals,
+  type AcTrBatchSlotLifecycleTotals,
+  type AcTrSharedBatchEntry,
+  type AcTrSharedBatchLifecycleMetrics,
   disposePreviewSubset
 } from '@mlightcad/three-renderer'
 import * as THREE from 'three'
@@ -265,6 +270,36 @@ export class AcTrLayout {
    */
   get spatialIndexStats() {
     return this._spatialIndex.getStats()
+  }
+
+  /**
+   * Number of ids this layout's spatial index can answer queries with.
+   *
+   * Readiness checks compare it against the scene: a scene entry that is not in
+   * the index yet makes box selection and smart extents report a partially
+   * loaded drawing.
+   */
+  get spatialIndexItemCount() {
+    const stats = this._spatialIndex.getStats()
+    return stats.itemCount + (stats.childItemCount ?? 0)
+  }
+
+  /** Every id registered in this layout's spatial index, both levels flattened. */
+  get spatialIndexIds(): string[] {
+    return this._spatialIndex.all().map(item => String(item.id))
+  }
+
+  /**
+   * Ids of the first-level (entity) items only.
+   *
+   * {@link spatialIndexIds} flattens the hierarchy: an INSERT that owns a child
+   * index contributes its *children* and not its own object id. Coverage checks
+   * need the opposite view — one id per drawable entity — because a block
+   * reference whose child index was materialised by a query would otherwise look
+   * unindexed.
+   */
+  get spatialIndexRootIds(): string[] {
+    return this._spatialIndex.rootItems().map(item => String(item.id))
   }
 
   /**
@@ -529,6 +564,194 @@ export class AcTrLayout {
       this.invalidateBox()
     }
     return result
+  }
+
+  /**
+   * Removes many entities from this layout in one pass.
+   *
+   * Every layer is visited once (an INSERT can split its fragments across
+   * layers), each batched container is compacted once, and the layout bounding
+   * box is invalidated once instead of once per entity.
+   *
+   * @param objectIds - Object ids of the entities to remove
+   * @returns Ids that were actually present and removed, in input order
+   */
+  removeEntities(objectIds: readonly AcDbObjectId[]): AcDbObjectId[] {
+    if (objectIds.length === 0) {
+      return []
+    }
+
+    const ids: string[] = []
+    const seen = new Set<string>()
+    for (const raw of objectIds) {
+      const id = String(raw)
+      if (id.length > 0 && !seen.has(id)) {
+        seen.add(id)
+        ids.push(id)
+      }
+    }
+    if (ids.length === 0) {
+      return []
+    }
+
+    const removedSet = new Set<string>()
+    for (const [_, layer] of this._layers) {
+      const layerRemoved = layer.removeEntities(ids)
+      for (const id of layerRemoved) {
+        removedSet.add(String(id))
+      }
+    }
+    if (removedSet.size === 0) {
+      return []
+    }
+
+    const removed = ids.filter(id => removedSet.has(id))
+    this._spatialIndex.removeByIds(removed)
+    for (const id of removed) {
+      this._extentExcludedObjectIds.delete(id)
+      this._insertLayerByObjectId.delete(id)
+    }
+    this.invalidateBox()
+    return removed
+  }
+
+  /**
+   * Releases block-template batches that stayed empty past the grace period in
+   * every layer of this layout.
+   *
+   * @param graceMs - Override for the group's default grace period.
+   * @returns The summed reclamation counts, so the caller can tell whether a
+   *   boundary actually reclaimed anything, and when a retry could help.
+   */
+  sweepEmptySharedBatches(graceMs?: number) {
+    let evicted = 0
+    let revived = 0
+    let deferred = 0
+    let disposedTemplateGeometries = 0
+    let retryInMs = 0
+    for (const layer of this._layers.values()) {
+      const result = layer.sweepEmptySharedBatches(graceMs)
+      evicted += result.evicted
+      revived += result.revived
+      deferred += result.deferred
+      disposedTemplateGeometries += result.disposedTemplateGeometries
+      retryInMs = Math.max(retryInMs, result.retryInMs)
+    }
+    return { evicted, revived, deferred, disposedTemplateGeometries, retryInMs }
+  }
+
+  /** Shared block-template batch counters summed over this layout's layers. */
+  getSharedBatchMetrics() {
+    const total: AcTrSharedBatchLifecycleMetrics = {
+      created: 0,
+      reused: 0,
+      emptied: 0,
+      evicted: 0,
+      disposed: 0,
+      activeBatches: 0,
+      emptyBatches: 0,
+      activeInstances: 0,
+      templateGeometryCount: 0,
+      uniqueTemplateUUIDCount: 0,
+      peakSlotCapacity: 0,
+      missNewTemplateUuid: 0,
+      missNoMergeableOrigin: 0,
+      missEvictedTemplate: 0,
+      missNewMaterialId: 0,
+      missNewKind: 0
+    }
+    const uuids = new Set<string>()
+    for (const layer of this._layers.values()) {
+      const metrics = layer.sharedBatchMetrics
+      total.created += metrics.created
+      total.reused += metrics.reused
+      total.emptied += metrics.emptied
+      total.evicted += metrics.evicted
+      total.disposed += metrics.disposed
+      total.activeBatches += metrics.activeBatches
+      total.emptyBatches += metrics.emptyBatches
+      total.activeInstances += metrics.activeInstances
+      total.templateGeometryCount += metrics.templateGeometryCount
+      total.peakSlotCapacity = Math.max(
+        total.peakSlotCapacity,
+        metrics.peakSlotCapacity
+      )
+      total.missNewTemplateUuid += metrics.missNewTemplateUuid
+      total.missNoMergeableOrigin += metrics.missNoMergeableOrigin
+      total.missEvictedTemplate += metrics.missEvictedTemplate
+      total.missNewMaterialId += metrics.missNewMaterialId
+      total.missNewKind += metrics.missNewKind
+      for (const entry of layer.sharedBatchEntries) uuids.add(entry.sourceUuid)
+    }
+    total.uniqueTemplateUUIDCount = uuids.size
+    return total
+  }
+
+  /**
+   * Packed-slot lifecycle counters summed over this layout's layers.
+   *
+   * A batch lives on exactly one layer group, so folding layer totals is the
+   * same arithmetic as folding per-batch metrics; the container counts are the
+   * only fields {@link addSlotLifecycleMetrics} does not carry.
+   */
+  getSlotLifecycleMetrics(): AcTrBatchSlotLifecycleTotals {
+    const total = createSlotLifecycleTotals()
+    for (const layer of this._layers.values()) {
+      const metrics = layer.slotLifecycleMetrics
+      addSlotLifecycleMetrics(total, metrics)
+      total.batchCount += metrics.batchCount
+      total.batchCountLive += metrics.batchCountLive
+      total.batchCountAllFreed += metrics.batchCountAllFreed
+    }
+    return total
+  }
+
+  /** One entry per registered shared batch across this layout's layers. */
+  getSharedBatchEntries() {
+    const entries: AcTrSharedBatchEntry[] = []
+    for (const [layerName, layer] of this._layers) {
+      for (const entry of layer.sharedBatchEntries) {
+        entries.push({ ...entry, layerName } as AcTrSharedBatchEntry & {
+          layerName: string
+        })
+      }
+    }
+    return entries
+  }
+
+  /** Enables per-miss classification on every layer of this layout. */
+  setSharedBatchDiagnostics(enabled: boolean) {
+    for (const layer of this._layers.values()) {
+      layer.setSharedBatchDiagnostics(enabled)
+    }
+  }
+
+  /** Every shared batch created in this layout's layers, in creation order. */
+  getSharedBatchCreateLog() {
+    const log: Array<{
+      key: string
+      reason: string
+      objectId: string
+      batchId: number
+      layerName: string
+    }> = []
+    for (const [layerName, layer] of this._layers) {
+      for (const entry of layer.getSharedBatchCreateLog()) {
+        log.push({ ...entry, layerName })
+      }
+    }
+    return log
+  }
+
+  /**
+   * Adds every object id this layout can currently draw into `target`.
+   *
+   * Readiness compares this against the database id set; the difference is the
+   * work that is registered but not yet committed to the scene.
+   */
+  collectObjectIds(target: Set<string> = new Set<string>()) {
+    for (const layer of this._layers.values()) layer.collectObjectIds(target)
+    return target
   }
 
   /**

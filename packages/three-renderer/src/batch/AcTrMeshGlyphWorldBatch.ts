@@ -328,14 +328,30 @@ export class AcTrMeshGlyphWorldBatch {
    * until convert drains — without this, every cursor sample appears at once.
    */
   clearPendingByObjectId(objectId: string): boolean {
-    if (!objectId || this._buckets.size === 0) {
+    if (!objectId) {
+      return false
+    }
+    return this.clearPendingByObjectIds(new Set([objectId]))
+  }
+
+  /**
+   * Drops not-yet-flushed placements for many object ids in one bucket pass.
+   *
+   * Calls the single-id version once per entity would rescan every bucket for
+   * every entity, which is quadratic on a bulk erase of text-heavy drawings.
+   *
+   * @param objectIds Ids whose pending placements should be dropped.
+   * @returns `true` when at least one placement was dropped.
+   */
+  clearPendingByObjectIds(objectIds: ReadonlySet<string>): boolean {
+    if (objectIds.size === 0 || this._buckets.size === 0) {
       return false
     }
     let removed = false
     for (const [key, bucket] of this._buckets) {
       let write = 0
       for (let i = 0; i < bucket.objectIds.length; i++) {
-        if (bucket.objectIds[i] === objectId) {
+        if (objectIds.has(bucket.objectIds[i])) {
           removed = true
           this._placementCount = Math.max(0, this._placementCount - 1)
           continue
@@ -353,29 +369,69 @@ export class AcTrMeshGlyphWorldBatch {
         bucket.matrices.length = write
       }
     }
-    this._startHiddenObjectIds.delete(objectId)
+    objectIds.forEach(objectId => this._startHiddenObjectIds.delete(objectId))
     return removed
   }
 
   /** Hides and forgets slots for a removed entity. */
   removeByObjectId(objectId: string): boolean {
-    const clearedPending = this.clearPendingByObjectId(objectId)
-    const slots = this._slotsByObjectId.get(objectId)
-    const hadSlots = !!slots?.length
-    this._selectedIds.delete(objectId)
-    this._hoveredIds.delete(objectId)
-    this.clearHighlights(objectId)
-    // Scale-0 every live slot before dropping the map entry so forgotten
-    // instances cannot stay visible after grip move / entity rebuild.
-    if (slots) {
-      for (const slot of slots) {
-        this.writeSlotVisible(slot, false)
+    const id = String(objectId ?? '')
+    if (id.length === 0) {
+      return false
+    }
+    const clearedPending = this.clearPendingByObjectIds(new Set([id]))
+    return this.dropLiveSlots([id]) > 0 || clearedPending
+  }
+
+  /**
+   * Hides and forgets slots for many removed entities in one pass.
+   *
+   * @param objectIds Ids of the removed entities.
+   * @returns Number of entities that had live instance slots.
+   */
+  removeByObjectIds(objectIds: Iterable<string>): number {
+    const ids = new Set<string>()
+    for (const raw of objectIds) {
+      const id = String(raw)
+      if (id.length > 0) {
+        ids.add(id)
       }
     }
-    this._slotsByObjectId.delete(objectId)
-    this._worldPickBoxByObjectId.delete(objectId)
-    this._startHiddenObjectIds.delete(objectId)
-    return hadSlots || clearedPending
+    if (ids.size === 0) {
+      return 0
+    }
+
+    this.clearPendingByObjectIds(ids)
+    return this.dropLiveSlots(ids)
+  }
+
+  /**
+   * Scale-hides live instance slots and forgets every per-id record.
+   *
+   * Hiding before dropping the map entry keeps forgotten instances from
+   * staying visible after a grip move or entity rebuild.
+   *
+   * @param ids Ids whose live slots should be released.
+   * @returns Number of ids that owned at least one live slot.
+   */
+  private dropLiveSlots(ids: Iterable<string>): number {
+    let removedCount = 0
+    for (const objectId of ids) {
+      const slots = this._slotsByObjectId.get(objectId)
+      if (slots?.length) {
+        removedCount++
+        for (const slot of slots) {
+          this.writeSlotVisible(slot, false)
+        }
+      }
+      this._selectedIds.delete(objectId)
+      this._hoveredIds.delete(objectId)
+      this.clearHighlights(objectId)
+      this._slotsByObjectId.delete(objectId)
+      this._worldPickBoxByObjectId.delete(objectId)
+      this._startHiddenObjectIds.delete(objectId)
+    }
+    return removedCount
   }
 
   /** Drops GPU objects and queued placements. */

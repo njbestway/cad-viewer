@@ -158,6 +158,26 @@ export class AcTrHierarchicalSpatialIndex implements AcTrSpatialIndex {
   }
 
   /**
+   * Removes many first-level items by id and clears their child indexes.
+   *
+   * @param ids Ids of the root items to remove.
+   */
+  removeByIds(ids: readonly AcDbObjectId[]): void {
+    const bulkRemove = this.rootIndex.removeByIds?.bind(this.rootIndex)
+    if (bulkRemove) {
+      bulkRemove(ids)
+    } else {
+      for (const id of ids) {
+        this.rootIndex.removeById(id)
+      }
+    }
+    for (const id of ids) {
+      this.childIndexes.delete(id)
+      this.lazyChildren.delete(id)
+    }
+  }
+
+  /**
    * Clears all indexed data from both hierarchy levels.
    *
    * This method clears the root index, then clears each child index instance,
@@ -270,6 +290,20 @@ export class AcTrHierarchicalSpatialIndex implements AcTrSpatialIndex {
       const child = this.childIndexes.get(hit.id)
       return child ? child.collides(bbox) : true
     })
+  }
+
+  /**
+   * Returns the first-level items only, one per entity.
+   *
+   * Unlike {@link all}, a root item that owns a child index is returned as the
+   * root and its children are not expanded, so the result is the set of ids the
+   * index can answer *entity* queries with. Readiness / coverage checks need
+   * this view; extents queries that need every sub-box use {@link all}.
+   *
+   * @returns Root-level items, in index order.
+   */
+  rootItems(): AcEdSpatialQueryResultItem[] {
+    return this.rootIndex.all() as AcEdSpatialQueryResultItem[]
   }
 
   /**

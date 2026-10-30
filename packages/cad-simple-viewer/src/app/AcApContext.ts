@@ -19,6 +19,19 @@ function asEntityList(entity: AcDbEntity | AcDbEntity[]): AcDbEntity[] {
 }
 
 /**
+ * True when the entity is a direct member of model space or of a paper-space
+ * layout, i.e. something the view draws as a top-level entity.
+ *
+ * Block-definition members are excluded on purpose: they are drawn as part of
+ * their INSERT and never own a scene entry, so add/erase notifications for them
+ * must not reach the view.
+ */
+function isLayoutSpaceEntity(doc: AcApDocument, entity: AcDbEntity) {
+  const owner = doc.database.tables.blockTable.getIdAt(entity.ownerId)
+  return !!(owner && (owner.isModelSapce || owner.isPaperSapce))
+}
+
+/**
  * Application context that binds a CAD document with its associated view.
  *
  * This class establishes the connection between a CAD document (containing the drawing database)
@@ -88,8 +101,7 @@ export class AcApContext {
       // (ghost dim text at every cursor sample, visible only after pan/flush).
       const pending = asEntityList(args.entity).filter(entity => {
         if (this.view.hasEntity(entity.objectId)) return false
-        const owner = doc.database.tables.blockTable.getIdAt(entity.ownerId)
-        return !!(owner && (owner.isModelSapce || owner.isPaperSapce))
+        return isLayoutSpaceEntity(doc, entity)
       })
       if (pending.length === 0) {
         return
@@ -119,6 +131,32 @@ export class AcApContext {
     // Erase entity
     bind(doc.database.events.entityErased, args => {
       if (!this._active) return
+      if (this.view instanceof AcTrView2d) {
+        // Hand *every* erased layout-space entity to the view, not only the ones
+        // it already renders or has claimed.
+        //
+        // The previous filter was `hasEntity || claimed`, which has a third
+        // state it cannot see: an id sitting in `_convertQueue` that is neither
+        // in the scene nor claimed yet. Those ids were dropped here, never
+        // entered the view's erase tombstone, and the pending convert appended
+        // ghost geometry for a deleted database object (measured on a 10k open:
+        // 445 of 500 erased ids were still drawable, 9945 drawables for a
+        // 9500-entity database).
+        //
+        // `removeEntity()` is already idempotent, already no-ops when the id has
+        // no drawable, and the tombstone it writes is the only erase state the
+        // convert pipeline consults. That is why the convert queue is not
+        // mirrored into a second id set here: two sets would have to agree on
+        // enqueue, dequeue, cancel, error and document-destroy paths forever.
+        const pending = asEntityList(args.entity).filter(entity =>
+          isLayoutSpaceEntity(doc, entity)
+        )
+        if (pending.length > 0) {
+          this.view.removeEntity(pending.length === 1 ? pending[0] : pending)
+        }
+        return
+      }
+      // Views without an async convert pipeline only own ids they already drew.
       const pending = asEntityList(args.entity).filter(entity =>
         this.view.hasEntity(entity.objectId)
       )

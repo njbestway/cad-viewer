@@ -71,3 +71,6 @@ caddata
 *.ts.bench-bak
 .bench-out/
 target
+reports
+docs/performance
+benchmarks

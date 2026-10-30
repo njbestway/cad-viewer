@@ -488,6 +488,16 @@ export class AcApDocManager {
   private _openFileProgress: AcApOpenFileProgressController
   /** Optional OPENPROF session profiler (console stage timings) */
   private _openFileProfiler = new AcApOpenFileProfiler()
+  /**
+   * Release for the in-flight document-open work token.
+   *
+   * Held from {@link onBeforeOpenDocument} until the database parse and the
+   * `entityAppended` registration stream are both finished, so
+   * `waitUntilSceneReady` cannot observe a scene that has not received its
+   * entities yet. Released defensively in `onAfterOpenDocument` (which runs for
+   * failed opens too) and dropped by the view on teardown.
+   */
+  private _documentOpenRelease: (() => void) | null = null
   /** Command manager */
   private _commandManager: AcEdCommandStack
   /** Plugin manager */
@@ -2368,6 +2378,16 @@ export class AcApDocManager {
     void this.ensurePresetFontsForOpen()
     // OPENPROF: start stage timings before db.read / entity flush.
     this._openFileProfiler.begin(this.context.doc.database)
+    // Phase 2.9: the parse and the entity-registration stream that follows it
+    // are not visible to any convert counter. Take a token for that window so
+    // scene readiness does not report a half-loaded drawing.
+    this._documentOpenRelease?.()
+    // Guarded so a test double standing in for the view (font/URL specs) does
+    // not have to implement the readiness contract.
+    this._documentOpenRelease =
+      typeof this.openProgressView.beginDocumentOpen === 'function'
+        ? this.openProgressView.beginDocumentOpen()
+        : null
   }
 
   /**
@@ -2391,6 +2411,11 @@ export class AcApDocManager {
     isSuccess: boolean,
     options?: AcApOpenDatabaseOptions
   ) {
+    // The parse finished (successfully or not) and every `entityAppended` has
+    // been dispatched, which is where the convert counters take over. Releasing
+    // here also covers a failed open: the token must not outlive its document.
+    this._documentOpenRelease?.()
+    this._documentOpenRelease = null
     const recoveredPartialContent =
       !isSuccess && this.hasRecoverablePartialContent()
     if (isSuccess || recoveredPartialContent) {

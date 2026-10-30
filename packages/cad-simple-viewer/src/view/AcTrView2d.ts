@@ -27,8 +27,8 @@ import {
   acgiForegroundColorForBackground,
   AcGiMTextAttachmentPoint,
   AcGiViewport,
-  log
-} from '@mlightcad/data-model'
+  log,
+  TEMP_OBJECT_ID_PREFIX} from '@mlightcad/data-model'
 import { AcDbSystemVariables } from '@mlightcad/data-model'
 import { FontManager } from '@mlightcad/mtext-renderer'
 import {
@@ -42,7 +42,11 @@ import {
   AcTrShape,
   AcTrViewportView,
   hasPendingComplexLineTypeGlyphs,
-  setAcTrDrawOrderZAllocator
+  setAcTrDrawOrderZAllocator,
+  type AcTrBatchSlotLifecycleTotals,
+  type AcTrSharedBatchEntry,
+  type AcTrSharedBatchLifecycleMetrics,
+  type AcTrSharedBatchSweepResult
 } from '@mlightcad/three-renderer'
 import { AcTrMatrixUtil } from '@mlightcad/three-renderer'
 import * as THREE from 'three'
@@ -118,6 +122,18 @@ import {
 } from './AcTrDirectBatch'
 import { AcTrEntityDisplayController } from './AcTrEntityDisplayController'
 import {
+  ACTR_CONVERT_SCHEDULER_DEFAULT,
+  AcTrConvertScheduler
+} from './AcTrConvertScheduler'
+import type {
+  AcTrConvertSchedulerOptions,
+  AcTrConvertSchedulerStats
+} from './AcTrConvertScheduler'
+import {
+  AC_TR_ENTITY_UPDATE_SLICE_MAX,
+  AcTrEntityUpdateQueue
+} from './AcTrEntityUpdateQueue'
+import {
   assertAcTrGroupWcsBboxesConsistent,
   unionGroupWcsChildBoxes
 } from './AcTrGroupWcsBboxAssert'
@@ -131,9 +147,87 @@ import { AcTrLayoutViewManager } from './AcTrLayoutViewManager'
 import { sortPickResults } from './AcTrPickResultUtil'
 import { AcTrProgressiveOpenFitController } from './AcTrProgressiveOpenFitController'
 import { AcTrScene } from './AcTrScene'
+import type { AcTrSceneReadiness } from './AcTrSceneWorkTracker'
+import { AcTrSceneWorkTracker } from './AcTrSceneWorkTracker'
 import type { AcTrViewSessionState } from './AcTrViewSessionState'
 import { AcTrWorkSlice } from './AcTrWorkSlice'
 import { shouldRegenDatabaseAfterFontLoad } from './fontLoadRegen'
+
+/**
+ * Scheduling knobs a phase 2.9 A/B run may toggle per session.
+ *
+ * The defaults below are the production values; nothing here is applied unless
+ * a caller changes it. The two booleans name the phase 2.8 scheduling changes
+ * (the redundant `entityModified` wave discard and the cooperative yield
+ * between deferred glyph/INSERT jobs) so a regression can be attributed to one
+ * of them instead of to "phase 2.8" as a whole.
+ */
+export interface AcTrLatencyExperimentOptions {
+  /**
+   * Drop the coalesced `entityModified` wave when `addEntity` re-appends the
+   * same ids (phase 2.8). Off = the wave runs and converts the same entities
+   * twice, which is the pre-phase-2.8 cost.
+   */
+  discardRedundantModifyWave: boolean
+  /**
+   * Move the rest of a deferred glyph/INSERT burst to a fresh macrotask once
+   * its budget is spent (phase 2.8). Off = one job restarts the next from its
+   * own `finally` (microtask), so a long burst runs in a single task.
+   */
+  deferGeometryCooperativeYield: boolean
+  /** Yield cadence during a non-progressive open (ms). */
+  openConvertYieldBudgetMs: number
+  /** Yield cadence during a progressive open (ms). */
+  progressiveOpenYieldBudgetMs: number
+  /** Target wall time of one convert slice while a paper layout is active. */
+  convertSliceBudgetMs: number
+  /** Upper bound on entities per convert slice. */
+  convertSliceMax: number
+  /** Deferred glyph/INSERT jobs allowed to run in parallel. */
+  deferredGeometryConcurrency: number
+  /** Wall time a deferred burst may run before it yields (ms). */
+  deferredGeometryYieldBudgetMs: number
+}
+
+/** Production scheduling values; see {@link AcTrLatencyExperimentOptions}. */
+const DEFAULT_LATENCY_EXPERIMENT: AcTrLatencyExperimentOptions = {
+  discardRedundantModifyWave: true,
+  deferGeometryCooperativeYield: true,
+  openConvertYieldBudgetMs: 300,
+  progressiveOpenYieldBudgetMs: 32,
+  convertSliceBudgetMs: 64,
+  convertSliceMax: AC_TR_ENTITY_UPDATE_SLICE_MAX,
+  deferredGeometryConcurrency: 8,
+  deferredGeometryYieldBudgetMs: 50
+}
+
+/**
+ * The stages of one entity conversion that a test may observe.
+ *
+ * The pipeline is `Queued → Claimed → Converting → ReadyToCommit → Rendered`;
+ * these hook stages mark the edges a regression can hide in:
+ *
+ * - `queued` — the drain is about to take work out of `_convertQueue`; the ids
+ *   are neither claimed nor in the scene. This is the state an ERASE used to
+ *   miss (see `AcApContext`), so it needs its own pause point.
+ * - `claimed` — the id holds a claim and a captured revision, no geometry yet.
+ *   An ERASE landing here must make the later commit a no-op.
+ * - `beforeCommit` — geometry exists but the scene has not been touched yet.
+ *   An ERASE landing here must dispose the geometry instead of adding it.
+ * - `groupLayer` — one INSERT fragment is about to be committed; a multi-layer
+ *   block reference commits one fragment per layer, so an ERASE has to be
+ *   re-checked between fragments and not only once before the first one.
+ * - `committed` — the drawable is in the scene, so only a removal can undo it.
+ *
+ * Used by {@link AcTrView2d.setConvertDebugHook}; production never installs a
+ * hook, so every stage costs one falsy field check.
+ */
+export type AcTrConvertDebugStage =
+  | 'queued'
+  | 'claimed'
+  | 'beforeCommit'
+  | 'groupLayer'
+  | 'committed'
 
 /**
  * Options to customize view
@@ -290,6 +384,52 @@ export class AcTrView2d extends AcEdBaseView {
    */
   private readonly _entityConvertGeneration = new Map<string, number>()
   /**
+   * Object ids erased from the database while a convert for them was still
+   * queued or in flight. A later {@link batchConvert} pass must not append them
+   * again (bulk ERASE of a large selection finishes long after the ids were
+   * dropped from the queue), so the id is sticky until it is re-appended by
+   * Undo/Redo through {@link addEntity}.
+   */
+  private readonly _erasedConvertObjectIds = new Set<string>()
+  /**
+   * Stale conversions dropped by the commit gate, counted by reason.
+   *
+   * Diagnostics only. A bulk ERASE legitimately produces `erased`
+   * rejections (one per id that was queued or in flight); `notInDatabase`
+   * must stay 0 for a healthy open because it means an entity was converted
+   * without ever being registered in its database, or was dropped there
+   * without a notification reaching the view.
+   */
+  private readonly _staleConvertRejections = {
+    session: 0,
+    revision: 0,
+    erased: 0,
+    notInDatabase: 0
+  }
+  /**
+   * Test-only pause point inside the convert pipeline. Never assigned in
+   * production; see {@link setConvertDebugHook}.
+   */
+  private _convertDebugHook?: (
+    stage: AcTrConvertDebugStage,
+    objectId: string
+  ) => void | Promise<void>
+  /**
+   * Coalesces the `entityModified` fan-out into bounded render-update waves.
+   *
+   * A transaction commit delivers its `entityModified` notifications one
+   * entity at a time, so a bulk MOVE used to start one independent
+   * remove → convert → commit pipeline per entity. This queue deduplicates by
+   * object id, merges everything a single synchronous commit enqueues into one
+   * wave, drops old geometry in one {@link AcTrScene.removeEntities} call, and
+   * re-converts through a single controlled chain. Geometry is still rebuilt
+   * per entity; only the scheduling is batched.
+   */
+  private readonly _entityUpdateQueue = new AcTrEntityUpdateQueue({
+    apply: entities => this.applyEntityUpdates(entities),
+    onEnqueue: (_entity, objectId) => this.invalidateEntityConversion(objectId)
+  })
+  /**
    * When true, entity conversion during document open yields cooperatively so
    * geometry paints incrementally while the open overlay is still visible.
    */
@@ -320,6 +460,53 @@ export class AcTrView2d extends AcEdBaseView {
   private readonly _viewportRepairOwnerIds = new Set<string>()
   /** In-flight progressive convert drain; shared so awaiters wait for the queue. */
   private _convertDrainPromise: Promise<void> | null = null
+  /**
+   * Pending-work tokens for scene-changing work that is *registered* before it
+   * reaches a queue the counters can see.
+   *
+   * `isProcessingEntities` is built from queue depths, so it reads idle in the
+   * windows where work exists but has not been enqueued yet: a layout load that
+   * started with `void convert()`, an export pass assembling its list, a drain
+   * that already decremented `_numOfEntitiesToProcess` but has not finished
+   * repairing viewports. {@link AcTrSceneWorkTracker} closes those windows with
+   * a counter and an epoch instead of a fixed delay, and its epoch is what lets
+   * a `waitUntilSceneReady` in flight restart when the document is replaced.
+   */
+  private readonly _sceneWork = new AcTrSceneWorkTracker()
+  /**
+   * Single pending empty-shared-batch sweep, or `null`.
+   *
+   * A batch that went empty must survive one sweep without being refilled
+   * before it is released (an `ERASE` is followed by an `Undo` one wave later).
+   * The second sweep is what brings a settled scene's empty count to zero, and
+   * it is a single macrotask rather than a repeat timer.
+   */
+  private _sharedBatchSweepTimer: ReturnType<typeof setTimeout> | null = null
+  /**
+   * Scheduling knobs for an A/B run; production values unless changed.
+   *
+   * Kept on the instance (not only as static constants) so one browser session
+   * can measure a configuration without rebuilding: the phase 2.9 latency A/B
+   * compares the phase 2.8 scheduling changes and the 300/64/32 ms slice
+   * budgets against each other in the same build.
+   */
+  private _latencyExperiment: AcTrLatencyExperimentOptions = {
+    ...DEFAULT_LATENCY_EXPERIMENT
+  }
+  /**
+   * Phase 2.12 convert-wave pacer. Disabled by default: with
+   * {@link AcTrConvertSchedulerOptions.enabled} false the update path takes
+   * exactly the pre-2.12 shape, which is what lets one build serve both arms of
+   * the A/B.
+   *
+   * The budget belongs here, on the loop that iterates slices, and not on the
+   * per-call `AcCmUiYieldGate` inside {@link batchConvert}: that gate is rebuilt
+   * for every call, so a 300 ms budget was compared against one ~26 ms slice 98
+   * times in a row and never fired (PHASE212_MOVE_CONVERSION_AUDIT.md §7).
+   */
+  private _convertScheduler = new AcTrConvertScheduler(
+    ACTR_CONVERT_SCHEDULER_DEFAULT
+  )
   /**
    * Bumped by {@link clear} so an in-flight {@link batchConvert} abandons
    * scene writes and counter updates after the view has been reset for a new
@@ -386,6 +573,13 @@ export class AcTrView2d extends AcEdBaseView {
   }> = []
   /** Currently executing deferred geometry runners. */
   private _deferredGeometryActive = 0
+  /**
+   * Start of the current deferred-geometry burst, used to decide when the rest
+   * of the queue has to move to a new macrotask. Zero means "no burst".
+   */
+  private _deferredPumpBudgetStart = 0
+  /** Pending timer that resumes a deferred burst after a yield. */
+  private _deferredPumpTimer: ReturnType<typeof setTimeout> | null = null
   /** Queued + running deferred jobs split by kind (OPENPROF diagnostics). */
   private _deferredGroupJobs = 0
   private _deferredGlyphJobs = 0
@@ -552,19 +746,6 @@ export class AcTrView2d extends AcEdBaseView {
     return snapshot
   }
 
-  /**
-   * Wall-time between cooperative yields during scene convert (ms) when
-   * progressive rendering is off. Overlay still blocks input, so a larger
-   * budget keeps throughput high while avoiding Chromium "Page Unresponsive".
-   */
-  private static readonly OPEN_CONVERT_YIELD_BUDGET_MS = 300
-  /**
-   * Yield cadence during progressive open (ms). Overlay stays hidden; keep
-   * slices near one frame so pan/zoom handlers can run. Discrete
-   * `navigator.scheduling.isInputPending` yields once so handlers run;
-   * pointerdown/wheel set a short pause so OrbitControls can catch up.
-   */
-  private static readonly PROGRESSIVE_OPEN_YIELD_BUDGET_MS = 32
   /** Extra idle window after canvas pointerdown/wheel so gestures stay fluid. */
   private static readonly PROGRESSIVE_INPUT_PAUSE_MS = 120
   /**
@@ -582,28 +763,6 @@ export class AcTrView2d extends AcEdBaseView {
    * (`cooperativeYield` false) skips these paints entirely.
    */
   private static readonly NON_PROGRESSIVE_OPEN_PAINT_INTERVAL_MS = 4000
-  /**
-   * Max concurrent deferred glyph/INSERT geometry finalizers. Large drawings
-   * enqueue thousands of jobs; keep this modest to limit peak JS heap during
-   * open while retaining reasonable text throughput after convert finishes.
-   */
-  private static readonly DEFERRED_GEOMETRY_CONCURRENCY = 8
-  /**
-   * Target wall time of one interactive convert slice (ms) while a paper
-   * layout is active.
-   *
-   * Slices return to the drain so a layout activated mid-open can jump ahead
-   * of a long model-space batch. Kept well above one frame (≈50–100 ms) so
-   * the fixed cost of each slice — yield, paint, queue absorb — does not
-   * dominate total load time. The 300ms yield inside {@link batchConvert}
-   * still applies within a slice.
-   */
-  private static readonly CONVERT_SLICE_BUDGET_MS = 64
-  /**
-   * Upper bound on entities per slice. Heavy block references stay at 1
-   * because a slice that overruns the time budget is halved.
-   */
-  private static readonly CONVERT_SLICE_MAX = 512
 
   /**
    * Creates a new 2D CAD viewer instance.
@@ -1231,9 +1390,31 @@ export class AcTrView2d extends AcEdBaseView {
    * When progressive rendering is on, the overlay hides at CONVERSION `END`
    * and does not wait on this flag (pan/zoom enabled while convert continues).
    * Deprecated `waitForTextGeometry` no longer selects this gate.
+   *
+   * The deferred queue has to be part of the gate, not just the running job
+   * count: since the pump yields its budget back to the macrotask queue, work
+   * can sit in `_deferredGeometryQueue` while no job is currently running. The
+   * queue being non-empty is busy even when `_pendingGeometryJobs` is already
+   * zero (phase 2.8: without this, `waitUntilIdle` and the open-file overlay
+   * reported a settled scene with glyph/INSERT geometry still queued).
    */
   get isProcessingEntities() {
-    return this._numOfEntitiesToProcess > 0 || this._pendingGeometryJobs > 0
+    return (
+      this._numOfEntitiesToProcess > 0 ||
+      this._pendingGeometryJobs > 0 ||
+      this._deferredGeometryQueue.length > 0 ||
+      this._deferredGeometryActive > 0 ||
+      this._deferredGroupJobs > 0 ||
+      this._deferredGlyphJobs > 0 ||
+      this._entityUpdateQueue.isBusy ||
+      // Phase 2.9: registered-but-not-yet-queued work. `_loadingLayouts` and
+      // `_convertingLayers` are the two fire-and-forget entry points that hold
+      // their set before the first `batchConvert`; `_sceneWork` tokens cover
+      // the rest (open stream, export pass, drain tail).
+      this._loadingLayouts.size > 0 ||
+      this._convertingLayers.size > 0 ||
+      this._sceneWork.isBusy
+    )
   }
 
   /**
@@ -1241,7 +1422,7 @@ export class AcTrView2d extends AcEdBaseView {
    * draining. Does **not** include deferred glyph/INSERT geometry jobs.
    */
   get isConvertingEntities() {
-    return this._numOfEntitiesToProcess > 0
+    return this._numOfEntitiesToProcess > 0 || this._entityUpdateQueue.isBusy
   }
 
   /**
@@ -1260,16 +1441,34 @@ export class AcTrView2d extends AcEdBaseView {
       pendingGeometryJobs: this._pendingGeometryJobs,
       deferredGroupJobs: this._deferredGroupJobs,
       deferredGlyphJobs: this._deferredGlyphJobs,
-      claimedObjects: this._claimedConvertObjectIds.size
+      claimedObjects: this._claimedConvertObjectIds.size,
+      pendingEntityUpdates: this._entityUpdateQueue.pendingCount,
+      staleConvertRejections: { ...this._staleConvertRejections }
     }
   }
 
   /**
-   * Waits until batch conversion and deferred glyph/font geometry finish.
+   * Coalescing counters of the render-update queue.
    *
-   * Document open can resolve before text is drawable (`FontManager.lazyFontLoading`
-   * + deferred geometry jobs). Call this before raster/HTML export or scripted
-   * commands that assume a complete scene.
+   * Exposed so a bulk edit can be attributed: `waveCount` near 1 for a
+   * 50,000-entity MOVE means the fan-out was merged instead of producing
+   * 50,000 pipelines, and `pendingHighWatermark` is the queue's peak depth.
+   */
+  get entityUpdateStats() {
+    return this._entityUpdateQueue.getStats()
+  }
+
+  /**
+   * Waits until the view holds no queued convert / deferred geometry work.
+   *
+   * This is **queue idleness**, not scene completeness. It answers "is every
+   * queue this view can see empty", which excludes work that has been
+   * registered but not enqueued yet — a document open that has not streamed
+   * every entity, a layout whose block table record is still being collected,
+   * an export pass that has not scheduled its convert. Use
+   * {@link waitUntilSceneReady} when the caller needs the drawing to be
+   * *complete* (export, scripted commands, assertions on entity ids or the
+   * spatial index).
    *
    * @param timeoutMs - Maximum wait; returns `false` on timeout (default 60s).
    * @returns `true` when idle, `false` if still busy after the timeout.
@@ -1293,6 +1492,363 @@ export class AcTrView2d extends AcEdBaseView {
       }
       await new Promise<void>(resolve => setTimeout(resolve, 16))
     }
+  }
+
+  /**
+   * Registers one piece of scene-changing work that is not yet visible to the
+   * queue counters.
+   *
+   * Call this from the point where work is *accepted* (before any `await` or
+   * `void` dispatch) and release it once the work is either queued or finished.
+   * While a token is held, both {@link isProcessingEntities} and
+   * {@link waitUntilSceneReady} report busy, which is what removes the need for
+   * "sleep 500ms after open" style workarounds.
+   *
+   * @param label - Why the work is pending; aggregated in
+   *   {@link getSceneReadiness} so a stuck scene can be attributed.
+   * @returns Idempotent release function.
+   */
+  beginSceneWork(label: string) {
+    return this._sceneWork.begin(label)
+  }
+
+  /**
+   * Current scheduling configuration (a copy; mutate through the setter).
+   *
+   * Exists for the phase 2.9 latency A/B: one browser session toggles the two
+   * phase 2.8 scheduling changes and the 300/64/32 ms slice budgets without a
+   * rebuild. Production code never calls the setter.
+   */
+  get latencyExperiment(): AcTrLatencyExperimentOptions {
+    return { ...this._latencyExperiment }
+  }
+
+  /**
+   * Overrides scheduling knobs for this view.
+   *
+   * Intended for regression experiments only. The defaults in
+   * {@link DEFAULT_LATENCY_EXPERIMENT} are the production values and are not
+   * changed by this method.
+   *
+   * @param options - Partial override; omitted keys keep their current value.
+   */
+  setLatencyExperiment(options: Partial<AcTrLatencyExperimentOptions>) {
+    this._latencyExperiment = { ...this._latencyExperiment, ...options }
+  }
+
+  /**
+   * Current convert-wave pacing configuration (a copy).
+   *
+   * Disabled by default. Enabled, the update path leaves the task between
+   * convert slices so a bulk MOVE cannot hold the main thread for its whole
+   * duration; disabled, nothing changes at all.
+   */
+  get convertSchedulerOptions(): AcTrConvertSchedulerOptions {
+    return { enabled: this._convertScheduler.enabled, budgetMs: this._convertScheduler.budgetMs }
+  }
+
+  /**
+   * Overrides convert-wave pacing for this view.
+   *
+   * Intended for A/B and regression runs; production leaves the default
+   * ({@link ACTR_CONVERT_SCHEDULER_DEFAULT}) in place.
+   *
+   * @param options - Partial override; omitted keys keep their current value.
+   */
+  setConvertScheduler(options: Partial<AcTrConvertSchedulerOptions>) {
+    this._convertScheduler.configure(options)
+  }
+
+  /** Counters for the last convert waves; see {@link AcTrConvertSchedulerStats}. */
+  getConversionSchedulerMetrics(): AcTrConvertSchedulerStats {
+    return this._convertScheduler.stats
+  }
+
+  /** Zeroes {@link getConversionSchedulerMetrics} without changing the options. */
+  resetConversionSchedulerMetrics() {
+    this._convertScheduler.resetStats()
+  }
+
+  /**
+   * Marks the start of a document open and closes the previous lifecycle.
+   *
+   * Resetting here is what makes a failed or replaced open safe: tokens held by
+   * the old document are dropped with the old epoch instead of keeping the new
+   * scene permanently "busy", and a `waitUntilSceneReady` that was waiting on
+   * the old drawing restarts against the new one.
+   *
+   * @returns Release for the whole open; the caller drops it once the database
+   *   parse and the entity-registration stream are both finished, which is when
+   *   the convert counters take over.
+   */
+  beginDocumentOpen() {
+    this._sceneWork.reset()
+    return this._sceneWork.begin('document-open')
+  }
+
+  /**
+   * One synchronous snapshot of what still stands between the current scene
+   * and a completely loaded drawing.
+   *
+   * The check has three layers, cheapest first:
+   *
+   * 1. Queue/token counters — anything the view has accepted but not finished.
+   * 2. Database coverage for the checked layout: every drawable entity in that
+   *    block table record must be either in the scene or still scheduled
+   *    (`hasEntity` / claimed / erased tombstone). This is the layer that
+   *    catches work no counter can see.
+   * 3. Spatial-index coverage: an id drawn but not indexed makes box
+   *    selection and extents disagree with the rendered picture.
+   *
+   * @param options - `layoutBtrId` defaults to the active layout;
+   *   `sampleLimit` caps how many missing ids are reported.
+   */
+  getSceneReadiness(options?: {
+    layoutBtrId?: AcDbObjectId
+    sampleLimit?: number
+  }): AcTrSceneReadiness {
+    const sampleLimit = Math.max(1, options?.sampleLimit ?? 8)
+    const snapshot = this._sceneWork.snapshot()
+    const readiness: AcTrSceneReadiness = {
+      ready: false,
+      reasons: [],
+      epoch: snapshot.epoch,
+      pendingSceneWork: snapshot.pending,
+      sceneWorkByLabel: snapshot.byLabel,
+      layoutLoadsInFlight: this._loadingLayouts.size,
+      layerConvertsInFlight: this._convertingLayers.size,
+      claimedObjects: this._claimedConvertObjectIds.size,
+      missingFromScene: [],
+      missingFromSceneCount: 0,
+      missingFromIndexSamples: [],
+      unindexedInScene: 0,
+      sceneObjectIds: 0,
+      spatialIndexIds: 0,
+      checkedLayoutId: ''
+    }
+
+    if (this._numOfEntitiesToProcess > 0) {
+      readiness.reasons.push(`pending-entities:${this._numOfEntitiesToProcess}`)
+    }
+    if (this._pendingGeometryJobs > 0) {
+      readiness.reasons.push(`deferred-jobs:${this._pendingGeometryJobs}`)
+    }
+    if (!readiness.reasons.length && this.isProcessingEntities) {
+      readiness.reasons.push('queue-busy')
+    }
+    if (readiness.reasons.length > 0) return readiness
+
+    // Layer 2/3 only when the counters are clean: both walk the scene, and a
+    // poll that still has convert work would pay that cost twice.
+    const layoutBtrId = options?.layoutBtrId ?? this.activeLayoutBtrId
+    readiness.checkedLayoutId = String(layoutBtrId ?? '')
+    const sceneIds = this._scene.collectObjectIds(new Set<string>())
+    readiness.sceneObjectIds = sceneIds.size
+
+    const db = AcApDocManager.instance.curDocument?.database
+    const blockTableRecord = layoutBtrId
+      ? db?.tables.blockTable.getIdAt(layoutBtrId)
+      : undefined
+    if (blockTableRecord) {
+      // Only ids actually drawn count as covered here. `isEntityConvertScheduled`
+      // would also accept a retained convert claim, and claims are kept after a
+      // successful commit (they are the "already handled" marker export dedup
+      // relies on), so trusting them would let a stale claim hide an entity the
+      // scene cannot draw — the exact failure this layer exists to catch. The
+      // counters above already proved nothing is queued or converting, so no
+      // claim reaching this point can still be in flight.
+      const missing = this._entityDisplay.collectMissingEntitiesForExport(
+        blockTableRecord,
+        objectId => this.hasEntity(objectId),
+        false
+      )
+      readiness.missingFromSceneCount = missing.length
+      for (
+        let i = 0;
+        i < missing.length && readiness.missingFromScene.length < sampleLimit;
+        i++
+      ) {
+        readiness.missingFromScene.push(String(missing[i].objectId))
+      }
+      if (missing.length > 0) {
+        readiness.reasons.push(`not-in-scene:${missing.length}`)
+      }
+    }
+
+    const layout = this._scene.layouts.get(layoutBtrId)
+    if (layout) {
+      // Root-level ids only. `spatialIndexIds` flattens the hierarchy, so an
+      // INSERT whose child index was materialised by an earlier box query is
+      // represented by its children and its own id disappears — using that view
+      // here would report a settled scene as unindexed as soon as anything
+      // searched the index.
+      const indexed = layout.spatialIndexRootIds
+      readiness.spatialIndexIds = indexed.length
+      // Set lookups, not `Array.includes`: this runs on every poll, and a
+      // quadratic scan of 50,000 ids per sample is a main-thread stall the
+      // readiness check itself would be responsible for.
+      const indexedSet = new Set(indexed)
+      let unindexed = 0
+      for (let i = 0; i < indexed.length; i++) {
+        if (!sceneIds.has(indexed[i])) unindexed++
+      }
+      readiness.unindexedInScene = unindexed
+      // Drawables the index cannot answer for: every scene id of this layout
+      // should be reachable from the index once the scene is settled.
+      const layoutSceneIds = layout.collectObjectIds(new Set<string>())
+      let missingFromIndex = 0
+      for (const objectId of layoutSceneIds) {
+        if (indexedSet.has(objectId)) continue
+        missingFromIndex++
+        if (readiness.missingFromIndexSamples.length < sampleLimit) {
+          readiness.missingFromIndexSamples.push(objectId)
+        }
+      }
+      if (missingFromIndex > 0) {
+        readiness.reasons.push(`not-indexed:${missingFromIndex}`)
+      }
+    }
+
+    readiness.ready = readiness.reasons.length === 0
+    return readiness
+  }
+
+  /**
+   * Waits until the scene is actually complete for the checked layout.
+   *
+   * Unlike {@link waitUntilIdle}, this does not return while work is registered
+   * but unqueued, and it verifies the database → scene → spatial-index chain
+   * before answering. Two consecutive ready samples are required so a gap
+   * between convert slices cannot pass as completion.
+   *
+   * The wait restarts from a fresh sample set when the scene lifecycle epoch
+   * changes (document closed / replaced), so a caller waiting on a drawing that
+   * gets replaced waits for the *new* document instead of the old counters.
+   *
+   * @param options - `timeoutMs` (default 120s), `layoutBtrId` (defaults to the
+   *   active layout), `sampleLimit` for the reported missing-id sample.
+   * @returns The final readiness snapshot; `ready === false` on timeout.
+   */
+  async waitUntilSceneReady(options?: {
+    timeoutMs?: number
+    layoutBtrId?: AcDbObjectId
+    sampleLimit?: number
+  }): Promise<AcTrSceneReadiness> {
+    const deadline = Date.now() + Math.max(0, options?.timeoutMs ?? 120_000)
+    let streak = 0
+    let epoch = this._sceneWork.epoch
+    let readiness = this.getSceneReadiness(options)
+    for (;;) {
+      if (this._sceneWork.epoch !== epoch) {
+        // Document replaced mid-wait: previous lifecycle is gone, wait for the
+        // new one from scratch rather than accepting stale counters.
+        epoch = this._sceneWork.epoch
+        streak = 0
+      }
+      if (readiness.ready) {
+        streak++
+        if (streak >= 2) return readiness
+      } else {
+        streak = 0
+      }
+      if (Date.now() > deadline) return readiness
+      await new Promise<void>(resolve => setTimeout(resolve, 16))
+      readiness = this.getSceneReadiness(options)
+    }
+  }
+
+  /**
+   * Lifecycle counters of the shared block-template batches in this scene.
+   *
+   * `created`/`reused`/`emptied`/`evicted`/`disposed` plus the miss-reason
+   * counters name which cache key missed and why, so a growing geometry count
+   * can be attributed to a new template UUID, a material split, an origin
+   * split or a batch that stayed empty — instead of being inferred from the
+   * renderer's total.
+   */
+  getSharedBatchMetrics(): AcTrSharedBatchLifecycleMetrics {
+    return this._scene.getSharedBatchMetrics()
+  }
+
+  /**
+   * Aggregated packed-slot lifecycle counters (phase 2.11).
+   *
+   * Slots are per `_geometryInfo` record, so this is the only view that can tell
+   * "the batch table grew" from "the batch table churned": `slotCapacity` is the
+   * table length, `freeListSize` the ids awaiting reuse, and
+   * `inactiveBoundingBoxes` / `retainedHiddenSnapshots` the metadata a freed
+   * record must no longer hold.
+   */
+  getSlotLifecycleMetrics(): AcTrBatchSlotLifecycleTotals {
+    return this._scene.getSlotLifecycleMetrics()
+  }
+
+  /** One entry per registered shared batch, with layer attribution. */
+  getSharedBatchEntries(): AcTrSharedBatchEntry[] {
+    return this._scene.getSharedBatchEntries()
+  }
+
+  /** Returns every shared batch created since the last clear, with its reason. */
+  getSharedBatchCreateLog() {
+    return this._scene.getSharedBatchCreateLog()
+  }
+
+  /**
+   * Turns on per-miss classification of shared batch creations.
+   *
+   * Off by default: the material/kind scan is O(cached keys) per created batch,
+   * which is negligible for a handful of block templates and quadratic on a
+   * drawing with thousands of distinct materials.
+   */
+  setSharedBatchDiagnostics(enabled: boolean) {
+    this._scene.setSharedBatchDiagnostics(enabled)
+  }
+
+  /**
+   * Releases shared batches that have been empty past the grace period.
+   *
+   * Must run at a settle boundary, never from inside a removal pass: a batch
+   * emptied by `ERASE` is refilled by the `Undo` one wave later, and the grace
+   * period in the batched group is what keeps that from disposing and
+   * rebuilding the same instance buffers every round.
+   *
+   * @param graceMs - Override for
+   *   {@link AcTrBatchedGroup.SHARED_BATCH_EMPTY_GRACE_MS}; tests use `0` for
+   *   immediate reclamation.
+   */
+  sweepEmptySharedBatches(
+    graceMs?: number
+  ): AcTrSharedBatchSweepResult {
+    const result = this._scene.sweepEmptySharedBatches(graceMs)
+    if (result.retryInMs > 0) this.scheduleSharedBatchSweep(result.retryInMs)
+    return result
+  }
+
+  /**
+   * Schedules one deferred empty-batch sweep.
+   *
+   * The deferred pass is what brings a settled scene's empty-batch count to
+   * zero: a batch that went empty during an `ERASE` stays registered for the
+   * grace period so the `Undo` can reuse its slots, and then has to be released
+   * even though no further edit arrives to trigger a sweep.
+   *
+   * @param delayMs - Override for the first run (used by the grace retry).
+   * @param retriesLeft - How many times to retry while the view is still busy,
+   *   so a sweep that lands mid-convert is not silently dropped.
+   */
+  private scheduleSharedBatchSweep(delayMs = 0, retriesLeft = 8) {
+    if (this._sharedBatchSweepTimer !== null) return
+    this._sharedBatchSweepTimer = setTimeout(() => {
+      this._sharedBatchSweepTimer = null
+      if (this.isProcessingEntities) {
+        if (retriesLeft > 0) this.scheduleSharedBatchSweep(250, retriesLeft - 1)
+        return
+      }
+      const result = this._scene.sweepEmptySharedBatches()
+      if (result.retryInMs > 0) {
+        this.scheduleSharedBatchSweep(result.retryInMs, retriesLeft)
+      }
+    }, delayMs)
   }
 
   /**
@@ -2823,6 +3379,55 @@ export class AcTrView2d extends AcEdBaseView {
    */
   addEntity(entity: AcDbEntity | AcDbEntity[]) {
     const entities = Array.isArray(entity) ? entity : [entity]
+    // Undo/Redo re-appends erased ids; release the ghost-geometry guard so the
+    // reconverted drawable is committed instead of being dropped. Releasing it
+    // also bumps the revision: a convert task that was already in flight when
+    // the ERASE landed must stay stale, otherwise ERASE → Undo would let the
+    // pre-erase task commit into the restored id (same id, different life).
+    for (let i = 0; i < entities.length; i++) {
+      const objectId = entities[i]?.objectId
+      if (!objectId) continue
+      const id = String(objectId)
+      if (this._erasedConvertObjectIds.delete(id)) {
+        this._entityConvertGeneration.set(
+          id,
+          (this._entityConvertGeneration.get(id) ?? 0) + 1
+        )
+      }
+    }
+    // An undo/redo step notifies `entityModified` for every entity its record
+    // touched and then notifies `entityAppended` for the same ids, because an
+    // ERASE record keeps one before-snapshot per entity. The modified fan-out
+    // is coalesced into a deferred wave, so it is still pending here; leaving
+    // it in makes `applyEntityUpdates` wait for this append drain, remove the
+    // drawables it just committed and rebuild them. Dropping those ids turns
+    // "convert, remove, convert again" into one conversion: a 50k undo handed
+    // 100 000 entities to `batchConvert` for a 50 000-entity selection and ran
+    // 20 000 glyph geometry jobs for 10 000 glyph entities.
+    let dropped = 0
+    const appendedIds: string[] = []
+    for (let i = 0; i < entities.length; i++) {
+      const objectId = entities[i]?.objectId
+      if (objectId) appendedIds.push(String(objectId))
+    }
+    if (
+      appendedIds.length > 0 &&
+      this._latencyExperiment.discardRedundantModifyWave
+    ) {
+      dropped = this._entityUpdateQueue.discard(appendedIds)
+    }
+    // The dropped wave also re-applied selection highlight after its
+    // reconversion. Nothing else does that for these ids, so it is restored
+    // once this append drain has committed the drawables.
+    const reappliedSelection: AcDbObjectId[] = []
+    if (dropped > 0 && this.selectionSet.ids.length > 0) {
+      for (let i = 0; i < entities.length; i++) {
+        const objectId = entities[i]?.objectId
+        if (objectId && this.selectionSet.has(objectId)) {
+          reappliedSelection.push(objectId)
+        }
+      }
+    }
     // Mark each owner layout as loaded as soon as the open-time ENTITY stream
     // enqueues work. Progressive convert may not have committed scene entities
     // yet (`entityCount` still 0); without this, `loadLayoutEntitiesIfNeeded`
@@ -2850,6 +3455,19 @@ export class AcTrView2d extends AcEdBaseView {
     // by `_progressiveRendering` inside batchConvert / markProgressiveDirty.
     this._convertQueue.push(...entities)
     void this.drainConvertQueue()
+    if (reappliedSelection.length > 0) {
+      const restoreHighlight = () => {
+        this.highlight(reappliedSelection)
+        this._gripManager.refresh()
+        this._isDirty = true
+      }
+      const drain = this._convertDrainPromise
+      if (drain) {
+        void drain.then(restoreHighlight, restoreHighlight)
+      } else {
+        restoreHighlight()
+      }
+    }
   }
 
   /**
@@ -2857,7 +3475,36 @@ export class AcTrView2d extends AcEdBaseView {
    */
   removeEntity(entity: AcDbEntity | AcDbEntity[]) {
     const entities = Array.isArray(entity) ? entity : [entity]
-    entities.forEach(entity => this._scene.removeEntity(entity.objectId))
+    if (entities.length === 0) return
+
+    const objectIds: AcDbObjectId[] = []
+    const seen = new Set<string>()
+    for (let i = 0; i < entities.length; i++) {
+      const objectId = entities[i]?.objectId
+      if (!objectId) continue
+      const id = String(objectId)
+      if (seen.has(id)) continue
+      seen.add(id)
+      objectIds.push(objectId)
+      // ERASE may arrive while this id is still queued or converting. Cancel the
+      // claim and bump the generation now, and keep the id in the erased set:
+      // a later convert pass would otherwise re-claim it with a fresh
+      // generation and append ghost geometry for a deleted database object.
+      // This is the only place the tombstone is set, so a queued id that was
+      // never claimed is covered by the same guard as one mid-convert.
+      this._erasedConvertObjectIds.add(id)
+      this._entityConvertGeneration.set(
+        id,
+        (this._entityConvertGeneration.get(id) ?? 0) + 1
+      )
+      this._claimedConvertObjectIds.delete(id)
+    }
+
+    if (objectIds.length > 0) {
+      // One pass over layouts/layers/batches: each affected batched container
+      // is compacted exactly once regardless of the selection size.
+      this._scene.removeEntities(objectIds)
+    }
     this._isDirty = true
   }
 
@@ -2877,6 +3524,106 @@ export class AcTrView2d extends AcEdBaseView {
     const id = String(objectId ?? '')
     if (!id) return false
     return this.hasEntity(objectId) || this._claimedConvertObjectIds.has(id)
+  }
+
+  /**
+   * True when the id is either already in the scene or claimed by an in-flight
+   * convert (see {@link isEntityConvertScheduled}).
+   */
+  hasOrSchedulesEntity(objectId: AcDbObjectId): boolean {
+    return this.isEntityConvertScheduled(objectId)
+  }
+
+  /**
+   * True when an id that was queued, claimed or committed is still a live
+   * object of its database.
+   *
+   * `AcDbDatabase.getObjectById()` resolves through the handle registry, which
+   * is registered on append and released on erase, so an erased object answers
+   * `undefined` even while the view still holds a reference to it. Temporary
+   * handles are never registered by design (they are re-minted on commit), and
+   * a view can host an entity that has no database yet (clipboard / markup
+   * overlays), so both cases are treated as "cannot judge, keep".
+   */
+  private isEntityStillInDatabase(
+    entity: AcDbEntity,
+    objectId: string
+  ): boolean {
+    if (!objectId || objectId.startsWith(TEMP_OBJECT_ID_PREFIX)) return true
+    const db = entity.database
+    if (!db) return true
+    return db.getObjectById(objectId) !== undefined
+  }
+
+  /**
+   * Final validity gate for one convert task.
+   *
+   * A conversion can outlive the state it was started for: the document may be
+   * replaced (session token), the entity may be updated by a MOVE wave
+   * (revision), the entity may be erased (tombstone), or the database object
+   * may be gone without the view hearing about it (registry). All four are
+   * checked, because an id alone is not an identity: ERASE → Undo restores the
+   * *same* id while the task started before the erase must still be treated as
+   * stale.
+   */
+  private isConvertCurrent(
+    entity: AcDbEntity | undefined,
+    objectId: string,
+    convertGen: number,
+    epoch: number,
+    stage: 'claimed' | 'commit'
+  ): boolean {
+    if (epoch !== this._convertEpoch) {
+      this._staleConvertRejections.session++
+      return false
+    }
+    if (!objectId) return true
+    if ((this._entityConvertGeneration.get(objectId) ?? 0) !== convertGen) {
+      this._staleConvertRejections.revision++
+      return false
+    }
+    if (this._erasedConvertObjectIds.has(objectId)) {
+      this._staleConvertRejections.erased++
+      return false
+    }
+    // The registry probe is the expensive half (one Map lookup per entity), so
+    // keep it for the commit edge: an object that is gone by then would append
+    // a drawable nobody can ever erase again.
+    if (stage === 'commit' && entity && !this.isEntityStillInDatabase(entity, objectId)) {
+      this._staleConvertRejections.notInDatabase++
+      return false
+    }
+    return true
+  }
+
+  /**
+   * Installs a test-only pause point on the convert pipeline.
+   *
+   * The hook is awaited between `claimed` / `beforeCommit` / `committed` and the
+   * next state transition, which turns the ERASE-versus-convert race into a
+   * deterministic interleaving. Pass `null` to remove it.
+   *
+   * @param hook - Called with the stage and object id; may return a promise.
+   */
+  setConvertDebugHook(
+    hook:
+      | ((stage: AcTrConvertDebugStage, objectId: string) => void | Promise<void>)
+      | null
+  ) {
+    this._convertDebugHook = hook ?? undefined
+  }
+
+  /**
+   * Runs the test hook for one stage and reports whether the session is still
+   * the one the task was started in (the hook may await for a long time).
+   */
+  private async runConvertDebugHook(
+    stage: AcTrConvertDebugStage,
+    objectId: string
+  ): Promise<void> {
+    if (this._convertDebugHook) {
+      await this._convertDebugHook(stage, objectId)
+    }
   }
 
   /**
@@ -2933,54 +3680,147 @@ export class AcTrView2d extends AcEdBaseView {
     )
     if (entities.length === 0) return
 
-    const selectedIds = entities
-      .map(item => item.objectId)
-      .filter(objectId => this.selectionSet.has(objectId))
+    // Hand the work to the coalescing queue instead of converting per entity.
+    // A transaction commit notifies `entityModified` once per entity in one
+    // synchronous pass, so a 50,000-entity MOVE now produces one wave (one
+    // batched removal, one controlled convert chain) rather than 50,000
+    // independent remove → convert → commit pipelines. In-flight conversions
+    // are invalidated synchronously by `onEnqueue`, not at flush time.
+    this._entityUpdateQueue.enqueue(entities)
+    this._isDirty = true
+  }
 
-    for (let i = 0; i < entities.length; ++i) {
+  /**
+   * Drops the drawable and invalidates in-flight conversions for one id.
+   *
+   * Runs at enqueue time (synchronously, for every id) so a convert that
+   * started for the previous revision can never re-add the pre-update
+   * drawable, even if the wave is still waiting for its flush tick.
+   */
+  private invalidateEntityConversion(objectId: string) {
+    // Bump first: a progressive/queued convert that already captured the old
+    // generation must not re-add the pre-update drawable.
+    this._entityConvertGeneration.set(
+      objectId,
+      (this._entityConvertGeneration.get(objectId) ?? 0) + 1
+    )
+    // Allow reconversion: open-time batchConvert claims objectIds to prevent
+    // duplicate progressive slots. A wave must release that claim or the
+    // re-convert skips the entity and leaves the scene blank for it.
+    this._claimedConvertObjectIds.delete(objectId)
+    // Always drop world mesh-glyph instances first (even if the layout removal
+    // no-ops). Grip preview may have enqueued extras under this objectId.
+    AcTrMTextRenderer.getInstance().removeMeshGlyphInstances(objectId)
+  }
+
+  /**
+   * Applies one coalesced render-update wave produced by
+   * {@link AcTrEntityUpdateQueue}.
+   *
+   * Old geometry is removed in a single batched pass (Phase 1
+   * {@link AcTrScene.removeEntities}), then every entity is re-converted
+   * through the same {@link batchConvert} path as document open. Each entity's
+   * geometry is still rebuilt; what changed is that the wave shares one
+   * removal pass, one convert chain and one highlight/grip refresh instead of
+   * one of each per entity.
+   */
+  private async applyEntityUpdates(entities: AcDbEntity[]): Promise<void> {
+    if (entities.length === 0) return
+
+    // A progressive open drain may still be converting these ids. Removing the
+    // drawable while that pass is between `drawEntity` and `_scene.addEntity`
+    // would let it commit stale geometry right after our removal, and the two
+    // convert passes would race for the same claim. Wait for it to settle.
+    if (this._convertDrainPromise) {
+      await this._convertDrainPromise.catch(() => undefined)
+    }
+
+    const objectIds: AcDbObjectId[] = []
+    const selectedIds: AcDbObjectId[] = []
+    const convertible: AcDbEntity[] = []
+    const seen = new Set<string>()
+
+    for (let i = 0; i < entities.length; i++) {
       const item = entities[i]
-      const objectId = String(item.objectId ?? '')
-      if (objectId) {
-        // Invalidate in-flight commits for this id before releasing the claim /
-        // clearing the scene, so a stale progressive convert cannot re-add the
-        // pre-update drawable after (or instead of) the reconversion pass.
+      const objectId = String(item?.objectId ?? '')
+      if (!objectId || seen.has(objectId)) continue
+      seen.add(objectId)
+      objectIds.push(item.objectId)
+      if (this.selectionSet.has(item.objectId)) selectedIds.push(item.objectId)
+      // Erased while the id was still queued: converting it would append ghost
+      // geometry for a database object that no longer exists.
+      if (this._erasedConvertObjectIds.has(objectId)) continue
+      convertible.push(item)
+    }
+
+    // Only drop drawables that are actually in the scene. Removing a claimed id
+    // that has not been committed yet would delete nothing while
+    // `batchConvert` still skips it below (it sees the claim), so the entity
+    // would disappear and never come back - e.g. Undo re-appending an id that
+    // `entityModified` already put in this wave.
+    const removable: AcDbObjectId[] = []
+    for (let i = 0; i < objectIds.length; i++) {
+      if (this._scene.hasEntity(objectIds[i])) removable.push(objectIds[i])
+    }
+    if (removable.length > 0) {
+      // One pass over layouts/layers/batches regardless of the wave size, so
+      // 50,000 single-id removals collapse into one compaction per container.
+      this._scene.removeEntities(removable)
+    }
+    this._isDirty = true
+
+    if (convertible.length > 0) {
+      const epoch = this._convertEpoch
+      // Re-assert the invalidation immediately before converting. `onEnqueue`
+      // already bumped the generation, but a convert pass that started in the
+      // window since then may have claimed the id again; `batchConvert` skips
+      // claimed ids, so the wave would silently drop the entity.
+      for (let i = 0; i < convertible.length; i++) {
+        const objectId = String(convertible[i]?.objectId ?? '')
+        if (!objectId) continue
         this._entityConvertGeneration.set(
           objectId,
           (this._entityConvertGeneration.get(objectId) ?? 0) + 1
         )
-        // Allow reconversion: open-time batchConvert claims objectIds to prevent
-        // duplicate progressive slots. updateEntity must release that claim or
-        // batchConvert skips the entity (scene already cleared → blank RasterImage).
         this._claimedConvertObjectIds.delete(objectId)
-        // Always drop world mesh-glyph instances first (even if layout remove
-        // fails). Grip preview may have enqueued extras under this objectId.
-        AcTrMTextRenderer.getInstance().removeMeshGlyphInstances(objectId)
       }
-      if (this._scene.hasEntity(item.objectId)) {
-        this._scene.removeEntity(item.objectId)
+      // batchConvert does not self-increment: every caller owns the paired
+      // "increase before convert" (see the open drain and addEntity).
+      this._numOfEntitiesToProcess += convertible.length
+      // Slice the convert so one huge wave still yields like the open drain:
+      // a 50,000-entity MOVE must not block the main thread in one call.
+      const sliceSize = Math.max(1, this._latencyExperiment.convertSliceMax)
+      const scheduler = this._convertScheduler
+      scheduler.beginWave(performance.now())
+      for (let offset = 0; offset < convertible.length; offset += sliceSize) {
+        if (epoch !== this._convertEpoch) return
+        // The slice loop owns the slices, so it must own the yield too: `await`
+        // on `batchConvert` resumes in a microtask and leaves the task open for
+        // the whole wave (98 slices, 2834 ms in the 50k profile).
+        if (await scheduler.maybeYield(performance.now())) {
+          if (epoch !== this._convertEpoch) return
+        }
+        const count = Math.min(sliceSize, convertible.length - offset)
+        const sliceStarted = performance.now()
+        await this.batchConvert(convertible.slice(offset, offset + sliceSize))
+        scheduler.recordSlice(performance.now() - sliceStarted, count)
       }
+      scheduler.endWave(performance.now())
+      if (epoch !== this._convertEpoch) return
+      await this.waitUntilDeferredGeometryIdle()
     }
 
-    // Reconvert through the same path as initial load so block references are
-    // split by layer correctly and deferred MTEXT/SHAPE geometry is drawn.
-    void (async () => {
-      // batchConvert does not self-increment: every caller owns the paired
-      // "increase before convert" (see the open drain and export paths). Each
-      // converted entity decreases once in its finally, so an update that
-      // reconverts without incrementing drives _numOfEntitiesToProcess below 0
-      // and trips the "number of entities to process" warning.
-      this._numOfEntitiesToProcess += entities.length
-      await this.batchConvert(entities)
-      await this.waitUntilDeferredGeometryIdle()
-      if (selectedIds.length > 0) {
-        this.highlight(selectedIds)
-      }
-      this._gripManager.refresh()
-      this._isDirty = true
-    })()
+    if (selectedIds.length > 0) {
+      this.highlight(selectedIds)
+    }
+    this._gripManager.refresh()
     this._isDirty = true
-    // Not sure why texture for image entity isn't updated even if 'isDirty' flag is already set to true.
-    // So add one timeout event to set 'isDirty' flag to true again to make it work
+    // Settle boundary after a bulk MOVE/ERASE wave.
+    this.scheduleSharedBatchSweep()
+    // Not sure why texture for image entity isn't updated even if 'isDirty'
+    // flag is already set to true. So add one timeout event to set 'isDirty'
+    // flag to true again to make it work. One timer per wave — a bulk update
+    // would otherwise schedule one timer per entity.
     setTimeout(() => {
       this._isDirty = true
     }, 100)
@@ -3219,6 +4059,9 @@ export class AcTrView2d extends AcEdBaseView {
     // Invalidate any in-flight progressive convert so it neither paints into
     // the cleared scene nor double-decrements the processing counter.
     this._convertEpoch++
+    // Drop queued render updates too: their wave would otherwise run against
+    // the next document's scene and convert stale entities into it.
+    this._entityUpdateQueue.cancel()
     this.clearFontLoadedRedrawTimer()
     this.clearMeshGlyphFlushTimer()
     this._convertQueue.length = 0
@@ -3226,9 +4069,26 @@ export class AcTrView2d extends AcEdBaseView {
     this._numOfEntitiesToProcess = 0
     this._claimedConvertObjectIds.clear()
     this._entityConvertGeneration.clear()
+    this._erasedConvertObjectIds.clear()
     this.cancelOpenLineworkFrame()
     this.resetDeferredGeometryQueue()
     this._entityProcessingIdleAt = 0
+    this.resetSceneLifecycle()
+  }
+
+  /**
+   * Closes the current scene lifecycle: invalidates pending-work tokens and the
+   * deferred empty-batch sweep.
+   *
+   * Called from every path that detaches the scene from a document, so a token
+   * or timer held by the outgoing document cannot keep the incoming one busy.
+   */
+  private resetSceneLifecycle() {
+    this._sceneWork.reset()
+    if (this._sharedBatchSweepTimer !== null) {
+      clearTimeout(this._sharedBatchSweepTimer)
+      this._sharedBatchSweepTimer = null
+    }
   }
 
   /**
@@ -3246,6 +4106,7 @@ export class AcTrView2d extends AcEdBaseView {
     this._externallyFramedLayouts.clear()
     this._openViewMode = AcApOpenViewMode.Extents
     this._loadingLayouts.clear()
+    this._convertingLayers.clear()
     this._renderer.dispose()
     // Drop block templates when the scene is torn down (next open / close).
     AcDbRenderingCache.instance.clear()
@@ -3281,6 +4142,7 @@ export class AcTrView2d extends AcEdBaseView {
    */
   restoreSessionState(state: AcTrViewSessionState): void {
     this._convertEpoch++
+    this._entityUpdateQueue.cancel()
     this.clearFontLoadedRedrawTimer()
     this.clearMeshGlyphFlushTimer()
     this.cancelOpenLineworkFrame()
@@ -3289,8 +4151,10 @@ export class AcTrView2d extends AcEdBaseView {
     this._numOfEntitiesToProcess = 0
     this._claimedConvertObjectIds.clear()
     this._entityConvertGeneration.clear()
+    this._erasedConvertObjectIds.clear()
     this.resetDeferredGeometryQueue()
     this._entityProcessingIdleAt = 0
+    this.resetSceneLifecycle()
     this._scene = state.scene
     this._layoutViewManager = state.layoutViewManager
     this._initializedLayouts = state.initializedLayouts
@@ -3318,6 +4182,7 @@ export class AcTrView2d extends AcEdBaseView {
   beginNewSession(): AcTrViewSessionState {
     const parked = this.captureSessionState()
     this._convertEpoch++
+    this._entityUpdateQueue.cancel()
     this.clearFontLoadedRedrawTimer()
     this.cancelOpenLineworkFrame()
     this._convertQueue.length = 0
@@ -3325,8 +4190,10 @@ export class AcTrView2d extends AcEdBaseView {
     this._numOfEntitiesToProcess = 0
     this._claimedConvertObjectIds.clear()
     this._entityConvertGeneration.clear()
+    this._erasedConvertObjectIds.clear()
     this.resetDeferredGeometryQueue()
     this._entityProcessingIdleAt = 0
+    this.resetSceneLifecycle()
     this._scene = this.createScene()
     this._layoutViewManager = new AcTrLayoutViewManager()
     this._initializedLayouts = new Set()
@@ -3434,8 +4301,14 @@ export class AcTrView2d extends AcEdBaseView {
       return
     }
 
+    // Token for the drain's own tail: `_numOfEntitiesToProcess` reaches zero
+    // when the last entity commits, but viewport repair and the final flush
+    // still run after it. Without this a readiness poll can answer "settled"
+    // in that window.
+    const release = this._sceneWork.begin('convert-drain')
     this._convertDrainPromise = this.runConvertDrain().finally(() => {
       this._convertDrainPromise = null
+      release()
     })
 
     await this._convertDrainPromise
@@ -3465,9 +4338,20 @@ export class AcTrView2d extends AcEdBaseView {
     let slice = !interactive
       ? Number.POSITIVE_INFINITY
       : this.activeLayoutBtrId === this.modelSpaceBtrId
-        ? AcTrView2d.CONVERT_SLICE_MAX
+        ? this._latencyExperiment.convertSliceMax
         : 1
     let lastYieldAt = performance.now()
+    // Pause while the work is still *in* `_convertQueue` and nothing is
+    // claimed. Every other stage is already past the claim, so an ERASE that
+    // lands here is the queued-but-unclaimed case and cannot be reproduced
+    // from them. Production never installs a hook.
+    if (this._convertDebugHook && this._convertQueue.length > 0) {
+      await this.runConvertDebugHook(
+        'queued',
+        String(this._convertQueue[0]?.objectId ?? '')
+      )
+      if (this._convertEpoch !== epoch) return
+    }
     let state = createConvertPending(
       this._convertQueue.splice(0, this._convertQueue.length),
       this.activeLayoutBtrId
@@ -3508,16 +4392,16 @@ export class AcTrView2d extends AcEdBaseView {
       // activated mid-load can jump the queue. Progressive uses a tighter
       // budget so input stays responsive after the overlay hides.
       const modelYieldBudget = this._progressiveRendering
-        ? AcTrView2d.PROGRESSIVE_OPEN_YIELD_BUDGET_MS
-        : AcTrView2d.OPEN_CONVERT_YIELD_BUDGET_MS
+        ? this._latencyExperiment.progressiveOpenYieldBudgetMs
+        : this._latencyExperiment.openConvertYieldBudgetMs
       const budget = modelActive
         ? modelYieldBudget
-        : AcTrView2d.CONVERT_SLICE_BUDGET_MS
+        : this._latencyExperiment.convertSliceBudgetMs
       slice = adaptConvertSliceSize({
         slice,
         tookMs: took,
         budgetMs: budget,
-        maxSlice: AcTrView2d.CONVERT_SLICE_MAX,
+        maxSlice: this._latencyExperiment.convertSliceMax,
         // Fine 2× growth only while a paper sheet still needs converting.
         // Model-active (or paper already drained) prefers 4× throughput.
         activeLayoutPending: !modelActive && hasPendingActiveOwner(state)
@@ -3548,6 +4432,11 @@ export class AcTrView2d extends AcEdBaseView {
 
     this.repairViewportViewsFor(this.activeLayoutBtrId)
     this.flushViewportViewRepairs()
+    // Settle boundary: a drain that dropped block instances may have left
+    // shared batches empty. Sweeping here (not inside the removal path) is what
+    // keeps `ERASE → Undo` from disposing and rebuilding the same instance
+    // buffer every round.
+    this.scheduleSharedBatchSweep()
   }
 
   /**
@@ -3961,6 +4850,23 @@ export class AcTrView2d extends AcEdBaseView {
    * @param layoutBtrId Input the block table record id of the layout
    */
   private loadLayoutEntitiesIfNeeded(layoutBtrId: AcDbObjectId) {
+    const release = this._sceneWork.begin('layout-load')
+    try {
+      this.loadLayoutEntities(layoutBtrId)
+    } finally {
+      // Everything this call decides to convert is already in `_convertQueue`
+      // or `_numOfEntitiesToProcess`; the token only covers the collection and
+      // dispatch window.
+      release()
+    }
+  }
+
+  /**
+   * Body of {@link loadLayoutEntitiesIfNeeded}, behind its work token.
+   *
+   * @param layoutBtrId Input the block table record id of the layout
+   */
+  private loadLayoutEntities(layoutBtrId: AcDbObjectId) {
     try {
       const db = AcApDocManager.instance.curDocument.database
       const blockTableRecord = db.tables.blockTable.getIdAt(layoutBtrId)
@@ -4566,10 +5472,16 @@ export class AcTrView2d extends AcEdBaseView {
    * {@link DEFERRED_GEOMETRY_CONCURRENCY}.
    */
   private pumpDeferredGeometryQueue(): void {
+    if (this._deferredGeometryQueue.length === 0) {
+      this._deferredPumpBudgetStart = 0
+      return
+    }
     while (
-      this._deferredGeometryActive < AcTrView2d.DEFERRED_GEOMETRY_CONCURRENCY &&
+      this._deferredGeometryActive <
+        this._latencyExperiment.deferredGeometryConcurrency &&
       this._deferredGeometryQueue.length > 0
     ) {
+      if (this.shouldYieldDeferredGeometryPump()) return
       const job = this._deferredGeometryQueue.shift()!
       if (job.epoch !== this._convertEpoch) {
         this._pendingGeometryJobs = Math.max(0, this._pendingGeometryJobs - 1)
@@ -4611,6 +5523,9 @@ export class AcTrView2d extends AcEdBaseView {
             this.releaseDeferredJobKind(job.kind)
             if (this._pendingGeometryJobs === 0) {
               this._isDirty = true
+              // Last deferred job of the burst: settled enough to reclaim
+              // batches the wave emptied.
+              this.scheduleSharedBatchSweep()
             }
             this.stampEntityProcessingIdle()
           }
@@ -4619,9 +5534,41 @@ export class AcTrView2d extends AcEdBaseView {
     }
   }
 
+  /**
+   * True when the running deferred burst has to hand the rest of the queue to
+   * a fresh macrotask. Arms the timer before returning, so the burst always
+   * resumes even if the caller only stops pumping.
+   */
+  private shouldYieldDeferredGeometryPump(): boolean {
+    if (!this._cooperativeYield) return false
+    if (!this._latencyExperiment.deferGeometryCooperativeYield) return false
+    const now = performance.now()
+    if (this._deferredPumpBudgetStart === 0) {
+      this._deferredPumpBudgetStart = now
+      return false
+    }
+    if (
+      this._deferredPumpTimer === null &&
+      now - this._deferredPumpBudgetStart >=
+        this._latencyExperiment.deferredGeometryYieldBudgetMs
+    ) {
+      this._deferredPumpTimer = setTimeout(() => {
+        this._deferredPumpTimer = null
+        this._deferredPumpBudgetStart = performance.now()
+        this.pumpDeferredGeometryQueue()
+      }, 0)
+    }
+    return this._deferredPumpTimer !== null
+  }
+
   /** Drops queued deferred geometry and resets counters for a new epoch. */
   private resetDeferredGeometryQueue(): void {
     this._deferredGeometryQueue.length = 0
+    if (this._deferredPumpTimer !== null) {
+      clearTimeout(this._deferredPumpTimer)
+      this._deferredPumpTimer = null
+    }
+    this._deferredPumpBudgetStart = 0
     // Keep `_deferredGeometryActive`: in-flight runners still own concurrency
     // slots until their `finally` runs. Zeroing here lets pump over-schedule
     // when those completions decrement the counter afterward.
@@ -4776,8 +5723,8 @@ export class AcTrView2d extends AcEdBaseView {
     // Headless export sets cooperativeYield=false (or forExport) so convert
     // does not pay for setTimeout yields the CLI never needs.
     const yieldBudgetMs = progressive
-      ? AcTrView2d.PROGRESSIVE_OPEN_YIELD_BUDGET_MS
-      : AcTrView2d.OPEN_CONVERT_YIELD_BUDGET_MS
+      ? this._latencyExperiment.progressiveOpenYieldBudgetMs
+      : this._latencyExperiment.openConvertYieldBudgetMs
     const yieldGate =
       options.forExport || !this._cooperativeYield
         ? undefined
@@ -4839,8 +5786,26 @@ export class AcTrView2d extends AcEdBaseView {
           continue
         }
         if (objectId) {
+          // Drop ids erased while they were still queued: releasing the claim in
+          // removeEntity is not enough because a subsequent pass would re-claim
+          // the id (the database object is gone but the queued reference is
+          // not) and append ghost geometry for it.
+          if (this._erasedConvertObjectIds.has(objectId)) {
+            continue
+          }
           this._claimedConvertObjectIds.add(objectId)
           convertGen = this._entityConvertGeneration.get(objectId) ?? 0
+          if (this._convertDebugHook) {
+            await this.runConvertDebugHook('claimed', objectId)
+            // An ERASE / MOVE / document swap may have landed while the test
+            // thread was paused between claim and geometry.
+            if (
+              !this.isConvertCurrent(entity, objectId, convertGen, epoch, 'claimed')
+            ) {
+              this._claimedConvertObjectIds.delete(objectId)
+              continue
+            }
+          }
         }
 
         // Fast path: entities that declare a single batchable primitive append
@@ -4850,9 +5815,11 @@ export class AcTrView2d extends AcEdBaseView {
           let added = false
           let superseded = false
           try {
+            if (objectId && this._convertDebugHook) {
+              await this.runConvertDebugHook('beforeCommit', objectId)
+            }
             if (
-              objectId &&
-              (this._entityConvertGeneration.get(objectId) ?? 0) !== convertGen
+              !this.isConvertCurrent(entity, objectId, convertGen, epoch, 'commit')
             ) {
               superseded = true
             } else {
@@ -4926,7 +5893,8 @@ export class AcTrView2d extends AcEdBaseView {
                     threeEntity as AcTrGroup,
                     progressive,
                     epoch,
-                    convertGen
+                    convertGen,
+                    entity
                   ),
                 epoch,
                 'group'
@@ -4936,7 +5904,8 @@ export class AcTrView2d extends AcEdBaseView {
                 threeEntity as AcTrGroup,
                 progressive,
                 epoch,
-                convertGen
+                convertGen,
+                entity
               )
             }
           } else {
@@ -4945,14 +5914,17 @@ export class AcTrView2d extends AcEdBaseView {
             )
             const commitEntity = async () => {
               await this.finishEntityGeometry(threeEntity, progressive)
-              if (epoch !== this._convertEpoch) {
-                threeEntity.dispose()
-                return
+              if (this._convertDebugHook && objectId) {
+                await this.runConvertDebugHook('beforeCommit', objectId)
               }
               if (
-                objectId &&
-                (this._entityConvertGeneration.get(objectId) ?? 0) !==
-                  convertGen
+                !this.isConvertCurrent(
+                  entity,
+                  objectId,
+                  convertGen,
+                  epoch,
+                  'commit'
+                )
               ) {
                 threeEntity.dispose()
                 return
@@ -5088,7 +6060,8 @@ export class AcTrView2d extends AcEdBaseView {
     group: AcTrGroup,
     progressive: boolean,
     epoch: number = this._convertEpoch,
-    convertGen: number = 0
+    convertGen: number = 0,
+    sourceEntity?: AcDbEntity
   ) {
     const t0 = performance.now()
     try {
@@ -5104,8 +6077,13 @@ export class AcTrView2d extends AcEdBaseView {
       }
       const objectId = String(group.objectId ?? '')
       if (
-        objectId &&
-        (this._entityConvertGeneration.get(objectId) ?? 0) !== convertGen
+        !this.isConvertCurrent(
+          sourceEntity,
+          objectId,
+          convertGen,
+          epoch,
+          'commit'
+        )
       ) {
         group.dispose()
         return
@@ -5179,6 +6157,36 @@ export class AcTrView2d extends AcEdBaseView {
         new Promise<void>(resolve => setTimeout(resolve, 0))
       let lastGroupYieldAt = progressive ? performance.now() : 0
       for (const [layerName, objects] of objectsGroupByLayer) {
+        // An ERASE / update wave can land during the progressive yield at the
+        // end of a previous iteration. Re-checking here (and not only before
+        // the first bucket) keeps the remaining layer fragments of this INSERT
+        // from committing: every fragment carries the same INSERT object id, so
+        // one skipped check would leave one ghost per layer.
+        if (
+          !this.isConvertCurrent(
+            sourceEntity,
+            objectId,
+            convertGen,
+            epoch,
+            'commit'
+          )
+        ) {
+          break
+        }
+        if (this._convertDebugHook && objectId) {
+          await this.runConvertDebugHook('groupLayer', objectId)
+          if (
+            !this.isConvertCurrent(
+              sourceEntity,
+              objectId,
+              convertGen,
+              epoch,
+              'commit'
+            )
+          ) {
+            break
+          }
+        }
         // Nested layer-0 may already be resolved to an inner INSERT layer during
         // flatten. Remaining "0" buckets inherit this (outermost) INSERT layer.
         const effectiveLayerName = layerName === '0' ? groupLayerName : layerName
@@ -5255,7 +6263,7 @@ export class AcTrView2d extends AcEdBaseView {
           progressive &&
           epoch === this._convertEpoch &&
           performance.now() - lastGroupYieldAt >=
-            AcTrView2d.PROGRESSIVE_OPEN_YIELD_BUDGET_MS
+            this._latencyExperiment.progressiveOpenYieldBudgetMs
         ) {
           await yieldToEventLoop()
           lastGroupYieldAt = performance.now()

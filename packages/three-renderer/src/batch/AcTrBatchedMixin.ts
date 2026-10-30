@@ -4,15 +4,22 @@ import { AcTrCommonUtil } from '../util'
 import { getMaterialRuntimeUserData } from '../util/AcTrObjectUserData'
 import {
   AcTrBatchGeometryDefaultFlags,
-  AcTrBatchGeometryFlags,
   AcTrIndexedBatchGeometryInfo,
   AcTrVertexBatchGeometryInfo,
-  ascIdSort,
   copyAttributeData,
   isBatchGeometryActive,
   isBatchGeometryVisible,
+  isSlotGenerationCurrent as isSlotGenerationValid,
+  nextSlotGeneration,
   setBatchGeometryVisible
 } from './AcTrBatchedGeometryInfo'
+import {
+  type AcTrBatchSlotLifecycleCounters,
+  type BatchSlotLifecycleMetrics,
+  collectSlotLifecycleMetrics,
+  createSlotLifecycleCounters,
+  releaseSlotMetadata
+} from './AcTrBatchSlotLifecycleMetrics'
 import {
   type AcTrBatchDrawVisibilityInfo,
   applyBatchSlotDrawVisibility
@@ -222,8 +229,17 @@ export function validateGeometry(
  * Reserves a geometry id slot for insertion, reusing deleted ids when
  * available.
  *
- * Deleted slots are tracked in `availableGeometryIds` and sorted ascending
- * before reuse so lower ids are consumed first, keeping id density compact.
+ * Deleted slots are tracked in `availableGeometryIds`; reuse takes the newest
+ * freed id (LIFO). The pool used to be sorted ascending before every pop so
+ * lower ids were consumed first, which made a 50k MOVE — 50k frees followed by
+ * 50k reservations — re-sort an ever-growing pool 50k times: 13.9 s of a 15 s
+ * single-task block, and the dominant cost of the whole conversion (see
+ * `PHASE211_MOVE_CONVERSION_PROFILE.md`). Reuse order is not observable (packed
+ * ranges live in the slot record, never in the id), and taking the newest id
+ * keeps the table's tail free so a later `optimize()` can trim it instead of
+ * preserving holes. Every assignment stamps a fresh `slotGeneration` on the
+ * record, taken from the record it replaces, so a caller holding
+ * `(id, generation)` can still detect reuse.
  *
  * @typeParam T - Geometry-info record type stored per slot.
  * @param availableGeometryIds - Pool of ids freed by {@link deleteGeometryById}.
@@ -232,23 +248,37 @@ export function validateGeometry(
  * @param geometryInfo - New record to assign to the reserved slot.
  * @returns The assigned `geometryId` and updated `geometryCount`.
  */
-export function reserveGeometryId<T>(
+export function reserveGeometryId<T extends { slotGeneration?: number }>(
   availableGeometryIds: number[],
   geometryInfoList: T[],
   geometryCount: number,
-  geometryInfo: T
+  geometryInfo: T,
+  counters?: AcTrBatchSlotLifecycleCounters
 ) {
   let geometryId: number
   let nextGeometryCount = geometryCount
 
   if (availableGeometryIds.length > 0) {
-    availableGeometryIds.sort(ascIdSort)
-    geometryId = availableGeometryIds.shift() as number
+    geometryId = availableGeometryIds.pop() as number
+    geometryInfo.slotGeneration = nextSlotGeneration(geometryInfoList[geometryId])
     geometryInfoList[geometryId] = geometryInfo
+    if (counters) {
+      counters.reusedSlots++
+      counters.freeListPopCount++
+    }
   } else {
     geometryId = geometryCount
     nextGeometryCount++
+    geometryInfo.slotGeneration = nextSlotGeneration()
     geometryInfoList.push(geometryInfo)
+    if (counters) counters.allocatedSlots++
+  }
+
+  if (counters) {
+    counters.slotHighWaterMark = Math.max(
+      counters.slotHighWaterMark,
+      geometryInfoList.length
+    )
   }
 
   return { geometryId, geometryCount: nextGeometryCount }
@@ -275,13 +305,16 @@ export function resolveReservedCount(
  * Creates default slot state for a newly inserted geometry record.
  *
  * Bounding boxes start as `null` and are computed lazily on first bounds query.
+ * `slotGeneration` is stamped by {@link reserveGeometryId}, which is the only
+ * place that knows which id the record will occupy.
  *
  * @returns Fresh state object merged into new geometry-info records.
  */
 export function createGeometryState() {
   return {
     boundingBox: null as THREE.Box3 | null,
-    flags: AcTrBatchGeometryDefaultFlags
+    flags: AcTrBatchGeometryDefaultFlags,
+    slotGeneration: 0
   }
 }
 
@@ -360,8 +393,11 @@ export function growCapacityIfNeeded(params: {
 /**
  * Marks a geometry record as deleted and registers its id for reuse.
  *
- * Sets slot flags to {@link AcTrBatchGeometryFlags.None} without compacting buffer memory;
- * callers should invoke `optimize()` on the concrete batch class to reclaim space.
+ * Flags the slot `AcTrBatchGeometryFlags.None` and drops the metadata that
+ * only a live slot can use — the lazily cached `Box3` and, for hidden slots, the
+ * `hiddenDrawSnapshot` copy of its packed GPU range. Packed buffer memory is not
+ * reclaimed here; callers invoke `optimize()` on the concrete batch class, which
+ * then rebuilds the free list from the slot table.
  *
  * @typeParam T - Geometry-info record type extending {@link AcTrBatchGeometryLike}.
  * @param geometryId - Slot index to delete.
@@ -372,17 +408,31 @@ export function growCapacityIfNeeded(params: {
 export function deleteGeometryById<T extends AcTrBatchGeometryLike>(
   geometryId: number,
   geometryInfoList: T[],
-  availableGeometryIds: number[]
+  availableGeometryIds: number[],
+  counters?: AcTrBatchSlotLifecycleCounters
 ) {
-  if (
-    geometryId >= geometryInfoList.length ||
-    !isBatchGeometryActive(geometryInfoList[geometryId].flags)
-  ) {
+  if (counters) counters.deleteGeometryCalls++
+
+  if (geometryId < 0 || geometryId >= geometryInfoList.length) {
+    if (counters) counters.deleteGeometrySkipped++
     return false
   }
 
-  geometryInfoList[geometryId].flags = AcTrBatchGeometryFlags.None
+  const info = geometryInfoList[geometryId]
+  if (!isBatchGeometryActive(info.flags)) {
+    if (counters) {
+      counters.deleteGeometrySkipped++
+      counters.duplicateFreeAttempts++
+    }
+    return false
+  }
+
+  releaseSlotMetadata(info)
   availableGeometryIds.push(geometryId)
+  if (counters) {
+    counters.freedSlots++
+    counters.freeListPushCount++
+  }
   return true
 }
 
@@ -798,6 +848,14 @@ export function createAcTrBatchedMixin<
     _availableGeometryIds: number[] = []
     /** Total number of geometry ids ever allocated (includes deleted slots). */
     _geometryCount = 0
+    /**
+     * Cumulative slot-lifecycle counters (phase 2.11 B1).
+     *
+     * Plain numbers, incremented on insert/delete; the gauges in
+     * {@link getSlotLifecycleMetrics} are computed on demand so the hot path
+     * never walks the slot table.
+     */
+    readonly _slotLifecycle = createSlotLifecycleCounters()
 
     /** Shared temporary object used for batched raycast operations. */
     readonly _raycastObject = options.createObject()
@@ -825,6 +883,53 @@ export function createAcTrBatchedMixin<
      */
     get mappingStats() {
       return getMappingStats(this._geometryInfo)
+    }
+
+    /**
+     * Returns the slot-lifecycle counters and gauges for this batch.
+     *
+     * Diagnostics only: the gauges scan the slot table, so callers should poll
+     * it at measurement points rather than per frame.
+     *
+     * @returns Counters plus capacity/live/freed/metadata gauges.
+     */
+    getSlotLifecycleMetrics(): BatchSlotLifecycleMetrics {
+      return collectSlotLifecycleMetrics(
+        this._slotLifecycle,
+        this._geometryInfo,
+        this._availableGeometryIds
+      )
+    }
+
+    /**
+     * Returns the generation stamped on one slot id, or `-1` when out of range.
+     *
+     * Pair it with {@link isSlotGenerationCurrent} before writing a slot id that
+     * was captured earlier: a mismatch means the id was freed and handed to
+     * another entity in the meantime.
+     *
+     * @param geometryId - Slot index to read.
+     */
+    getSlotGenerationAt(geometryId: number) {
+      if (geometryId < 0 || geometryId >= this._geometryInfo.length) {
+        return -1
+      }
+      return this._geometryInfo[geometryId].slotGeneration
+    }
+
+    /**
+     * True when `generation` still belongs to the entity that owns the slot.
+     *
+     * @param geometryId - Slot index the caller intends to write.
+     * @param generation - Generation captured when the id was reserved.
+     */
+    isSlotGenerationCurrent(geometryId: number, generation: number) {
+      return isSlotGenerationValid(
+        geometryId >= 0 && geometryId < this._geometryInfo.length
+          ? this._geometryInfo[geometryId]
+          : undefined,
+        generation
+      )
     }
 
     /**
@@ -1228,7 +1333,8 @@ export function createAcTrBatchedMixin<
       const deleted = deleteGeometryById(
         geometryId,
         this._geometryInfo,
-        this._availableGeometryIds
+        this._availableGeometryIds,
+        this._slotLifecycle
       )
       if (!deleted) {
         return this

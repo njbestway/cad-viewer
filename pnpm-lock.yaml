@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@mlightcad/data-model': 1.15.16
+  '@mlightcad/data-model': file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
   '@mlightcad/libredwg-converter': 3.15.16
   '@mlightcad/mtext-input-box': 0.3.6
   '@mlightcad/ribbon': 0.1.14
@@ -122,6 +122,9 @@ importers:
 
   packages/cad-agent-core:
     dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       acorn:
         specifier: ^8.15.0
         version: 8.16.0
@@ -132,9 +135,6 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
 
   packages/cad-agent-plugin:
     dependencies:
@@ -147,6 +147,9 @@ importers:
       '@ai-sdk/vue':
         specifier: ^2.0.0
         version: 2.0.208(vue@3.5.31(typescript@5.9.3))(zod@3.25.76)
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       ai:
         specifier: ^5.0.0
         version: 5.0.208(zod@3.25.76)
@@ -160,9 +163,6 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
         version: 6.0.8(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
@@ -201,13 +201,14 @@ importers:
         version: 14.2.6
 
   packages/cad-diff-viewer:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
 
   packages/cad-diff-viewer-example:
     dependencies:
@@ -218,11 +219,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-converter':
         specifier: 3.15.16
-        version: 3.15.16(@mlightcad/data-model@1.15.16)
+        version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -234,12 +235,16 @@ importers:
         version: link:../three-renderer
       '@njbestway/acad-rust-converter':
         specifier: 0.1.0
-        version: 0.1.0(@mlightcad/data-model@1.15.15)
+        version: 0.1.0(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       three:
         specifier: ^0.186.1
         version: 0.186.1
 
   packages/cad-editor:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
@@ -271,9 +276,6 @@ importers:
       '@mlightcad/cad-svg-plugin':
         specifier: workspace:*
         version: link:../cad-svg-plugin
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/pdf-renderer':
         specifier: workspace:*
         version: link:../pdf-renderer
@@ -368,11 +370,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-editor
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-converter':
         specifier: 3.15.16
-        version: 3.15.16(@mlightcad/data-model@1.15.16)
+        version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -387,7 +389,7 @@ importers:
         version: link:../three-renderer
       '@njbestway/acad-rust-converter':
         specifier: 0.1.0
-        version: 0.1.0(@mlightcad/data-model@1.15.15)
+        version: 0.1.0(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       element-plus:
         specifier: ^2.12.0
         version: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
@@ -427,6 +429,10 @@ importers:
         version: 2.2.12(typescript@5.9.3)
 
   packages/cad-editor-ol:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
@@ -437,12 +443,9 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.15
-        version: 1.15.15
       '@mlightcad/ribbon':
-        specifier: 0.1.13
-        version: 0.1.13(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
+        specifier: 0.1.14
+        version: 0.1.14(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -454,7 +457,7 @@ importers:
         version: 0.1.11(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
       '@njbestway/acad-rust-converter':
         specifier: 0.1.0
-        version: 0.1.0(@mlightcad/data-model@1.15.15)
+        version: 0.1.0(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
         version: 6.0.8(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
@@ -505,13 +508,14 @@ importers:
         version: 2.2.12(typescript@5.9.3)
 
   packages/cad-google-drive-plugin:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@types/gapi':
         specifier: ^0.0.47
         version: 0.0.47
@@ -524,13 +528,13 @@ importers:
 
   packages/cad-html-core:
     dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
     devDependencies:
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -550,11 +554,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-html-core
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-converter':
         specifier: 3.15.16
-        version: 3.15.16(@mlightcad/data-model@1.15.16)
+        version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/libredwg-web':
         specifier: 0.8.2
         version: 0.8.2
@@ -588,6 +592,10 @@ importers:
         version: 0.186.0
 
   packages/cad-html-plugin:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-html-core':
         specifier: workspace:*
@@ -595,9 +603,6 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -629,11 +634,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-converter':
         specifier: 3.15.16
-        version: 3.15.16(@mlightcad/data-model@1.15.16)
+        version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/mtext-renderer':
         specifier: 0.13.6
         version: 0.13.6(@mlightcad/mtext-parser@1.5.5)(three@0.186.1)
@@ -665,22 +670,23 @@ importers:
       '@azure/msal-browser':
         specifier: ^4.12.0
         version: 4.12.0
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
 
   packages/cad-pdf-plugin:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -717,6 +723,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.14
         version: 6.43.14
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
@@ -730,27 +739,26 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       vite:
         specifier: ^6.4.3
         version: 6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3)
 
   packages/cad-simple-ui-plugin:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
 
   packages/cad-simple-viewer:
-    devDependencies:
+    dependencies:
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+    devDependencies:
       '@mlightcad/mtext-input-box':
         specifier: 0.3.6
         version: 0.3.6(@mlightcad/mtext-parser@packages+mtext-parser)(@mlightcad/mtext-renderer@packages+mtext-renderer)(three@0.186.1)
@@ -803,11 +811,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-plugin
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-converter':
         specifier: 3.15.16
-        version: 3.15.16(@mlightcad/data-model@1.15.16)
+        version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -819,7 +827,7 @@ importers:
         version: link:../pdf-renderer
       '@njbestway/acad-rust-converter':
         specifier: 0.1.0
-        version: 0.1.0(@mlightcad/data-model@1.15.15)
+        version: 0.1.0(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -873,11 +881,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-plugin
       '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-converter':
         specifier: 3.15.16
-        version: 3.15.16(@mlightcad/data-model@1.15.16)
+        version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -892,7 +900,7 @@ importers:
         version: link:../three-renderer
       '@njbestway/acad-rust-converter':
         specifier: 0.1.0
-        version: 0.1.0(@mlightcad/data-model@1.15.15)
+        version: 0.1.0(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       lodash-es:
         specifier: 4.17.21
         version: 4.17.21
@@ -914,13 +922,14 @@ importers:
         version: 4.1.1(vite@6.4.3(@types/node@24.12.4)(sass@1.98.0)(yaml@2.8.3))
 
   packages/cad-svg-plugin:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -930,6 +939,9 @@ importers:
 
   packages/pdf-renderer:
     dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@pdf-lib/fontkit':
         specifier: ^1.1.1
         version: 1.1.1
@@ -940,9 +952,6 @@ importers:
         specifier: ^1.17.1
         version: 1.17.1
     devDependencies:
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -952,13 +961,13 @@ importers:
 
   packages/three-renderer:
     dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@velipso/polybool':
         specifier: ^1.1.1
         version: 1.1.1
     devDependencies:
-      '@mlightcad/data-model':
-        specifier: 1.15.16
-        version: 1.15.16
       '@mlightcad/mtext-parser':
         specifier: workspace:*
         version: link:../mtext-parser
@@ -2561,8 +2570,8 @@ packages:
   '@maxim_mazurok/gapi.client.discovery-v1@0.6.20200806':
     resolution: {integrity: sha512-QN6aGmIbLXcJW0SEf8tz9UWCpQTBMy2u4xSuZ04YofzMGknhWwMeUecySLntCZYAEstHzDoSgwxCf5Gb8GqIRQ==}
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261020':
-    resolution: {integrity: sha512-j8ZEjp03eOCHWV9Mevpb/TWUqhVW96HntTJ1cx+rXxd1zqh3H+zA69aOyh9r0cOQXZDznK8QMHitpVmMRVghCQ==}
+  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261023':
+    resolution: {integrity: sha512-xZojK4FF43mC+F/dVHZ+y0s4oxfrsRTK7so2jbaXgriMePrZJEO7AVWpog0mF6FCRKeD9MLjPBJIqD+B87mPyQ==}
 
   '@mermaid-js/mermaid-mindmap@9.3.0':
     resolution: {integrity: sha512-IhtYSVBBRYviH1Ehu8gk69pMDF8DSRqXBRDMWrEfHoaMruHeaP2DXA3PBnuwsMaCdPQhlUUcy/7DBLAEIXvCAw==}
@@ -2586,8 +2595,9 @@ packages:
   '@mlightcad/common@1.15.16':
     resolution: {integrity: sha512-wdNSTSWTQJpKlRW3odvA+/O6wSRfpMh58RWNBebey39pbo0bdngaUcaEjKXxwlUvDo8cNaDRML4pUrCLzrYnXg==}
 
-  '@mlightcad/data-model@1.15.16':
-    resolution: {integrity: sha512-30PEx20QyaOPXyyiTcMMjblTc/4WVow//ux7CGdOsESXiQZAevBhiPH2ZF3W7h0YPIbUn0AKM3JQrFNNBJZKeQ==}
+  '@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz':
+    resolution: {integrity: sha512-18ISgw/Ub1yXSvecO/v2CdO4kc6KCTKZYQ+0fiyX0ZQM3NmdOV4sHoRqam/s13ht3puWiwElpKyVMc1Hy5q4rw==, tarball: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz}
+    version: 1.15.16-perf.4
 
   '@mlightcad/emf-converter@1.15.16':
     resolution: {integrity: sha512-+pV6DfRyvkA3nQYufge+1qukXqCVDmT7nCQexdseF7mLPFxKtf1RMKONDR8nZ/FFe9jXfTTnron4TSVeEKRJjA==}
@@ -2605,6 +2615,7 @@ packages:
 
   '@mlightcad/libredwg-converter@3.15.16':
     resolution: {integrity: sha512-NR74T33w8nAHDBWwHiZGBLNSJTYd0lY/8Jrt0QYSC34wuUgo4DYdNgJf1rX1z30kacIGIgIKqYprxAxu3vlVLQ==}
+    version: 3.15.16
     peerDependencies:
       '@mlightcad/data-model': 1.15.16
 
@@ -2750,8 +2761,9 @@ packages:
 
   '@njbestway/acad-rust-converter@0.1.0':
     resolution: {integrity: sha512-2313SKFeFPhuVGICaz9XyKxk2leRaa/tWXV3MRfLROFEhH1ogdrfwQd3L7PNXnsOILfLRkgB5nsCnLExWdOSGQ==}
+    version: 0.1.0
     peerDependencies:
-      '@mlightcad/data-model': 1.15.15
+      '@mlightcad/data-model': ^1.15.6
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -9181,7 +9193,7 @@ snapshots:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261020':
+  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261023':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -9245,7 +9257,7 @@ snapshots:
     dependencies:
       loglevel: 1.9.2
 
-  '@mlightcad/data-model@1.15.16':
+  '@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz':
     dependencies:
       '@mlightcad/common': 1.15.16
       '@mlightcad/emf-converter': 1.15.16
@@ -9264,9 +9276,9 @@ snapshots:
       '@mlightcad/common': 1.15.16
       '@mlightcad/geometry-engine': 3.15.16(@mlightcad/common@1.15.16)
 
-  '@mlightcad/libredwg-converter@3.15.16(@mlightcad/data-model@1.15.16)':
+  '@mlightcad/libredwg-converter@3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)':
     dependencies:
-      '@mlightcad/data-model': 1.15.16
+      '@mlightcad/data-model': file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
       '@mlightcad/libredwg-web': 0.8.2
 
   '@mlightcad/libredwg-web@0.8.2': {}
@@ -9393,9 +9405,9 @@ snapshots:
       '@tybys/wasm-util': 0.10.2
     optional: true
 
-  '@njbestway/acad-rust-converter@0.1.0(@mlightcad/data-model@1.15.15)':
+  '@njbestway/acad-rust-converter@0.1.0(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)':
     dependencies:
-      '@mlightcad/data-model': 1.15.15
+      '@mlightcad/data-model': file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -9966,7 +9978,7 @@ snapshots:
 
   '@types/gapi.client.drive-v3@0.0.5':
     dependencies:
-      '@maxim_mazurok/gapi.client.drive-v3': 0.3.20261020
+      '@maxim_mazurok/gapi.client.drive-v3': 0.3.20261023
 
   '@types/gapi.client@1.0.8': {}
 

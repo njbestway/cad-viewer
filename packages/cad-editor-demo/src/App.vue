@@ -163,7 +163,12 @@ const registerGoogleDriveIfConfigured = async () => {
 }
 
 const initialize = () => {
-  if (import.meta.env.DEV) {
+  // e2e probes reach the manager through this global. Development servers always
+  // expose it. A production bundle keeps it private unless it is explicitly
+  // built for measurement (`VITE_E2E_EXPOSE_MANAGER=true`), which is how the
+  // phase 2.8 dev-vs-prod comparison runs the same specs against a minified
+  // bundle. A normal `vite build` sets neither and stays clean.
+  if (import.meta.env.DEV || import.meta.env.VITE_E2E_EXPOSE_MANAGER === 'true') {
     ;(
       window as Window & { AcApDocManager?: typeof AcApDocManager }
     ).AcApDocManager = AcApDocManager

@@ -93,17 +93,42 @@ export class AcTrRBushSpatialIndex implements AcTrSpatialIndex {
     if (!(typeof id === 'string' && id.length > 0)) {
       return
     }
-    // Set minX, minY, maxX, and maxY to 0 in order to pass build
-    this.tree.remove(
-      {
-        minX: 0,
-        minY: 0,
-        maxX: 0,
-        maxY: 0,
-        id: id
-      },
-      (a, b) => a.id === b.id
-    )
+    this.removeIndexedById(id)
+  }
+
+  /**
+   * Removes many items by id in one pass.
+   *
+   * @param ids Ids of previously inserted items
+   */
+  removeByIds(ids: readonly AcDbObjectId[]): void {
+    for (let index = 0; index < ids.length; index++) {
+      const id = ids[index]
+      if (typeof id === 'string' && id.length > 0) {
+        this.removeIndexedById(id)
+      }
+    }
+  }
+
+  /**
+   * Removes the tree entry stored for `id` using its real bounding box.
+   *
+   * RBush only descends into nodes that **contain** the bbox of the item being
+   * removed. Building a placeholder bbox therefore silently leaves every entry
+   * stored away from that box in the tree (stale picks / growing memory), which
+   * is why the indexed item is used instead.
+   *
+   * The id map and the tree are maintained in lockstep, so a missing id map
+   * entry means there is nothing to remove.
+   */
+  private removeIndexedById(id: string): void {
+    const item = this.idMap.get(id)
+    if (!item) {
+      return
+    }
+    // `item` is the same object reference that lives in the tree, so the
+    // default identity comparison removes exactly that entry.
+    this.tree.remove(item)
     this.idMap.delete(id)
   }
 

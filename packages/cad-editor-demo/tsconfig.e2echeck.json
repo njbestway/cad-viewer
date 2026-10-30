@@ -1,0 +1,13 @@
+{
+  // Type-check gate for the Phase 2.9 e2e specs only.
+  //
+  // The whole `e2e/` tree does not pass `tsc` yet (phase 15/26/27/28 specs carry
+  // pre-existing errors), so this config stays scoped to the specs this phase
+  // owns. Widen `include` once the older specs are clean.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vite/client"]
+  },
+  "include": ["e2e/helpers/**/*.ts", "e2e/tests/phase29-*.spec.ts"]
+}

@@ -6,6 +6,11 @@ import {
   AcTrHtmlTransientManager,
   AcTrMTextRenderer,
   AcTrPreviewOverlayManager,
+  addSlotLifecycleMetrics,
+  createSlotLifecycleTotals,
+  type AcTrBatchSlotLifecycleTotals,
+  type AcTrSharedBatchEntry,
+  type AcTrSharedBatchLifecycleMetrics,
   AcTrTransientManager
 } from '@mlightcad/three-renderer'
 import * as THREE from 'three'
@@ -304,6 +309,138 @@ export class AcTrScene {
       layout.addLayer(layer)
     })
     return layout
+  }
+
+  /**
+   * Releases block-template batches that stayed empty past the grace period in
+   * every layout.
+   *
+   * A settle boundary, not a removal pass: see
+   * {@link AcTrBatchedGroup.sweepEmptySharedBatches} for the grace rule.
+   *
+   * @param graceMs - Override for the group's default grace period.
+   */
+  sweepEmptySharedBatches(graceMs?: number) {
+    let evicted = 0
+    let revived = 0
+    let deferred = 0
+    let disposedTemplateGeometries = 0
+    let retryInMs = 0
+    this._layouts.forEach(layout => {
+      const result = layout.sweepEmptySharedBatches(graceMs)
+      evicted += result.evicted
+      revived += result.revived
+      deferred += result.deferred
+      disposedTemplateGeometries += result.disposedTemplateGeometries
+      retryInMs = Math.max(retryInMs, result.retryInMs)
+    })
+    return { evicted, revived, deferred, disposedTemplateGeometries, retryInMs }
+  }
+
+  /** Shared block-template batch counters summed over every layout. */
+  getSharedBatchMetrics(): AcTrSharedBatchLifecycleMetrics {
+    const total: AcTrSharedBatchLifecycleMetrics = {
+      created: 0,
+      reused: 0,
+      emptied: 0,
+      evicted: 0,
+      disposed: 0,
+      activeBatches: 0,
+      emptyBatches: 0,
+      activeInstances: 0,
+      templateGeometryCount: 0,
+      uniqueTemplateUUIDCount: 0,
+      peakSlotCapacity: 0,
+      missNewTemplateUuid: 0,
+      missNoMergeableOrigin: 0,
+      missEvictedTemplate: 0,
+      missNewMaterialId: 0,
+      missNewKind: 0
+    }
+    for (const layout of this._layouts.values()) {
+      const metrics = layout.getSharedBatchMetrics()
+      total.created += metrics.created
+      total.reused += metrics.reused
+      total.emptied += metrics.emptied
+      total.evicted += metrics.evicted
+      total.disposed += metrics.disposed
+      total.activeBatches += metrics.activeBatches
+      total.emptyBatches += metrics.emptyBatches
+      total.activeInstances += metrics.activeInstances
+      total.templateGeometryCount += metrics.templateGeometryCount
+      total.uniqueTemplateUUIDCount += metrics.uniqueTemplateUUIDCount
+      total.peakSlotCapacity = Math.max(
+        total.peakSlotCapacity,
+        metrics.peakSlotCapacity
+      )
+      total.missNewTemplateUuid += metrics.missNewTemplateUuid
+      total.missNoMergeableOrigin += metrics.missNoMergeableOrigin
+      total.missEvictedTemplate += metrics.missEvictedTemplate
+      total.missNewMaterialId += metrics.missNewMaterialId
+      total.missNewKind += metrics.missNewKind
+    }
+    return total
+  }
+
+  /** Packed-slot lifecycle counters summed over every layout. */
+  getSlotLifecycleMetrics(): AcTrBatchSlotLifecycleTotals {
+    const total = createSlotLifecycleTotals()
+    for (const layout of this._layouts.values()) {
+      const metrics = layout.getSlotLifecycleMetrics()
+      addSlotLifecycleMetrics(total, metrics)
+      total.batchCount += metrics.batchCount
+      total.batchCountLive += metrics.batchCountLive
+      total.batchCountAllFreed += metrics.batchCountAllFreed
+    }
+    return total
+  }
+
+  /** One entry per registered shared batch across every layout. */
+  getSharedBatchEntries() {
+    const entries: AcTrSharedBatchEntry[] = []
+    for (const [layoutId, layout] of this._layouts) {
+      for (const entry of layout.getSharedBatchEntries()) {
+        entries.push({ ...entry, layoutId } as AcTrSharedBatchEntry & {
+          layoutId: string
+        })
+      }
+    }
+    return entries
+  }
+
+  /** Enables per-miss classification on every layout. */
+  setSharedBatchDiagnostics(enabled: boolean) {
+    this._layouts.forEach(layout => layout.setSharedBatchDiagnostics(enabled))
+  }
+
+  /** Every shared batch created in this scene, with layout/layer attribution. */
+  getSharedBatchCreateLog() {
+    const log: Array<{
+      key: string
+      reason: string
+      objectId: string
+      batchId: number
+      layerName: string
+      layoutId: string
+    }> = []
+    for (const [layoutId, layout] of this._layouts) {
+      for (const entry of layout.getSharedBatchCreateLog()) {
+        log.push({ ...entry, layoutId })
+      }
+    }
+    return log
+  }
+
+  /**
+   * Adds every object id this scene can currently draw into `target`.
+   *
+   * This is the scene side of the readiness comparison. Ids present in the
+   * database but missing here are still in flight, which is why a readiness
+   * check cannot rely on the queue counters alone.
+   */
+  collectObjectIds(target: Set<string> = new Set<string>()) {
+    this._layouts.forEach(layout => layout.collectObjectIds(target))
+    return target
   }
 
   /**
@@ -887,6 +1024,49 @@ export class AcTrScene {
       }
     }
     return false
+  }
+
+  /**
+   * Removes many persistent entities (stored in the drawing database) at once.
+   *
+   * Each layout is visited at most once, so per-entity layout scans, per-batch
+   * compactions, and mesh-glyph bucket scans are all collapsed into one pass.
+   *
+   * @param objectIds - Object ids of the entities to remove
+   * @returns Ids that were actually removed, in input order
+   */
+  removeEntities(objectIds: readonly AcDbObjectId[]): AcDbObjectId[] {
+    if (objectIds.length === 0) {
+      return []
+    }
+
+    const ids: string[] = []
+    const seen = new Set<string>()
+    for (const raw of objectIds) {
+      const id = String(raw)
+      if (id.length > 0 && !seen.has(id)) {
+        seen.add(id)
+        ids.push(id)
+      }
+    }
+    if (ids.length === 0) {
+      return []
+    }
+
+    AcTrMTextRenderer.getInstance().removeMeshGlyphInstancesFor(ids)
+
+    const removedSet = new Set<string>()
+    for (const [_, layout] of this._layouts) {
+      const layoutRemoved = layout.removeEntities(ids)
+      for (const id of layoutRemoved) {
+        removedSet.add(String(id))
+      }
+      if (removedSet.size === ids.length) {
+        break
+      }
+    }
+
+    return ids.filter(id => removedSet.has(id))
   }
 
   /**

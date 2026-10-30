@@ -1,6 +1,14 @@
 import './types/three-material'
 
 export * from './batch/AcTrBatchedGroup'
+export type {
+  AcTrBatchSlotLifecycleTotals,
+  BatchSlotLifecycleMetrics
+} from './batch/AcTrBatchSlotLifecycleMetrics'
+export {
+  addSlotLifecycleMetrics,
+  createSlotLifecycleTotals
+} from './batch/AcTrBatchSlotLifecycleMetrics'
 export { AcTrMeshGlyphWorldBatch } from './batch/AcTrMeshGlyphWorldBatch'
 export {
   isBatchGeometryActive,

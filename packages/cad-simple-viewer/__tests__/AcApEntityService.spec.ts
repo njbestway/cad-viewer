@@ -34,21 +34,51 @@ describe('AcApEntityService', () => {
     expect(target.color).toEqual({ cloned: true })
   })
 
-  test('eraseEntities returns the number of erased entities', () => {
+  test('eraseEntities dedupes ids and erases each block table record once', () => {
     const erased = new Set<string>()
+    const modelSpace = {
+      removeEntity: jest.fn((ids: string[]) => {
+        ids.forEach(id => erased.add(id))
+        return true
+      })
+    }
+    const paperSpace = {
+      removeEntity: jest.fn((ids: string[]) => {
+        ids.forEach(id => erased.add(id))
+        return true
+      })
+    }
+    const entities = new Map<string, { ownerId: string }>([
+      ['a', { ownerId: 'ms' }],
+      ['b', { ownerId: 'ms' }],
+      ['c', { ownerId: 'ps' }]
+    ])
     const db = {
       transactionManager: { hasTransaction: () => true },
-      openEntityForWrite: jest.fn((objectId: string) => {
-        if (objectId === 'missing') return undefined
-        return { erase: () => erased.add(objectId) }
-      })
+      tables: {
+        blockTable: {
+          getEntityById: jest.fn((objectId: string) => entities.get(objectId)),
+          getIdAt: jest.fn((ownerId: string) => {
+            if (ownerId === 'ms') return modelSpace
+            if (ownerId === 'ps') return paperSpace
+            return undefined
+          })
+        }
+      },
+      openEntityForWrite: jest.fn((objectId: string) => entities.get(objectId))
     }
     const service = new AcApEntityService(db as never)
 
-    const count = service.eraseEntities(['a', 'b', 'missing'])
+    const count = service.eraseEntities(['a', 'b', 'a', 'c', 'missing'])
 
-    expect(count).toBe(2)
-    expect(erased).toEqual(new Set(['a', 'b']))
+    expect(count).toBe(3)
+    expect(erased).toEqual(new Set(['a', 'b', 'c']))
+    // One removal call per owning block table record, with the whole id batch.
+    expect(modelSpace.removeEntity).toHaveBeenCalledTimes(1)
+    expect(modelSpace.removeEntity).toHaveBeenCalledWith(['a', 'b'])
+    expect(paperSpace.removeEntity).toHaveBeenCalledTimes(1)
+    expect(paperSpace.removeEntity).toHaveBeenCalledWith(['c'])
+    // Duplicates and unresolvable ids are never opened.
     expect(db.openEntityForWrite).toHaveBeenCalledTimes(3)
   })
 

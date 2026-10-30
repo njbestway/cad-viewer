@@ -452,6 +452,19 @@ export class AcTrMTextRenderer {
   }
 
   /**
+   * Drops InstancedMesh slots for many removed entities in one bucket pass.
+   *
+   * @param objectIds Ids of the entities removed from the scene.
+   * @returns Number of entities that had live instance slots.
+   */
+  removeMeshGlyphInstancesFor(objectIds: readonly string[]): number {
+    if (!this._meshGlyphInstancing || objectIds.length === 0) {
+      return 0
+    }
+    return this._meshGlyphBatch.removeByObjectIds(objectIds)
+  }
+
+  /**
    * Selection/hover tint for scene-level mesh-glyph instances.
    * No-op when instancing is off or the entity has no glyph slots.
    */

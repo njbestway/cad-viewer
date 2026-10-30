@@ -147,21 +147,56 @@ export class AcApEntityService {
   /**
    * Erases entities by object id.
    *
+   * Ids are deduplicated and grouped by owning block table record so each
+   * record rewrites its entity array once and emits one `entityErased` batch.
+   * Erasing through {@link AcDbEntity.erase} instead rescans the whole block
+   * table record for every id — O(N²) on a 50k selection — and emits one event
+   * per entity.
+   *
+   * Entities on a locked layer are skipped, and ids that no longer resolve are
+   * ignored.
+   *
    * @param objectIds - Entity ids to erase.
    * @returns Number of entities successfully erased.
    */
   eraseEntities(objectIds: AcDbObjectId[]): number {
     return this.runEntityEdit(() => {
-      let count = 0
-      objectIds.forEach(objectId => {
-        const existing = this.db.tables?.blockTable?.getEntityById(objectId)
-        if (existing && isEntityOnLockedLayer(this.db, existing)) return
+      if (objectIds.length === 0) return 0
+      const blockTable = this.db.tables?.blockTable
+      if (!blockTable) return 0
+
+      // A selection set may repeat an id; opening/recording it twice would
+      // double count the erase (and the second open would fail anyway).
+      const idsByOwner = new Map<AcDbObjectId, AcDbObjectId[]>()
+      const seen = new Set<AcDbObjectId>()
+      for (const objectId of objectIds) {
+        if (seen.has(objectId)) continue
+        seen.add(objectId)
+
+        const existing = blockTable.getEntityById(objectId)
+        if (!existing) continue
+        if (isEntityOnLockedLayer(this.db, existing)) continue
         const entity = this.db.openEntityForWrite(objectId)
-        if (!entity) return
-        if (isEntityOnLockedLayer(this.db, entity)) return
-        entity.erase()
-        count++
-      })
+        if (!entity) continue
+        if (isEntityOnLockedLayer(this.db, entity)) continue
+
+        const ownerId = entity.ownerId
+        if (!ownerId) continue
+        let group = idsByOwner.get(ownerId)
+        if (!group) {
+          group = []
+          idsByOwner.set(ownerId, group)
+        }
+        group.push(objectId)
+      }
+
+      let count = 0
+      for (const [ownerId, ids] of idsByOwner) {
+        const owner = blockTable.getIdAt(ownerId)
+        if (owner && owner.removeEntity(ids)) {
+          count += ids.length
+        }
+      }
       return count
     })
   }

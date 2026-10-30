@@ -19,6 +19,7 @@ import {
   resolveReservedCount,
   validateGeometry
 } from './AcTrBatchedMixin'
+import { rebuildAvailableGeometryIds } from './AcTrBatchSlotLifecycleMetrics'
 import { syncBatchDrawVisibilityAfterOptimize } from './drawVisibility'
 
 /**
@@ -243,7 +244,8 @@ export class AcTrBatchedPoint extends AcTrBatchedPointBase {
       this._availableGeometryIds,
       this._geometryInfo,
       this._geometryCount,
-      geometryInfo
+      geometryInfo,
+      this._slotLifecycle
     )
     this._geometryCount = geometryCount
 
@@ -420,8 +422,14 @@ export class AcTrBatchedPoint extends AcTrBatchedPointBase {
     // ---- sync GPU draw range ----
     this._syncDrawRange()
 
-    // ---- reset reusable ids ----
-    this._availableGeometryIds.length = 0
+    // ---- rebuild reusable ids ----
+    // Deleted records stay in the table, so the pool is re-derived rather than
+    // cleared: clearing it made every later insert append a new record.
+    rebuildAvailableGeometryIds(
+      this._geometryInfo,
+      this._availableGeometryIds,
+      this._slotLifecycle
+    )
 
     syncBatchDrawVisibilityAfterOptimize(geometry, geometryInfoList)
 

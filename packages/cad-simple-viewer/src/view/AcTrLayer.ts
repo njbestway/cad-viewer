@@ -6,7 +6,8 @@ import {
   AcTrEntity,
   AcTrPreviewSubsetOptions,
   AcTrRenderer,
-  AcTrStyleManager
+  AcTrStyleManager,
+  type AcTrBatchSlotLifecycleTotals
 } from '@mlightcad/three-renderer'
 import * as THREE from 'three'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
@@ -439,6 +440,23 @@ export class AcTrLayer {
   }
 
   /**
+   * Removes many entities from this layer with one batch compaction pass.
+   *
+   * @param objectIds - Object ids of the entities to remove
+   * @returns Ids that were actually present and removed, in input order
+   */
+  removeEntities(objectIds: readonly AcDbObjectId[]): AcDbObjectId[] {
+    if (objectIds.length === 0) {
+      return []
+    }
+    const removed = this._group.removeEntities(objectIds.map(String))
+    if (removed.removedObjectIds.length > 0) {
+      this._boxDirty = true
+    }
+    return removed.removedObjectIds
+  }
+
+  /**
    * Update the specified entity in this layer.
    * @param entity Input the entity to update
    * @returns Return true if update the specified entity successfully. Otherwise, return false.
@@ -459,6 +477,55 @@ export class AcTrLayer {
       return true
     }
     return false
+  }
+
+  /**
+   * Releases block-template batches that stayed empty past the grace period.
+   *
+   * Called by the view at a settle boundary, never from inside a removal pass:
+   * `ERASE → Undo` empties and refills the same batch one wave apart, and the
+   * grace period in the batched group is what keeps that from disposing and
+   * rebuilding the instance buffers every round.
+   *
+   * @param graceMs - Override for the group's default grace period.
+   */
+  sweepEmptySharedBatches(graceMs?: number) {
+    return this._group.sweepEmptySharedBatches(graceMs)
+  }
+
+  /** Lifecycle counters of this layer's shared block-template batches. */
+  get sharedBatchMetrics() {
+    return this._group.getSharedBatchMetrics()
+  }
+
+  /** One entry per registered shared batch, for lifecycle diagnostics. */
+  get sharedBatchEntries() {
+    return this._group.getSharedBatchEntries()
+  }
+
+  /** Packed-slot lifecycle counters of this layer's batched containers. */
+  get slotLifecycleMetrics(): AcTrBatchSlotLifecycleTotals {
+    return this._group.getSlotLifecycleMetrics()
+  }
+
+  /** Every shared batch created since the last clear, with its miss reason. */
+  getSharedBatchCreateLog() {
+    return this._group.getSharedBatchCreateLog()
+  }
+
+  /**
+   * Adds every object id this layer can currently draw into `target`.
+   *
+   * Used by the view's scene-readiness check to compare the database id set
+   * against what the scene actually holds.
+   */
+  collectObjectIds(target: Set<string> = new Set<string>()) {
+    return this._group.collectObjectIds(target)
+  }
+
+  /** Turns on per-miss classification of shared batch creations. */
+  setSharedBatchDiagnostics(enabled: boolean) {
+    this._group.setSharedBatchDiagnostics(enabled)
   }
 
   /**

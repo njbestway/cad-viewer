@@ -21,6 +21,7 @@ import {
   reserveGeometryId,
   resolveReservedCount
 } from './AcTrBatchedMixin'
+import { rebuildAvailableGeometryIds } from './AcTrBatchSlotLifecycleMetrics'
 import { syncBatchDrawVisibilityAfterOptimize } from './drawVisibility'
 import { ensureSlotIdAttribute, writeSlotIdRange } from './highlight'
 
@@ -306,7 +307,8 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
       this._availableGeometryIds,
       this._geometryInfo,
       this._geometryCount,
-      geometryInfo
+      geometryInfo,
+      this._slotLifecycle
     )
     this._geometryCount = geometryCount
 
@@ -487,7 +489,14 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
 
     this._nextSegmentStart = nextSegmentStart
     this._syncDrawRange()
-    this._availableGeometryIds.length = 0
+
+    // Deleted records survive compaction, so the reusable ids are re-derived
+    // from the slot table instead of dropped.
+    rebuildAvailableGeometryIds(
+      this._geometryInfo,
+      this._availableGeometryIds,
+      this._slotLifecycle
+    )
 
     const instanceStart = this.geometry.getAttribute('instanceStart')
     const instanceEnd = this.geometry.getAttribute('instanceEnd')

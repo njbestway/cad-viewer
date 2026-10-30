@@ -106,6 +106,17 @@ export interface AcTrSpatialIndex<
   removeById(id: AcDbObjectId): void
 
   /**
+   * Removes many items by id in one pass.
+   *
+   * Optional: implementations provide it when a bulk removal can be cheaper
+   * than repeated {@link removeById} calls. Callers must fall back to
+   * {@link removeById} when it is absent.
+   *
+   * @param ids Ids of previously inserted items
+   */
+  removeByIds?(ids: readonly AcDbObjectId[]): void
+
+  /**
    * Removes all items.
    */
   clear(): void

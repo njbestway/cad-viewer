@@ -53,6 +53,11 @@ import { AcTrBatchedLine2 } from './AcTrBatchedLine2'
 import { AcTrBatchedMesh } from './AcTrBatchedMesh'
 import { AcTrBatchedPoint } from './AcTrBatchedPoint'
 import {
+  type AcTrBatchSlotLifecycleTotals,
+  addSlotLifecycleMetrics,
+  createSlotLifecycleTotals
+} from './AcTrBatchSlotLifecycleMetrics'
+import {
   AcTrSharedGeometryBatch,
   type AcTrSharedGeometryKind
 } from './AcTrSharedGeometryBatch'
@@ -204,6 +209,105 @@ export interface AcTrDirectAppendOptions {
   visible?: boolean
   /** Point entities: world position for bbox intersection. */
   position?: AcGePoint3dLike
+}
+
+/**
+ * Outcome of one {@link AcTrBatchedGroup.removeEntities} pass.
+ *
+ * `optimizeCount` is exposed so callers and tests can assert the invariant that
+ * matters for bulk erase: at most one compaction per affected batch.
+ */
+export interface AcTrBatchRemovalResult {
+  /** Entity ids that actually left the group, de-duplicated, in input order. */
+  removedObjectIds: string[]
+  /** Batched containers that lost at least one slot in this pass. */
+  affectedBatchCount: number
+  /** `optimize()` calls performed; equals {@link affectedBatchCount}. */
+  optimizeCount: number
+}
+
+/**
+ * Lifecycle counters of the shared block-template batches.
+ *
+ * These exist because the renderer's alive-geometry count only says *that*
+ * something is retained. `created`/`reused`/`emptied`/`evicted`/`disposed`
+ * plus the miss-reason counters below name *which* key missed and *why*, which
+ * is the only way to tell a new template UUID from a new material id, an
+ * origin split, or an empty batch that was never reclaimed.
+ */
+export interface AcTrSharedBatchLifecycleMetrics {
+  /** Batches constructed since the last {@link AcTrBatchedGroup.clear}. */
+  created: number
+  /** INSERT instances that landed on an existing batch (cache hits). */
+  reused: number
+  /** Batches that lost their last live instance. */
+  emptied: number
+  /** Empty batches released by {@link AcTrBatchedGroup.sweepEmptySharedBatches}. */
+  evicted: number
+  /** Batches whose instances and GPU buffers were released (evict + clear). */
+  disposed: number
+  /** Batches currently registered. */
+  activeBatches: number
+  /** Registered batches that currently hold no instance. */
+  emptyBatches: number
+  /** Live INSERT slots across all registered batches. */
+  activeInstances: number
+  /** Compressed template geometries owned by this group. */
+  templateGeometryCount: number
+  /** Distinct template UUIDs behind {@link activeBatches}. */
+  uniqueTemplateUUIDCount: number
+  /** Largest slot index in use across registered batches (buffer growth). */
+  peakSlotCapacity: number
+  /** New batch created for a template UUID never seen in this group. */
+  missNewTemplateUuid: number
+  /** New batch created because no batch of this template had a close origin. */
+  missNoMergeableOrigin: number
+  /** New batch created for a cached template whose batches were all evicted. */
+  missEvictedTemplate: number
+  /** New batch whose key differs from another cached key only by material id. */
+  missNewMaterialId: number
+  /** New batch whose key differs from another cached key only by kind/layout. */
+  missNewKind: number
+}
+
+/** One registered shared batch, for lifecycle diagnostics. */
+export interface AcTrSharedBatchEntry {
+  /** Three.js object id of the batch container. */
+  batchId: number
+  /** Cache key `kind:sourceUuid:materialId`. */
+  key: string
+  kind: string
+  sourceUuid: string
+  materialId: number
+  /** Live INSERT slots. */
+  liveInstances: number
+  /** Slots handed out so far (should track {@link liveInstances}). */
+  slotCapacity: number
+  /** First live INSERT object id, when any. */
+  firstObjectId?: string
+  /** How long this batch has been empty, `0` while it holds instances. */
+  emptyForMs: number
+}
+
+/** Outcome of one {@link AcTrBatchedGroup.sweepEmptySharedBatches} pass. */
+export interface AcTrSharedBatchSweepResult {
+  /** Batches that were empty and got released in this pass. */
+  evicted: number
+  /** Empty batches that refilled before the sweep and stayed registered. */
+  revived: number
+  /** Empty batches deferred because their grace period has not elapsed. */
+  deferred: number
+  /** Owned template geometries released because their last batch left. */
+  disposedTemplateGeometries: number
+  /**
+   * Delay after which another sweep can make progress, `0` when a new sweep
+   * would only repeat this one.
+   *
+   * The caller schedules the follow-up: a batch must stay empty long enough for
+   * an `ERASE → Undo` pair to reuse it, and the scene has to reach zero empty
+   * batches once it settles. Both come from the same number.
+   */
+  retryInMs: number
 }
 
 export interface AcTrGeometrySize {
@@ -389,6 +493,69 @@ export class AcTrBatchedGroup extends THREE.Group {
   private _sharedGeometryBatches: Map<string, AcTrSharedGeometryBatch[]>
   /** One clone per template geometry so cache disposal cannot free live buffers. */
   private _ownedSharedGeometries: Map<string, THREE.BufferGeometry>
+  /**
+   * Number of registered shared batches that still reference each owned
+   * template geometry.
+   *
+   * The clone is owned by this group on behalf of every batch created from the
+   * same template UUID, so it may only be disposed when the last of them is
+   * evicted. Without the count, eviction would either free a buffer that a
+   * later batch still draws (corruption) or never free it at all (the phase 2.8
+   * geometry-count growth).
+   */
+  private _ownedSharedGeometryRefs = new Map<string, number>()
+  /**
+   * Empty shared batches waiting for eviction, mapped to the
+   * `performance.now()` at which they last became empty.
+   *
+   * `ERASE → Undo` empties a batch and refills it one wave later, so evicting
+   * on the first observation would dispose and rebuild the same instance
+   * buffers every round (and re-clone the template buffers). The grace period
+   * separates "temporarily empty" from "gone", and because it is measured
+   * rather than counted, a scene that settles still reaches zero empty batches
+   * without needing another unrelated update to trigger a second sweep.
+   */
+  private readonly _emptySharedBatches = new Map<
+    AcTrSharedGeometryBatch,
+    number
+  >()
+  /**
+   * How long a batch must stay empty before it is released.
+   *
+   * Longer than one convert wave (a 50k ERASE settles in well under this) and
+   * short enough that an idle scene does not keep dead instance buffers for
+   * long. Callers may override it through
+   * {@link sweepEmptySharedBatches}; tests use that to assert both sides.
+   */
+  static readonly SHARED_BATCH_EMPTY_GRACE_MS = 500
+  /** Lifecycle counters; see {@link getSharedBatchMetrics}. */
+  private _sharedBatchCounters = {
+    created: 0,
+    reused: 0,
+    emptied: 0,
+    evicted: 0,
+    disposed: 0,
+    missNewTemplateUuid: 0,
+    missNoMergeableOrigin: 0,
+    missEvictedTemplate: 0,
+    missNewMaterialId: 0,
+    missNewKind: 0
+  }
+  /**
+   * Whether a cache miss is classified by scanning the other keys.
+   *
+   * The scan is O(keys) per created batch. That is negligible for a handful of
+   * block templates and quadratic on a drawing with thousands of distinct
+   * materials, so it stays off unless a lifecycle audit turns it on.
+   */
+  private _sharedBatchDiagnostics = false
+  /** Creation log kept while {@link _sharedBatchDiagnostics} is on. */
+  private _sharedBatchCreateLog: Array<{
+    key: string
+    reason: string
+    objectId: string
+    batchId: number
+  }> = []
   /**
    * Top-most overlay of added/deleted/modified slots.
    *
@@ -680,10 +847,16 @@ export class AcTrBatchedGroup extends THREE.Group {
     this.clearHighlightGroup(this._hoverObjects)
     this.clearHighlightGroup(this._compareOverlay)
     this._sharedGeometryBatches.forEach(batches => {
-      batches.forEach(batch => batch.disposeSharedInstances())
+      batches.forEach(batch => {
+        batch.disposeSharedInstances()
+        this._sharedBatchCounters.disposed++
+      })
     })
     this._sharedGeometryBatches.clear()
     this._sharedBatchById.clear()
+    this._emptySharedBatches.clear()
+    this._ownedSharedGeometryRefs.clear()
+    this._sharedBatchCreateLog.length = 0
     this._ownedSharedGeometries.forEach(geometry => geometry.dispose())
     this._ownedSharedGeometries.clear()
     this._originBatchById.clear()
@@ -1144,6 +1317,23 @@ export class AcTrBatchedGroup extends THREE.Group {
     return (
       this._entitiesMap.has(objectId) || this._unbatchedEntities.has(objectId)
     )
+  }
+
+  /**
+   * Adds every object id this group can still draw into `target`.
+   *
+   * A readiness check needs the scene-side id set, not the database-side one:
+   * the difference is exactly the work still in flight. Both the batched slot
+   * map and the unbatched fallback map are included because a zero-slot entity
+   * still counts as present in the group.
+   *
+   * @param target - Set that receives the ids.
+   * @returns The same set instance passed in `target`.
+   */
+  collectObjectIds(target: Set<string> = new Set<string>()) {
+    for (const objectId of this._entitiesMap.keys()) target.add(objectId)
+    for (const objectId of this._unbatchedEntities.keys()) target.add(objectId)
+    return target
   }
 
   /**
@@ -1663,47 +1853,108 @@ export class AcTrBatchedGroup extends THREE.Group {
 
   /**
    * Removes one entity from batch/unbatched containers.
+   *
+   * Single-entity entry point kept for existing callers (entity update,
+   * preview teardown). Bulk callers must use {@link removeEntities} so each
+   * affected batch is compacted once instead of once per entity.
    */
   removeEntity(objectId: string) {
-    let result = false
-    let compactedBatches = false
-    if (this._entitiesMap.has(objectId)) {
-      const batchedObjects = new Map<number, AcTrResolvedBatch>()
-      this.forEachEntitySlot(objectId, item => {
-        const batchedObject = this.getOriginBatch(item.batchedObjectId)
-        if (batchedObject) {
-          batchedObject.deleteGeometry(item.batchId)
-          batchedObjects.set(item.batchedObjectId, batchedObject)
-          result = true
-        }
-      })
-      batchedObjects.forEach(batchedObject => batchedObject.optimize())
-      compactedBatches = batchedObjects.size > 0
-      this.unselect(objectId)
-      this.unhover(objectId)
-      this._entitiesMap.delete(objectId)
+    return this.removeEntities([objectId]).removedObjectIds.length > 0
+  }
+
+  /**
+   * Removes many entities from batch/unbatched containers.
+   *
+   * Every affected batched container is compacted exactly once, no matter how
+   * many entities it lost, and duplicate ids are processed once. Highlight
+   * state is cleared with one mask flush per container.
+   *
+   * @param objectIds - Entity object ids to remove. Order is preserved in the
+   *   result; duplicates and unknown ids are ignored.
+   */
+  removeEntities(objectIds: readonly string[]): AcTrBatchRemovalResult {
+    if (objectIds.length === 0) {
+      return { removedObjectIds: [], affectedBatchCount: 0, optimizeCount: 0 }
     }
-    const unbatchedObjects = this._unbatchedEntities.get(objectId)
-    if (unbatchedObjects) {
-      this.unselect(objectId)
-      this.unhover(objectId)
-      unbatchedObjects.forEach(object => {
-        this.disposeObject(object)
-        this._unbatchedObjects.remove(object)
-      })
-      this._unbatchedEntities.delete(objectId)
-      result = true
-    }
-    if (this._compareEnabled) {
-      // Compact moves remaining slot ranges, so shared overlay draw ranges
-      // must be rebuilt. Unbatched-only deletes only drop this entity's copy.
-      if (compactedBatches) {
-        this.refreshCompareOverlay()
-      } else {
-        this.removeCompareOverlayForEntity(objectId)
+
+    const ids: string[] = []
+    const seen = new Set<string>()
+    for (let index = 0; index < objectIds.length; index++) {
+      const objectId = String(objectIds[index])
+      if (seen.has(objectId)) {
+        continue
+      }
+      seen.add(objectId)
+      const hasSlots = this._entitiesMap.has(objectId)
+      const hasUnbatched = this._unbatchedEntities.has(objectId)
+      if (hasSlots || hasUnbatched) {
+        ids.push(objectId)
       }
     }
-    return result
+    if (ids.length === 0) {
+      return { removedObjectIds: [], affectedBatchCount: 0, optimizeCount: 0 }
+    }
+
+    // Clear highlight while the slot records still exist: slot masks must be
+    // updated before the geometry is released. One flush per container.
+    this.setEntityHighlight(ids, 'select', false)
+    this.setEntityHighlight(ids, 'hover', false)
+
+    const affectedBatches = new Set<AcTrResolvedBatch>()
+    const removedObjectIds: string[] = []
+
+    for (let index = 0; index < ids.length; index++) {
+      const objectId = ids[index]
+      let removed = false
+
+      if (this._entitiesMap.has(objectId)) {
+        this.forEachEntitySlot(objectId, item => {
+          const batchedObject = this.getOriginBatch(item.batchedObjectId)
+          if (batchedObject) {
+            batchedObject.deleteGeometry(item.batchId)
+            affectedBatches.add(batchedObject)
+            removed = true
+          }
+        })
+        this._entitiesMap.delete(objectId)
+      }
+
+      const unbatchedObjects = this._unbatchedEntities.get(objectId)
+      if (unbatchedObjects) {
+        unbatchedObjects.forEach(object => {
+          this.disposeObject(object)
+          this._unbatchedObjects.remove(object)
+        })
+        this._unbatchedEntities.delete(objectId)
+        removed = true
+      }
+
+      if (removed) {
+        removedObjectIds.push(objectId)
+      }
+    }
+
+    // Exactly one compaction per affected container: `optimize()` rewrites the
+    // whole packed buffer, so calling it per removed entity is O(n^2).
+    affectedBatches.forEach(batchedObject => batchedObject.optimize())
+
+    if (this._compareEnabled && removedObjectIds.length > 0) {
+      // Compaction moves remaining slot ranges, so shared overlay draw ranges
+      // must be rebuilt. Unbatched-only deletes only drop their own copies.
+      if (affectedBatches.size > 0) {
+        this.refreshCompareOverlay()
+      } else {
+        removedObjectIds.forEach(objectId =>
+          this.removeCompareOverlayForEntity(objectId)
+        )
+      }
+    }
+
+    return {
+      removedObjectIds,
+      affectedBatchCount: affectedBatches.size,
+      optimizeCount: affectedBatches.size
+    }
   }
 
   /**
@@ -2743,19 +2994,30 @@ export class AcTrBatchedGroup extends THREE.Group {
         best = batch
       }
     }
-    if (best) return best
+    if (best) {
+      this._sharedBatchCounters.reused++
+      // A refill cancels the pending eviction: the batch is live again.
+      this._emptySharedBatches.delete(best)
+      return best
+    }
 
+    const reason = this.classifySharedBatchMiss(key, geometry, kind, list)
     let owned = this._ownedSharedGeometries.get(geometry.uuid)
     if (!owned) {
       owned = geometry.clone()
       this._ownedSharedGeometries.set(geometry.uuid, owned)
     }
+    this._ownedSharedGeometryRefs.set(
+      geometry.uuid,
+      (this._ownedSharedGeometryRefs.get(geometry.uuid) ?? 0) + 1
+    )
     const batch = new AcTrSharedGeometryBatch(
       owned,
       material,
       worldOffset,
       kind,
-      geometry.uuid
+      geometry.uuid,
+      emptied => this.noteSharedBatchEmptied(emptied)
     )
     if (this._compareEnabled) {
       batch.setCompareDisplayColors({
@@ -2769,8 +3031,278 @@ export class AcTrBatchedGroup extends THREE.Group {
     list.push(batch)
     this._sharedBatchById.set(batch.id, batch)
     this.add(batch)
+    this._sharedBatchCounters.created++
+    this.noteSharedBatchCreation(key, reason, batch.id)
     return batch
   }
+
+  /**
+   * Names why a template key needed a brand-new batch.
+   *
+   * The counters it bumps are the evidence the phase 2.9 audit needs: a new
+   * template UUID per conversion, a new material id, an origin split, or an
+   * empty batch that was reclaimed and then re-created are four different
+   * defects with four different fixes.
+   *
+   * @param key - Cache key that missed.
+   * @param geometry - Template geometry whose batch list is empty.
+   * @param kind - Primitive family of the template.
+   * @param list - Existing (non-mergeable) batches for this exact key.
+   */
+  private classifySharedBatchMiss(
+    key: string,
+    geometry: THREE.BufferGeometry,
+    kind: AcTrSharedGeometryKind,
+    list: AcTrSharedGeometryBatch[]
+  ) {
+    let reason: string
+    if (list.length > 0) {
+      this._sharedBatchCounters.missNoMergeableOrigin++
+      return `origin-split:${key}`
+    }
+    if (!this._ownedSharedGeometries.has(geometry.uuid)) {
+      reason = 'new-template-uuid'
+    } else {
+      reason = 'evicted-template'
+    }
+    if (this._sharedBatchDiagnostics) {
+      // Same template, same kind, other material id: the batch was split by a
+      // style/material change rather than by the block definition. This scan is
+      // the expensive part of the classifier, hence the flag.
+      const prefix = `${kind}:${geometry.uuid}:`
+      for (const existing of this._sharedGeometryBatches.keys()) {
+        if (existing === key || !existing.startsWith(prefix)) continue
+        this._sharedBatchCounters.missNewMaterialId++
+        return `material-change:${key}`
+      }
+    }
+    if (reason === 'new-template-uuid') {
+      this._sharedBatchCounters.missNewTemplateUuid++
+    } else {
+      this._sharedBatchCounters.missEvictedTemplate++
+    }
+    return `${reason}:${key}`
+  }
+
+  /** Records a creation for {@link getSharedBatchCreateLog}. */
+  private noteSharedBatchCreation(
+    key: string,
+    reason: string,
+    batchId: number
+  ) {
+    if (!this._sharedBatchDiagnostics) return
+    this._sharedBatchCreateLog.push({ key, reason, objectId: '', batchId })
+    if (this._sharedBatchCreateLog.length > 200) {
+      this._sharedBatchCreateLog.splice(0, this._sharedBatchCreateLog.length - 200)
+    }
+  }
+
+  /** Registers a batch that just lost its last live instance. */
+  private noteSharedBatchEmptied(batch: AcTrSharedGeometryBatch) {
+    this._sharedBatchCounters.emptied++
+    if (!this._emptySharedBatches.has(batch)) {
+      this._emptySharedBatches.set(batch, performance.now())
+    }
+  }
+
+  /**
+   * Turns on per-miss classification and the creation log.
+   *
+   * @param enabled - Whether diagnostics are collected.
+   */
+  setSharedBatchDiagnostics(enabled: boolean) {
+    this._sharedBatchDiagnostics = enabled
+    if (!enabled) this._sharedBatchCreateLog.length = 0
+    return this
+  }
+
+  /** Snapshot of the shared-batch lifecycle counters. */
+  getSharedBatchMetrics(): AcTrSharedBatchLifecycleMetrics {
+    let activeInstances = 0
+    let emptyBatches = 0
+    let peakSlotCapacity = 0
+    const uuids = new Set<string>()
+    for (const batch of this._sharedBatchById.values()) {
+      activeInstances += batch.instanceCount
+      if (batch.instanceCount === 0) emptyBatches++
+      peakSlotCapacity = Math.max(peakSlotCapacity, batch.slotCapacity)
+      uuids.add(batch.sourceUuid)
+    }
+    return {
+      ...this._sharedBatchCounters,
+      activeBatches: this._sharedBatchById.size,
+      emptyBatches,
+      activeInstances,
+      templateGeometryCount: this._ownedSharedGeometries.size,
+      uniqueTemplateUUIDCount: uuids.size,
+      peakSlotCapacity
+    }
+  }
+
+  /**
+   * Aggregated slot-lifecycle metrics across every packed batch container.
+   *
+   * Phase 2.11 Task B1: the group-level view is what separates "one batch is
+   * growing" from "every batch is churning", and it is the only place that can
+   * see a container whose slots are all soft-deleted but still resident.
+   *
+   * @returns Summed counters/gauges plus per-container detection flags.
+   */
+  getSlotLifecycleMetrics(): AcTrBatchSlotLifecycleTotals {
+    const totals = createSlotLifecycleTotals()
+    const maps: Array<AcTrOriginBatchMap<AcTrOriginBatch>> = [
+      this._lineBatches,
+      this._lineWithIndexBatches,
+      this._line2Batches,
+      this._meshBatches,
+      this._meshWithIndexBatches,
+      this._pointBatches,
+      this._pointSymbolBatches
+    ]
+    for (const map of maps) {
+      for (const list of map.values()) {
+        for (const batch of list) {
+          const metrics = batch.getSlotLifecycleMetrics()
+          addSlotLifecycleMetrics(totals, metrics)
+          totals.batchCount++
+          if (metrics.liveSlots > 0) totals.batchCountLive++
+          else if (metrics.slotCapacity > 0) totals.batchCountAllFreed++
+        }
+      }
+    }
+    return totals
+  }
+
+  /** One entry per registered shared batch, for lifecycle diagnostics. */
+  getSharedBatchEntries(): AcTrSharedBatchEntry[] {
+    const entries: AcTrSharedBatchEntry[] = []
+    for (const [key, list] of this._sharedGeometryBatches) {
+      for (const batch of list) {
+        entries.push({
+          batchId: batch.id,
+          key,
+          kind: batch.kind,
+          sourceUuid: batch.sourceUuid,
+          materialId: batch.materialId,
+          liveInstances: batch.instanceCount,
+          slotCapacity: batch.slotCapacity,
+          firstObjectId: batch.firstObjectId,
+          emptyForMs: this._emptySharedBatches.has(batch)
+            ? Math.max(
+                0,
+                performance.now() -
+                  (this._emptySharedBatches.get(batch) as number)
+              )
+            : 0
+        })
+      }
+    }
+    return entries
+  }
+
+  /** Creation log entries recorded while diagnostics were on. */
+  getSharedBatchCreateLog() {
+    return this._sharedBatchCreateLog.slice()
+  }
+
+  /**
+   * Releases shared batches that have been empty for at least the grace period.
+   *
+   * Must run at a settle boundary, never from inside a removal pass: a batch
+   * emptied by `ERASE` is refilled by the `Undo` one wave later, and releasing
+   * it then would dispose and rebuild the same instance buffers (plus re-clone
+   * every template geometry) on every round — the growth phase 2.8 recorded.
+   *
+   * A batch that refilled before the grace elapsed is counted as revived and
+   * stays registered with its existing slots, which is the whole point of the
+   * grace: the slot that was freed is handed out again instead of a new one.
+   *
+   * @param graceMs - Override for
+   *   {@link AcTrBatchedGroup.SHARED_BATCH_EMPTY_GRACE_MS}; tests use `0` to
+   *   assert immediate reclamation and a large value to assert retention.
+   * @returns How many batches/templates this pass released, how many were
+   *   revived or deferred, and when another pass could help.
+   */
+  sweepEmptySharedBatches(
+    graceMs: number = AcTrBatchedGroup.SHARED_BATCH_EMPTY_GRACE_MS
+  ): AcTrSharedBatchSweepResult {
+    const result: AcTrSharedBatchSweepResult = {
+      evicted: 0,
+      revived: 0,
+      deferred: 0,
+      disposedTemplateGeometries: 0,
+      retryInMs: 0
+    }
+    if (this._emptySharedBatches.size === 0) return result
+    const now = performance.now()
+    const grace = Math.max(0, graceMs)
+    // Snapshot: eviction mutates the map through `noteSharedBatchEmptied` only
+    // for *new* empties, but a candidate can be revived by an append that runs
+    // from a promise callback, so iterate a copy.
+    const candidates = Array.from(this._emptySharedBatches)
+    for (const [batch, emptiedAt] of candidates) {
+      // Skip candidates whose entry was replaced (re-emptied) mid-pass.
+      if (this._emptySharedBatches.get(batch) !== emptiedAt) continue
+      if (batch.hasLiveInstances) {
+        this._emptySharedBatches.delete(batch)
+        result.revived++
+        continue
+      }
+      const emptyFor = now - emptiedAt
+      if (emptyFor < grace) {
+        result.deferred++
+        result.retryInMs = Math.max(result.retryInMs, Math.ceil(grace - emptyFor))
+        continue
+      }
+      this._emptySharedBatches.delete(batch)
+      this.evictSharedBatch(batch)
+      result.evicted++
+      result.disposedTemplateGeometries += this.releaseTemplateGeometryFor(
+        batch.sourceUuid
+      )
+    }
+    return result
+  }
+
+  /** Detaches one batch and frees the GPU buffers it owns. */
+  private evictSharedBatch(batch: AcTrSharedGeometryBatch) {
+    const key = `${batch.kind}:${batch.sourceUuid}:${batch.materialId}`
+    const list = this._sharedGeometryBatches.get(key)
+    if (list) {
+      const index = list.indexOf(batch)
+      if (index >= 0) list.splice(index, 1)
+      if (list.length === 0) this._sharedGeometryBatches.delete(key)
+    }
+    this._sharedBatchById.delete(batch.id)
+    // Releases the instance-matrix buffer, fat-line objects, highlight
+    // overlays and the owned compare material. The template geometry and the
+    // style-cache material are shared, so they are handled by the refcount
+    // below and by the material cache respectively.
+    batch.disposeSharedInstances()
+    this._sharedBatchCounters.evicted++
+    this._sharedBatchCounters.disposed++
+  }
+
+  /**
+   * Drops one reference to an owned template geometry.
+   *
+   * @param uuid - Template UUID the evicted batch was using.
+   * @returns `1` when this was the last reference and the clone was disposed.
+   */
+  private releaseTemplateGeometryFor(uuid: string) {
+    const refs = this._ownedSharedGeometryRefs.get(uuid)
+    if (refs == null) return 0
+    if (refs > 1) {
+      this._ownedSharedGeometryRefs.set(uuid, refs - 1)
+      return 0
+    }
+    this._ownedSharedGeometryRefs.delete(uuid)
+    const geometry = this._ownedSharedGeometries.get(uuid)
+    this._ownedSharedGeometries.delete(uuid)
+    geometry?.dispose()
+    return 1
+  }
+
 
   /**
    * Points a shared-geometry batch at a replacement layer material.

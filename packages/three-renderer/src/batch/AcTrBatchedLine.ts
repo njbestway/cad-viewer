@@ -20,6 +20,7 @@ import {
   resolveReservedCount,
   validateGeometry
 } from './AcTrBatchedMixin'
+import { rebuildAvailableGeometryIds } from './AcTrBatchSlotLifecycleMetrics'
 import { syncBatchDrawVisibilityAfterOptimize } from './drawVisibility'
 
 /** Reusable scratch box for bounds queries. */
@@ -352,7 +353,8 @@ export class AcTrBatchedLine extends AcTrBatchedLineBase {
       this._availableGeometryIds,
       this._geometryInfo,
       this._geometryCount,
-      geometryInfo
+      geometryInfo,
+      this._slotLifecycle
     )
     this._geometryCount = geometryCount
 
@@ -681,7 +683,15 @@ export class AcTrBatchedLine extends AcTrBatchedLineBase {
 
     this._syncDrawRange()
 
-    this._availableGeometryIds.length = 0
+    // Compaction rewrites packed ranges but never shrinks the slot table, so the
+    // ids freed since the last pass must be re-derived from the table — dropping
+    // them here (phase 2.10 behaviour) made every subsequent insert append a new
+    // record instead of reusing a dead one.
+    rebuildAvailableGeometryIds(
+      this._geometryInfo,
+      this._availableGeometryIds,
+      this._slotLifecycle
+    )
 
     syncBatchDrawVisibilityAfterOptimize(geometry, this._geometryInfo)
 

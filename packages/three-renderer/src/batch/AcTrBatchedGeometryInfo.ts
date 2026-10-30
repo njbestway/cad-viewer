@@ -76,10 +76,46 @@ export interface AcTrBatchGeometryState {
    */
   flags: number
   /**
+   * Monotonic counter of the owners this slot id has served.
+   *
+   * Bumped by `reserveGeometryId` every time the id is handed to a new entity,
+   * so a caller that captured `(batchId, slotGeneration)` can prove the slot
+   * still describes the geometry it asked for. Slot ids never cross an `await`
+   * today (see `PHASE211_SLOT_LIFECYCLE_AUDIT.md` §5 Q5); the field keeps that
+   * safety a property of the container instead of a property of its callers.
+   */
+  slotGeneration: number
+  /**
    * Cached GPU buffer slices used to restore geometry after draw-time collapse.
    * Populated when a slot is hidden via {@link setVisibleAt}.
    */
   hiddenDrawSnapshot?: AcTrBatchDrawSnapshot
+}
+
+/**
+ * Returns the generation the next owner of `geometryId` must carry.
+ *
+ * The previous record stays in the slot table until reuse — that is what makes
+ * the counter recoverable without a side table.
+ *
+ * @param previous - Record currently stored at the slot, if any.
+ * @returns `previous.slotGeneration + 1`, or `1` for a never-used slot.
+ */
+export function nextSlotGeneration(previous?: { slotGeneration?: number }) {
+  return (previous?.slotGeneration ?? 0) + 1
+}
+
+/**
+ * Returns true when `generation` still identifies the current owner of a slot.
+ *
+ * @param info - Slot record read from the container.
+ * @param generation - Generation captured by the caller.
+ */
+export function isSlotGenerationCurrent(
+  info: { slotGeneration?: number } | undefined,
+  generation: number
+) {
+  return info != null && (info.slotGeneration ?? 0) === generation
 }
 
 /**
@@ -114,6 +150,10 @@ export type AcTrBatchedGeometryInfo = AcTrIndexedBatchGeometryInfo
 
 /**
  * Ascending sort comparator for reusable geometry ids.
+ *
+ * Kept for callers that build a pool in id order; {@link reserveGeometryId}
+ * no longer sorts, because sorting on every reservation turned a bulk MOVE into
+ * a 13.9 s re-sort loop.
  */
 export function ascIdSort(a: number, b: number) {
   return a - b

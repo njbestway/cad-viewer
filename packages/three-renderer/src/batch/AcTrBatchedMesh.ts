@@ -19,6 +19,7 @@ import {
   resolveReservedCount,
   validateGeometry
 } from './AcTrBatchedMixin'
+import { rebuildAvailableGeometryIds } from './AcTrBatchSlotLifecycleMetrics'
 import { syncBatchDrawVisibilityAfterOptimize } from './drawVisibility'
 
 /** Reusable scratch box for bounds queries. */
@@ -263,7 +264,8 @@ export class AcTrBatchedMesh extends AcTrBatchedMeshBase {
       this._availableGeometryIds,
       this._geometryInfo,
       this._geometryCount,
-      geometryInfo
+      geometryInfo,
+      this._slotLifecycle
     )
     this._geometryCount = geometryCount
 
@@ -483,7 +485,14 @@ export class AcTrBatchedMesh extends AcTrBatchedMeshBase {
 
     this._syncDrawRange()
 
-    this._availableGeometryIds.length = 0
+    // Re-derive the reusable ids from the slot table: compaction moves packed
+    // ranges but leaves deleted records in place, so the pool must be rebuilt
+    // instead of cleared.
+    rebuildAvailableGeometryIds(
+      this._geometryInfo,
+      this._availableGeometryIds,
+      this._slotLifecycle
+    )
 
     syncBatchDrawVisibilityAfterOptimize(geometry, this._geometryInfo)
 

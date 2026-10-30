@@ -58,6 +58,25 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
   private _line2Objects: Array<LineSegments2 | null> = []
   private _capacity = 0
   private _count = 0
+  /**
+   * Slots whose {@link _alive} flag is one.
+   *
+   * Kept as a counter so {@link instanceCount} is O(1): the eviction path asks
+   * for it on every batch it considers, and the old loop over `_count` made
+   * that quadratic in the number of INSERTs of one template.
+   */
+  private _liveCount = 0
+  /**
+   * Dead slot indices that can be handed out again by {@link addInstance}.
+   *
+   * Without reuse, `ERASE → Undo` appended a second matrix (and, for fat
+   * lines, a second `LineSegments2`) for the same INSERT on every round and the
+   * instance buffer grew for the whole session even though the live instance
+   * count never changed.
+   */
+  private _freeSlots: number[] = []
+  /** Notified when the last live slot is removed. */
+  private _onEmpty: ((batch: AcTrSharedGeometryBatch) => void) | null = null
   private _alive!: Uint8Array
   private _bboxOnly!: Uint8Array
   private _objectIds: Array<string | undefined> = []
@@ -81,13 +100,16 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
    * @param origin - World translation used to keep instance matrices small.
    * @param kind - Primitive family of `geometry`.
    * @param sourceUuid - UUID of the block-template geometry this batch serves.
+   * @param onEmpty - Called once when the batch loses its last live slot, so
+   *   the owner can schedule an eviction at the next safe boundary.
    */
   constructor(
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
     origin: THREE.Vector3,
     kind: AcTrSharedGeometryKind,
-    sourceUuid: string
+    sourceUuid: string,
+    onEmpty?: (batch: AcTrSharedGeometryBatch) => void
   ) {
     super()
     this._geometry = geometry
@@ -95,6 +117,7 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
     this._origin = origin.clone()
     this.kind = kind
     this.sourceUuid = sourceUuid
+    this._onEmpty = onEmpty ?? null
     this.matrixAutoUpdate = false
     AcTrBufferGeometryUtil.safeComputeBoundingBox(geometry)
     if (geometry.boundingBox) {
@@ -145,11 +168,30 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
 
   /** Number of live INSERT slots, including ones hidden but not deleted. */
   get instanceCount() {
-    let count = 0
+    return this._liveCount
+  }
+
+  /** Whether any INSERT still occupies a slot of this batch. */
+  get hasLiveInstances() {
+    return this._liveCount > 0
+  }
+
+  /**
+   * Slots ever handed out by {@link addInstance} (live plus reusable dead).
+   *
+   * Equality with {@link instanceCount} means slot reuse is keeping the
+   * instance buffer at the size of the largest concurrent instance set.
+   */
+  get slotCapacity() {
+    return this._count
+  }
+
+  /** Object id of the first live slot, for lifecycle diagnostics. */
+  get firstObjectId(): string | undefined {
     for (let i = 0; i < this._count; i++) {
-      if (this._alive[i]) count++
+      if (this._alive[i]) return this._objectIds[i]
     }
-    return count
+    return undefined
   }
 
   /**
@@ -165,10 +207,9 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
     objectId: string,
     bboxOnly: boolean
   ) {
-    const index = this._count
-    this.ensureCapacity(index + 1)
-    this._count++
+    const index = this.takeSlot()
     this._alive[index] = 1
+    this._liveCount++
     this._bboxOnly[index] = bboxOnly ? 1 : 0
     this._objectIds[index] = objectId
     this.writeRelative(index, matrixWorld)
@@ -242,6 +283,7 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
     if (!this.isAlive(geometryId)) return
     this.setVisibleAt(geometryId, false)
     this._alive[geometryId] = 0
+    this._liveCount = Math.max(0, this._liveCount - 1)
     this._selected.delete(geometryId)
     this._hovered.delete(geometryId)
     this.removeHighlight(geometryId)
@@ -251,6 +293,53 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
       line.removeFromParent()
       this._line2Objects[geometryId] = null
     }
+    // `setVisibleAt(..., false)` parks the slot matrix in `_hiddenMatrices`.
+    // That entry outlived the slot for the whole session because indices were
+    // never reused; it must not survive a reuse or `readRelative` would answer
+    // the previous INSERT's transform for picking and compare overlays.
+    this._hiddenMatrices.delete(geometryId)
+    this._bboxOnly[geometryId] = 0
+    this._objectIds[geometryId] = undefined
+    this.releaseSlot(geometryId)
+    if (this._liveCount === 0) this._onEmpty?.(this)
+  }
+
+  /**
+   * Hands out a free slot index, or grows the buffer by one.
+   *
+   * Trailing dead slots are trimmed after every removal, so the common
+   * `ERASE`-then-`Undo` pattern reuses exactly the slots it just freed.
+   */
+  private takeSlot() {
+    while (this._freeSlots.length > 0) {
+      const index = this._freeSlots.pop()!
+      if (index < this._count) return index
+    }
+    const index = this._count
+    this.ensureCapacity(index + 1)
+    this._count++
+    if (this._drawable) this._drawable.count = this._count
+    return index
+  }
+
+  /**
+   * Returns one dead slot to the free list and trims trailing dead slots.
+   *
+   * Stale indices left behind by the trim are filtered by {@link takeSlot}.
+   */
+  private releaseSlot(index: number) {
+    this._freeSlots.push(index)
+    let trimmed = 0
+    while (this._count > 0 && this._alive[this._count - 1] === 0) {
+      this._count--
+      trimmed++
+    }
+    if (trimmed === 0) return
+    if (this._drawable) this._drawable.count = this._count
+    this._line2Objects.length = Math.min(
+      this._line2Objects.length,
+      this._count
+    )
   }
 
   /** Shared geometry is not packed, so there is nothing to compact. */
@@ -438,6 +527,13 @@ export class AcTrSharedGeometryBatch extends THREE.Object3D {
       line.removeFromParent()
     }
     this._line2Objects = []
+    this._freeSlots = []
+    this._objectIds = []
+    this._hiddenMatrices.clear()
+    this._selected.clear()
+    this._hovered.clear()
+    this._liveCount = 0
+    this._onEmpty = null
     if (this._drawable) {
       this._drawable.removeFromParent()
       const drawable = this._drawable as unknown as {
