@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-agent-core",
-  "version": "1.7.8-preview.1",
+  "version": "1.7.8-preview.3",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -41,10 +41,10 @@
   },
   "devDependencies": {
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.14"
+    "@mlightcad/data-model": "1.15.18"
   },
   "peerDependencies": {
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.14"
+    "@mlightcad/data-model": "1.15.18"
   }
 }

@@ -3518,17 +3518,13 @@ export class AcTrView2d extends AcEdBaseView {
       seen.add(id)
       objectIds.push(objectId)
       // ERASE may arrive while this id is still queued or converting. Cancel the
-      // claim and bump the generation now, and keep the id in the erased set:
-      // a later convert pass would otherwise re-claim it with a fresh
-      // generation and append ghost geometry for a deleted database object.
-      // This is the only place the tombstone is set, so a queued id that was
-      // never claimed is covered by the same guard as one mid-convert.
+      // claim and bump the generation now ({@link releaseConvertClaim}), and keep
+      // the id in the erased set: a later convert pass would otherwise re-claim it
+      // with a fresh generation and append ghost geometry for a deleted database
+      // object. This is the only place the tombstone is set, so a queued id that
+      // was never claimed is covered by the same guard as one mid-convert.
       this._erasedConvertObjectIds.add(id)
-      this._entityConvertGeneration.set(
-        id,
-        (this._entityConvertGeneration.get(id) ?? 0) + 1
-      )
-      this._claimedConvertObjectIds.delete(id)
+      this.releaseConvertClaim(objectId)
     }
 
     if (objectIds.length > 0) {
@@ -3537,6 +3533,29 @@ export class AcTrView2d extends AcEdBaseView {
       this._scene.removeEntities(objectIds)
     }
     this._isDirty = true
+  }
+
+  /**
+   * Drops convert bookkeeping for an object id that left the scene.
+   *
+   * {@link batchConvert} claims an id before committing geometry and never
+   * releases it while the entity stays in the scene. An undo erases the entity
+   * from the database and calls {@link removeEntity}, but the stale claim made
+   * the follow-up redo pass hit the "already scheduled" skip in
+   * {@link batchConvert}, so the redone entity never reappeared. The generation
+   * bump also prevents an in-flight convert or deferred glyph commit for the
+   * same id from re-adding geometry after the erase.
+   *
+   * @param objectId - Object id leaving the scene
+   */
+  private releaseConvertClaim(objectId: AcDbObjectId) {
+    const id = String(objectId ?? '')
+    if (!id) return
+    this._claimedConvertObjectIds.delete(id)
+    this._entityConvertGeneration.set(
+      id,
+      (this._entityConvertGeneration.get(id) ?? 0) + 1
+    )
   }
 
   /**

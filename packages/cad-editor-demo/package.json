@@ -1,7 +1,7 @@
 {
   "name": "@mlightcad/cad-editor-demo",
   "private": true,
-  "version": "1.7.8-preview.1",
+  "version": "1.7.8-preview.3",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -47,8 +47,8 @@
     "@mlightcad/pdf-renderer": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.14",
-    "@mlightcad/libredwg-converter": "3.15.14",
+    "@mlightcad/data-model": "1.15.18",
+    "@mlightcad/libredwg-converter": "3.15.18",
     "@njbestway/acad-rust-converter": "0.1.0",
     "@mlightcad/mtext-parser": "workspace:*",
     "@mlightcad/mtext-renderer": "workspace:*",
