@@ -1,5 +1,45 @@
 # @mlightcad/cad-simple-viewer-cli
 
+## 1.7.8-preview.6
+
+### Patch Changes
+
+- fix: box selection in paper-space viewports now reaches model entities, offline HTML exports frame every layout with its own export-time extents, and the coordinate bubble stays anchored to its point while zooming. Explicit ACI-7 block colours on layer 0 keep their colour instead of inheriting the INSERT layer, and the layer-material cache no longer leaks ByLayer provenance between entities.
+- Updated dependencies [4e7ed11]
+- Updated dependencies [9220b20]
+- Updated dependencies [42351f3]
+- Updated dependencies [57c330c]
+- Updated dependencies
+  - @mlightcad/cad-html-plugin@1.7.8-preview.6
+  - @mlightcad/cad-simple-viewer@1.7.8-preview.6
+  - @mlightcad/cad-pdf-plugin@1.7.8-preview.6
+  - @mlightcad/cad-svg-plugin@1.7.8-preview.6
+  - @mlightcad/pdf-renderer@1.7.8-preview.6
+
+## 1.7.8-preview.5
+
+### Patch Changes
+
+- 1020d4d: fix: leader entities now expose their properties in the properties palette with localized labels, and TrueType text glyphs are parented to the layout that owns them, so model-space text no longer disappears inside paper-space viewports or headless HTML exports. Dependencies move to data-model 1.15.19 and libredwg-converter 3.15.19.
+- Updated dependencies [1020d4d]
+  - @mlightcad/cad-html-plugin@1.7.8-preview.5
+  - @mlightcad/cad-pdf-plugin@1.7.8-preview.5
+  - @mlightcad/cad-simple-viewer@1.7.8-preview.5
+  - @mlightcad/cad-svg-plugin@1.7.8-preview.5
+  - @mlightcad/pdf-renderer@1.7.8-preview.5
+
+## 1.7.8-preview.4
+
+### Patch Changes
+
+- fix: headless HTML export now embeds raster and OLE images. Node has no canvas, so IMAGE and OLE textures were omitted from offline HTML. The exporter decodes PNG, JPEG, and BMP and writes those pixels back into the snapshot as PNG, so pictures in paper drawings survive a headless export.
+- Updated dependencies
+  - @mlightcad/cad-html-plugin@1.7.8-preview.4
+  - @mlightcad/cad-pdf-plugin@1.7.8-preview.4
+  - @mlightcad/cad-simple-viewer@1.7.8-preview.4
+  - @mlightcad/cad-svg-plugin@1.7.8-preview.4
+  - @mlightcad/pdf-renderer@1.7.8-preview.4
+
 ## 1.7.8-preview.3
 
 ### Patch Changes

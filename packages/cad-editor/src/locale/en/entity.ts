@@ -211,7 +211,11 @@ export default {
     StraightLeader: 'Straight',
     SplineLeader: 'Spline',
     Yes: 'Yes',
-    No: 'No'
+    No: 'No',
+    MText: 'MText',
+    Fcf: 'Feature Control Frame',
+    BlockReference: 'Block Reference',
+    NoAnnotation: 'None'
   },
   property: {
     general: 'General',
@@ -392,6 +396,22 @@ export default {
     linkName: 'Link Name',
     linkPath: 'Link Path',
     outputQuality: 'Output Quality',
-    autoOutputQuality: 'Auto Output Quality'
+    autoOutputQuality: 'Auto Output Quality',
+    annoType: 'Annotation Type',
+    hasArrowHead: 'Arrowhead',
+    hasHookLine: 'Hook Line',
+    isHookLineSameDirection: 'Hook Line Same Direction',
+    isSplined: 'Spline',
+    associatedAnnotation: 'Annotation Handle',
+    byBlockColor: 'ByBlock Color',
+    horizontalDirectionX: 'Horizontal Dir X',
+    horizontalDirectionY: 'Horizontal Dir Y',
+    horizontalDirectionZ: 'Horizontal Dir Z',
+    offsetFromBlockX: 'Block Offset X',
+    offsetFromBlockY: 'Block Offset Y',
+    offsetFromBlockZ: 'Block Offset Z',
+    offsetFromAnnotationX: 'Annotation Offset X',
+    offsetFromAnnotationY: 'Annotation Offset Y',
+    offsetFromAnnotationZ: 'Annotation Offset Z'
   }
 }

@@ -92,7 +92,12 @@ export default {
     Embedded: 'مضمّن',
     Static: 'ثابت',
     ModelSpace: 'مساحة النموذج',
-    PaperSpace: 'مساحة الورق'
+    PaperSpace: 'مساحة الورق',
+
+    MText: 'نص متعدد الأسطر',
+    Fcf: 'إطار التحكم في الخصائص',
+    BlockReference: 'مرجع كتلة',
+    NoAnnotation: 'بدون'
   },
 
   property: {
@@ -324,10 +329,25 @@ export default {
     locationY: 'الموقع Y',
     locationZ: 'الموقع Z',
 
-    shapeNumber: 'رقم الشكل'
+    annoType: 'نوع التعليق',
+    hasArrowHead: 'رأس السهم',
+    hasHookLine: 'خط الخطاف',
+    isHookLineSameDirection: 'خط الخطاف في الاتجاه نفسه',
+    isSplined: 'منحنى Spline',
+    associatedAnnotation: 'مقبض التعليق المرتبط',
+    byBlockColor: 'لون حسب الكتلة',
+    horizontalDirectionX: 'الاتجاه الأفقي X',
+    horizontalDirectionY: 'الاتجاه الأفقي Y',
+    horizontalDirectionZ: 'الاتجاه الأفقي Z',
+    offsetFromBlockX: 'إزاحة الكتلة X',
+    offsetFromBlockY: 'إزاحة الكتلة Y',
+    offsetFromBlockZ: 'إزاحة الكتلة Z',
+    offsetFromAnnotationX: 'إزاحة التعليق X',
+    offsetFromAnnotationY: 'إزاحة التعليق Y',
+    offsetFromAnnotationZ: 'إزاحة التعليق Z',
 
-}
-,
+    shapeNumber: 'رقم الشكل'
+  },
   color: {
     ...enEntity.color,
     aliceblue: 'أزرق أليس',
@@ -473,6 +493,6 @@ export default {
     white: 'أبيض',
     whitesmoke: 'أبيض دخاني',
     yellow: 'أصفر',
-    yellowgreen: 'أخضر مصفر',
+    yellowgreen: 'أخضر مصفر'
   }
 }

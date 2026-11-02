@@ -62,6 +62,7 @@ import {
   acedAttachMobileBoxGesture,
   AcEdBaseView,
   AcEdCalculateSizeCallback,
+  acedCollectViewportBoxSelectionIds,
   AcEdConditionWaiter,
   AcEdCorsorType,
   AcEdGripManager,
@@ -71,11 +72,13 @@ import {
   AcEdMTextEditor,
   AcEdOpenMode,
   AcEdSelectionAction,
+  AcEdSelectionMode,
   acedShouldIgnoreCompatMouse,
   AcEdSnapLoupeViewState,
   AcEdSpatialQueryResultItem,
   AcEdSpatialQueryResultItemEx,
   AcEdViewMode,
+  AcEdViewportBoxProjection,
   AcEdViewportCoordinateMapper,
   eventBus,
   resolvePointerSelectionAction
@@ -1117,7 +1120,11 @@ export class AcTrView2d extends AcEdBaseView {
     this.canvas.addEventListener(
       'mousemove',
       e => {
-        if (!selectionStartWcs || !selectionPreviewEl || !selectionStartCanvas) {
+        if (
+          !selectionStartWcs ||
+          !selectionPreviewEl ||
+          !selectionStartCanvas
+        ) {
           return
         }
         if (acedIsTouchDerivedMouseEvent(e) || acedShouldIgnoreCompatMouse()) {
@@ -2788,7 +2795,9 @@ export class AcTrView2d extends AcEdBaseView {
       }
     ).resolveAnnotativePresentation
     const presentation =
-      typeof resolvePresentation === 'function' ? resolvePresentation.call(mtext) : null
+      typeof resolvePresentation === 'function'
+        ? resolvePresentation.call(mtext)
+        : null
     const rawLocation = presentation?.position ?? mtext.location
     const location = {
       x: rawLocation.x,
@@ -2799,11 +2808,15 @@ export class AcTrView2d extends AcEdBaseView {
     const attachmentPoint =
       presentation?.attachmentPoint ?? mtext.attachmentPoint
     const editorWidth =
-      presentation && Number.isFinite(presentation.width) && presentation.width > 0
+      presentation &&
+      Number.isFinite(presentation.width) &&
+      presentation.width > 0
         ? presentation.width
         : this.resolveMTextEditorWidth(mtext)
     const textHeight =
-      presentation && Number.isFinite(presentation.height) && presentation.height > 0
+      presentation &&
+      Number.isFinite(presentation.height) &&
+      presentation.height > 0
         ? presentation.height
         : this.resolveMTextEditorTextHeight(mtext)
 
@@ -2871,7 +2884,10 @@ export class AcTrView2d extends AcEdBaseView {
     const textHeight =
       Number.isFinite(height) && height > 0 ? height : this.pixelsToWorldY(24)
     const content = text.textString ?? ''
-    const width = Math.max(textHeight * Math.max(content.length, 1) * 0.6, textHeight)
+    const width = Math.max(
+      textHeight * Math.max(content.length, 1) * 0.6,
+      textHeight
+    )
     const rotation = Number(text.rotation)
 
     const editor = new AcEdMTextEditor()
@@ -3160,6 +3176,48 @@ export class AcTrView2d extends AcEdBaseView {
    */
   selectByBox(box: AcGeBox2d) {
     this.selectByBoxWithMode(box, 'crossing', 'add')
+  }
+
+  /**
+   * Collects model-space entities selected through the active layout's paper
+   * viewports.
+   *
+   * Box selection used to query only the active layout's spatial index, so
+   * model-space content rendered inside a viewport could be clicked (pick
+   * drills through) but never box-selected — reported for LEADER entities in
+   * `布局1`. Each viewport's visible slice of the pick rectangle is mapped to
+   * model WCS, queried, and mapped back so window / crossing keeps its exact
+   * AutoCAD meaning.
+   */
+  protected override collectViewportDrillThroughSelectionIds(
+    box: AcGeBox2d,
+    mode: AcEdSelectionMode
+  ): AcDbObjectId[] {
+    const activeLayoutView = this.activeLayoutView
+    const modelLayout = this._scene.modelSpaceLayout
+    if (!activeLayoutView || !modelLayout) return []
+    if (activeLayoutView.layoutBtrId === this._scene.modelSpaceBtrId) return []
+
+    const viewports: AcEdViewportBoxProjection[] = []
+    for (const vpView of activeLayoutView.viewportViews) {
+      viewports.push({
+        paperBox: vpView.viewport.box,
+        frozenLayers: vpView.viewport.frozenLayers,
+        paperPointToModel: point => vpView.paperPointToModel(point),
+        modelPointToPaper: point => vpView.modelPointToPaper(point)
+      })
+    }
+    if (viewports.length === 0) return []
+
+    const database = AcApDocManager.tryGetInstance()?.curDocument?.database
+    return acedCollectViewportBoxSelectionIds({
+      selectionBox: box,
+      mode,
+      viewports,
+      searchModel: (modelBox, selectionMode) =>
+        modelLayout.search(modelBox, { selectionMode }),
+      entityOf: id => database?.tables.blockTable.getEntityById(id) ?? undefined
+    })
   }
 
   /**
@@ -5266,10 +5324,9 @@ export class AcTrView2d extends AcEdBaseView {
     const singleton = AcApDocManager as unknown as {
       _instance?: AcApDocManager
     }
-    const preset =
-      singleton._instance?.lastPresetFontsForOpen?.length
-        ? [...singleton._instance.lastPresetFontsForOpen]
-        : [...fallbackFonts]
+    const preset = singleton._instance?.lastPresetFontsForOpen?.length
+      ? [...singleton._instance.lastPresetFontsForOpen]
+      : [...fallbackFonts]
     this._fontPreloadDiag = {
       critical: [...plan.critical],
       workerWarm: [],
@@ -6358,7 +6415,8 @@ export class AcTrView2d extends AcEdBaseView {
         }
         // Nested layer-0 may already be resolved to an inner INSERT layer during
         // flatten. Remaining "0" buckets inherit this (outermost) INSERT layer.
-        const effectiveLayerName = layerName === '0' ? groupLayerName : layerName
+        const effectiveLayerName =
+          layerName === '0' ? groupLayerName : layerName
 
         // Material remap must still treat authored layer-0 drawables as layer-0
         // ByLayer even when nest resolution already rewrote layerName.
@@ -6556,7 +6614,8 @@ export class AcTrView2d extends AcEdBaseView {
     }
     const { placements, buckets } = mtextRenderer.flushMeshGlyphInstances(
       this._scene.internalScene,
-      (layerName: string) => this.resolveMeshGlyphLayerParent(layerName)
+      (layerName, ownerId) =>
+        this.resolveMeshGlyphLayerParent(layerName, ownerId)
     )
     if (placements > 0) {
       // Prefix for headless CLI console forwarding.
@@ -6570,13 +6629,26 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
-   * Prefers the active layout's layer group, then any layout that already has
-   * that layer (multi-layout HTML export). Falls back to null so flush can
-   * parent under the bookkeeping root.
+   * Parents mesh glyphs under the layout that owns the entity.
+   *
+   * Every layout has a layer group for each layer name. Preferring the active
+   * layout puts model-space TrueType text into the paper-space group while a
+   * paper layout is current, so viewports (which draw model space) never see
+   * it. When `ownerId` names a layout, only that layout's layer is used.
+   * Glyphs with no layout owner still follow the active layout.
    */
   private resolveMeshGlyphLayerParent(
-    layerName: string
+    layerName: string,
+    ownerId?: string
   ): THREE.Object3D | undefined | null {
+    const owner = ownerId?.trim()
+    if (owner) {
+      const layout = this._scene.layouts.get(owner)
+      if (!layout) {
+        return null
+      }
+      return layout.getLayer(layerName)?.internalObject ?? null
+    }
     const active = this._scene.activeLayout?.getLayer(layerName)
     if (active) {
       return active.internalObject
