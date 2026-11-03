@@ -1,0 +1,88 @@
+import { z } from 'zod'
+
+import type { CadScriptLimits } from '../script/createCadScriptHost'
+import { executeCadScript } from '../script/executeCadScript'
+import { CAD_SCRIPT_API_SUMMARY } from '../script/scriptApi'
+import type { CadSession } from '../session/CadSession'
+import type { CadToolDefinition } from './types'
+
+/** Options for {@link createCadToolCatalog}. */
+export interface CadToolCatalogOptions {
+  /**
+   * When `false`, `cad.view.capturePreview` queues are not fulfilled and the
+   * tool description tells the model not to call it. Default `true`.
+   *
+   * Previews also count as disabled when the session has no
+   * {@link CadSession.capturePreview}.
+   */
+  allowPreviewCapture?: boolean
+  /**
+   * Overrides default script tick / wall-clock limits (100k ticks / 2s).
+   * MCP and batch runners should raise these for large drawings.
+   */
+  scriptLimits?: Partial<CadScriptLimits>
+}
+
+/**
+ * Builds the tool catalog for one session.
+ *
+ * Script-first: the only tool is `execute_cad_script`. Drawing context is
+ * available as `cad.drawing` inside the script. Chat, MCP, and WebMCP adapters
+ * should call this instead of declaring tools themselves.
+ *
+ * @param session - Drawing access captured by every tool in the catalog. Use
+ *   `createDatabaseSession` for a drawing without a viewer.
+ * @param options - Catalog behavior (e.g. whether screenshots are allowed).
+ * @returns Tool definitions in a stable order.
+ */
+export function createCadToolCatalog(
+  session: CadSession,
+  options: CadToolCatalogOptions = {}
+): CadToolDefinition[] {
+  const canRender = typeof session.capturePreview === 'function'
+  const allowPreviewCapture = options.allowPreviewCapture !== false && canRender
+  const scriptLimits = options.scriptLimits
+  const reason = canRender
+    ? 'Screenshots are reserved\nfor High inference mode.'
+    : 'This session has no\nrenderer, so screenshots are not available.'
+  const description = allowPreviewCapture
+    ? CAD_SCRIPT_API_SUMMARY
+    : `${CAD_SCRIPT_API_SUMMARY}
+
+IMPORTANT: cad.view.capturePreview is DISABLED in this session. Do not call it.
+Verify geometry only with cad.measure (check / report). ${reason}`
+
+  const tools: CadToolDefinition[] = [
+    {
+      name: 'execute_cad_script',
+      description,
+      access: 'write',
+      // `code` must be first: providers may finalize tool args when the buffer
+      // is valid JSON. Emitting a complete `{intent}` object before `code`
+      // causes premature finalize and leaves the call stuck without execution.
+      inputSchema: z.object({
+        code: z
+          .string()
+          .min(1)
+          .describe(
+            'JavaScript function body using cad.* (required). Prefer short scripts; for complex drawings use multiple calls.'
+          ),
+        intent: z
+          .string()
+          .max(200)
+          .optional()
+          .describe(
+            'Optional short label for the tool result. Never send intent alone — code is required. Prefer emitting code before intent.'
+          )
+      }),
+      execute: (input: unknown) => {
+        const args = input as { code: string; intent?: string }
+        return executeCadScript(args, session, {
+          fulfillPreviews: allowPreviewCapture,
+          limits: scriptLimits
+        })
+      }
+    }
+  ]
+  return tools
+}

@@ -125,13 +125,10 @@ importers:
       '@mlightcad/data-model':
         specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
         version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
-      acorn:
-        specifier: ^8.15.0
-        version: 8.16.0
-      zod:
-        specifier: ^3.24.0
-        version: 3.25.76
     devDependencies:
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -160,6 +157,9 @@ importers:
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -267,6 +267,9 @@ importers:
       '@mlightcad/cad-pdf-plugin':
         specifier: workspace:*
         version: link:../cad-pdf-plugin
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-script-plugin':
         specifier: workspace:*
         version: link:../cad-script-plugin
@@ -360,6 +363,9 @@ importers:
       '@mlightcad/cad-pdf-plugin':
         specifier: workspace:*
         version: link:../cad-pdf-plugin
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-script-plugin':
         specifier: workspace:*
         version: link:../cad-script-plugin
@@ -563,8 +569,8 @@ importers:
         specifier: 0.8.2
         version: 0.8.2
       '@mlightcad/mtext-renderer':
-        specifier: 0.13.6
-        version: 0.13.6(@mlightcad/mtext-parser@1.5.5)(three@0.186.1)
+        specifier: 0.13.7
+        version: 0.13.7(@mlightcad/mtext-parser@1.5.7)(three@0.186.1)
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -630,6 +636,9 @@ importers:
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -640,8 +649,8 @@ importers:
         specifier: 3.15.16
         version: 3.15.16(@mlightcad/data-model@file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz)
       '@mlightcad/mtext-renderer':
-        specifier: 0.13.6
-        version: 0.13.6(@mlightcad/mtext-parser@1.5.5)(three@0.186.1)
+        specifier: 0.13.7
+        version: 0.13.7(@mlightcad/mtext-parser@1.5.7)(three@0.186.1)
       '@modelcontextprotocol/sdk':
         specifier: ^1.25.0
         version: 1.32.2(zod@3.25.76)
@@ -700,6 +709,18 @@ importers:
         specifier: ^5.6.205
         version: 5.7.284
 
+  packages/cad-script-core:
+    dependencies:
+      '@mlightcad/data-model':
+        specifier: file:../../vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+        version: file:vendor/mlightcad-data-model-1.15.16-perf.4.tgz
+      acorn:
+        specifier: ^8.15.0
+        version: 8.16.0
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+
   packages/cad-script-plugin:
     dependencies:
       '@codemirror/autocomplete':
@@ -736,6 +757,9 @@ importers:
       '@mlightcad/cad-agent-core':
         specifier: workspace:*
         version: link:../cad-agent-core
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
@@ -868,6 +892,9 @@ importers:
       '@mlightcad/cad-pdf-plugin':
         specifier: workspace:*
         version: link:../cad-pdf-plugin
+      '@mlightcad/cad-script-core':
+        specifier: workspace:*
+        version: link:../cad-script-core
       '@mlightcad/cad-script-plugin':
         specifier: workspace:*
         version: link:../cad-script-plugin
@@ -2570,8 +2597,8 @@ packages:
   '@maxim_mazurok/gapi.client.discovery-v1@0.6.20200806':
     resolution: {integrity: sha512-QN6aGmIbLXcJW0SEf8tz9UWCpQTBMy2u4xSuZ04YofzMGknhWwMeUecySLntCZYAEstHzDoSgwxCf5Gb8GqIRQ==}
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261023':
-    resolution: {integrity: sha512-xZojK4FF43mC+F/dVHZ+y0s4oxfrsRTK7so2jbaXgriMePrZJEO7AVWpog0mF6FCRKeD9MLjPBJIqD+B87mPyQ==}
+  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261028':
+    resolution: {integrity: sha512-97zabWo5K39UFSYgGAkMQHxGwOpx/y0lHO2L3eGy45dgxwyV1Nj5XvMrvvdc5VKjdIwxGRaUeL6AtSSa2imZKA==}
 
   '@mermaid-js/mermaid-mindmap@9.3.0':
     resolution: {integrity: sha512-IhtYSVBBRYviH1Ehu8gk69pMDF8DSRqXBRDMWrEfHoaMruHeaP2DXA3PBnuwsMaCdPQhlUUcy/7DBLAEIXvCAw==}
@@ -2630,13 +2657,13 @@ packages:
       '@mlightcad/mtext-renderer': ^0.13.6
       three: ^0.186.1
 
-  '@mlightcad/mtext-parser@1.5.5':
-    resolution: {integrity: sha512-IbL4YLs/QokDMjk2tltz9rCOQ72RWvKDFIu9zM1Byd/5k8K0u2vbqZT6gKRenxK76E1EyTvwIeW5tDrEEyTmQw==}
+  '@mlightcad/mtext-parser@1.5.7':
+    resolution: {integrity: sha512-CoXa04hITe1WA8F7bg1na5wSsbTmAbjOt9CQNHbjT48tFyR4hkqcXKX0nln3Szwxm9v7IsTK6vNFvtVd5FHjzg==}
 
-  '@mlightcad/mtext-renderer@0.13.6':
-    resolution: {integrity: sha512-0XhP9cTLMkO+upwAmNl/yczYvksNaNYaV3uC52w3X6ergaJXNkAE+qHYy01AAxQ1sa5s5+Ct3I1x+SAmBtnhHA==}
+  '@mlightcad/mtext-renderer@0.13.7':
+    resolution: {integrity: sha512-XCGXf5nm3KPFM5BIN+8AMzsOYta4GGCtltgmIhgCUNsm2bZIWUm7S6wtSKchpKyMFcxTHM78QUzJ9VjkT7LWjQ==}
     peerDependencies:
-      '@mlightcad/mtext-parser': ^1.5.5
+      '@mlightcad/mtext-parser': ^1.5.7
       three: ^0.186.1
 
   '@mlightcad/ribbon@0.1.14':
@@ -9193,7 +9220,7 @@ snapshots:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261023':
+  '@maxim_mazurok/gapi.client.drive-v3@0.3.20261028':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -9290,13 +9317,13 @@ snapshots:
       '@mlightcad/text-box-cursor': 0.1.1(three@0.186.1)
       three: 0.186.1
 
-  '@mlightcad/mtext-parser@1.5.5': {}
+  '@mlightcad/mtext-parser@1.5.7': {}
 
-  '@mlightcad/mtext-renderer@0.13.6(@mlightcad/mtext-parser@1.5.5)(three@0.186.1)':
+  '@mlightcad/mtext-renderer@0.13.7(@mlightcad/mtext-parser@1.5.7)(three@0.186.1)':
     dependencies:
-      '@mlightcad/mtext-parser': 1.5.5
+      '@mlightcad/mtext-parser': 1.5.7
       '@mlightcad/shx-parser': 1.4.5
-      iconv-lite: 0.7.2
+      iconv-lite: 0.7.3
       idb: 8.0.4
       opentype.js: 2.0.0
       three: 0.186.1
@@ -9978,7 +10005,7 @@ snapshots:
 
   '@types/gapi.client.drive-v3@0.0.5':
     dependencies:
-      '@maxim_mazurok/gapi.client.drive-v3': 0.3.20261023
+      '@maxim_mazurok/gapi.client.drive-v3': 0.3.20261028
 
   '@types/gapi.client@1.0.8': {}
 
@@ -13275,7 +13302,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       http-errors: 2.0.1
-      iconv-lite: 0.7.2
+      iconv-lite: 0.7.3
       unpipe: 1.0.0
 
   rbush@4.0.1:

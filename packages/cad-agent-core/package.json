@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-agent-core",
-  "version": "1.7.8-preview.6",
+  "version": "1.7.8",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -35,16 +35,14 @@
     "lint": "eslint src/",
     "lint:fix": "eslint --fix --quiet src/"
   },
-  "dependencies": {
-    "acorn": "^8.15.0",
-    "zod": "^3.24.0"
-  },
   "devDependencies": {
+    "@mlightcad/cad-script-core": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.20"
+    "@mlightcad/data-model": "1.15.21"
   },
   "peerDependencies": {
+    "@mlightcad/cad-script-core": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.20"
+    "@mlightcad/data-model": "1.15.21"
   }
 }
