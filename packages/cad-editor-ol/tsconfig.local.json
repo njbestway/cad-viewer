@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@mlightcad/data-model": [
+        "../../../realdwg-web/packages/data-model/lib/index.d.ts"
+      ]
+    }
+  }
+}

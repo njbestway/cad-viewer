@@ -33,6 +33,42 @@ pnpm --filter @mlightcad/cad-editor-ol build
 worker（acad-rust 解析器、mtext 渲染器）由 `vite-plugin-static-copy` 复制到
 `assets/`。
 
+## 本地 data-model 覆盖
+
+本包直接对接 `realdwg-web` 仓库里维护的 `@mlightcad/data-model`，而不是
+`pnpm` 装上的固定版本（根 `pnpm-workspace.yaml` 的 override 指向 vendored
+tarball）。覆盖只发生在**本包的 vite 配置**里，因此根配置与
+`pnpm-lock.yaml` 保持与上游一致，合并上游时不会冲突，也不影响其他包。
+
+```bash
+# 默认：使用兄弟目录 ../realdwg-web 的构建产物 packages/data-model/lib/
+pnpm --filter @mlightcad/cad-editor-ol dev
+
+# 直连源码（免 build，改完 src 直接生效）
+CAD_LOCAL_REALDWG_SRC=1 pnpm --filter @mlightcad/cad-editor-ol dev
+
+# 关闭覆盖（回到 node_modules 里的版本，用于验证固定版本）
+CAD_LOCAL_REALDWG=0 pnpm --filter @mlightcad/cad-editor-ol dev
+
+# 用本地 data-model 的类型做类型检查 + 构建
+pnpm --filter @mlightcad/cad-editor-ol build:local
+```
+
+| 环境变量 | 作用 |
+| --- | --- |
+| `CAD_LOCAL_REALDWG` | checkout 根目录，默认 `../../../realdwg-web`；`0`/`false`/`off` 关闭 |
+| `CAD_LOCAL_REALDWG_SRC` | `1` 时别名到 `src/index.ts`（需 vite 现编），默认用 `lib/index.js` |
+
+实现见 `localMlightcad.ts`：只重写 `@mlightcad/data-model` 一个说明符，它的
+内部依赖（`common` / `geometry-engine` / `graphic-interface` / `emf-converter`）
+沿 checkout 自己的 `node_modules` 解析，家族版本保持一致、全图只有一个实例。
+checkout 不存在时自动回退到 node_modules，因此 CI 与没有该目录的机器照常
+构建。类型侧由 `tsconfig.local.json`（`build:local` / `typecheck:local`）对齐。
+
+> `vite build` 的产物中 data-model 仍是外部依赖（`peerDepsExternal`），
+> 所以覆盖只作用于本包的 dev/preview；由别的应用消费 `dist` 时，需在其
+> 构建配置中复用 `localMlightcad()` 的 alias。
+
 ## 使用
 
 ```vue

@@ -1,14 +1,15 @@
-import vue from '@vitejs/plugin-vue'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, extname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import vue from '@vitejs/plugin-vue'
 import peerDepsExternal from 'rollup-plugin-peer-deps-external'
 import { visualizer } from 'rollup-plugin-visualizer'
 import {
-  defineConfig,
   type ConfigEnv,
   type Connect,
+  defineConfig,
   type LibraryFormats,
   type Plugin,
   type PluginOption
@@ -25,6 +26,7 @@ import {
   MTEXT_RENDERER_WORKER_FILE
 } from '../../tools/worker-assets.mjs'
 import { createLibEntryFileName } from '../vite-config/pluginRollupOutput'
+import { localMlightcad } from './localMlightcad'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const packageId = 'cad-editor-ol'
@@ -125,6 +127,16 @@ const acadRustWasmSrc = resolve(
 const mtextWorkerSrc = `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
 
 export default defineConfig(({ command, mode }: ConfigEnv) => {
+  // Private fork: prefer the realdwg-web checkout over the pinned install.
+  const local = localMlightcad()
+  if (local.enabled) {
+    console.info(
+      `[cad-editor-ol] @mlightcad/data-model <- ${local.entry} (${local.reason})`
+    )
+  } else {
+    console.info(`[cad-editor-ol] local data-model off: ${local.reason}`)
+  }
+
   const plugins: PluginOption[] = [
     vue() as PluginOption,
     svgLoader(),
@@ -180,6 +192,11 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
     outDir: 'dist',
     resolve: {
       alias: [
+        // Must stay first: every consumer in the graph (this package, the
+        // workspace peers' dists, the acad-rust converter) imports the bare
+        // specifier, so one rewrite keeps a single instance alive. No-op when
+        // the checkout is missing.
+        ...local.alias,
         {
           // ui-components' published `module` is a single prebundled file that
           // always injects MlToolBar CSS. Point at sources so Rollup can drop it.
@@ -188,10 +205,27 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
         }
       ]
     },
+    server: local.enabled
+      ? {
+          fs: {
+            // The aliased build lives outside this workspace.
+            allow: [resolve(__dirname, '../..'), ...local.fsAllow]
+          },
+          watch: {
+            // realdwg-web rebuilds its own outputs; ignore them so they do not
+            // thrash HMR (same treatment as the demo packages).
+            ignored: ['**/realdwg-web/**']
+          }
+        }
+      : undefined,
     optimizeDeps: {
       // The CAD Script plugin is a workspace package compiled by Vite in dev.
+      // The aliased data-model must not be pre-bundled either: its cache goes
+      // stale on every realdwg-web rebuild (`504 Outdated Optimize Dep`).
       exclude:
-        command === 'serve' ? ['@mlightcad/cad-script-plugin'] : []
+        command === 'serve'
+          ? ['@mlightcad/cad-script-plugin', ...local.optimizeDepsExclude]
+          : []
     },
     build: {
       lib: {

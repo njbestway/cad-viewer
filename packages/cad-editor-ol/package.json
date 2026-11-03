@@ -38,6 +38,8 @@
     "dev": "vite",
     "clean": "rimraf dist tsconfig.tsbuildinfo",
     "build": "vue-tsc && vite build",
+    "build:local": "vue-tsc -p tsconfig.local.json && vite build",
+    "typecheck:local": "vue-tsc -p tsconfig.local.json",
     "preview": "vite preview",
     "copy:workers": "node ../../tools/copy-workers.mjs dist/assets",
     "lint": "eslint src/",
@@ -46,7 +48,7 @@
   "devDependencies": {
     "@mlightcad/cad-script-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.14",
+    "@mlightcad/data-model": "1.15.21",
     "@mlightcad/ribbon": "0.1.13",
     "@mlightcad/three-renderer": "workspace:*",
     "@mlightcad/three-viewcube": "0.0.9",
@@ -73,7 +75,7 @@
   "peerDependencies": {
     "@mlightcad/cad-script-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.14",
+    "@mlightcad/data-model": "1.15.21",
     "@mlightcad/three-renderer": "workspace:*",
     "@vueuse/core": "^11.1.0",
     "element-plus": "^2.12.0",
