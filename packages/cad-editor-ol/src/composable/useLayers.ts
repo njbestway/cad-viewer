@@ -138,7 +138,7 @@ function applyLayerStateSnapshot(
  * @example
  * ```typescript
  * import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
- * import { useLayers } from '@mlightcad/cad-viewer'
+ * import { useLayers } from '@mlightcad/cad-editor-ol'
  *
  * const { layers, currentLayerName, setLayerOn, toggleLayerFrozen } =
  *   useLayers(AcApDocManager.instance)

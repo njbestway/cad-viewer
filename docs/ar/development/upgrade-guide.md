@@ -1,16 +1,52 @@
 ---
-title: "ترقية cad-simple-viewer و cad-viewer"
+title: "ترقية cad-simple-viewer و cad-editor"
 ---
 
-# ترقية cad-simple-viewer و cad-viewer
+# ترقية cad-simple-viewer و cad-editor
 
-يشرح هذا الدليل كيفية ترقية `@mlightcad/cad-simple-viewer` و`@mlightcad/cad-viewer` بأمان — ولماذا لا يمكن رفعهما بمعزل عن غيرهما، وأي الحزم ذات الصلة يجب أن تتحرك معًا، وطريقتان موثوقتان لتحديد مجموعة الإصدارات المتوافقة الصحيحة لأي إصدار معين.
+يشرح هذا الدليل كيفية ترقية `@mlightcad/cad-simple-viewer` و`@mlightcad/cad-editor` بأمان — ولماذا لا يمكن رفعهما بمعزل عن غيرهما، وأي الحزم ذات الصلة يجب أن تتحرك معًا، وطريقتان موثوقتان لتحديد مجموعة الإصدارات المتوافقة الصحيحة لأي إصدار معين.
+
+::: warning تمت إعادة تسمية الحزمة: `@mlightcad/cad-viewer` → `@mlightcad/cad-editor`
+بدءًا من الإصدار **1.8.0**، أصبحت الحزمة التي كانت تُنشر باسم `@mlightcad/cad-viewer` تُسمى `@mlightcad/cad-editor`، ليعبّر اسمها عن وظيفتها الحقيقية.
+
+- **الحزمة القديمة لم تعد تُحدَّث.** تتوقف `@mlightcad/cad-viewer` عند 1.7.x ولن يظهر أي إصدار لاحق في السجل، لذا فإن `pnpm add @mlightcad/cad-viewer@1.8.0` سيفشل بخطأ 404. المشروع ما زال قائمًا — لكن باسم جديد.
+- **لم يتغيّر أي شيء آخر.** تحوّل اسم الحزمة وأسماء الملفات الناتجة فقط؛ أما الصادرات (`MlCadViewer` و`i18n` وغيرها) وطريقة استخدامها فلم تتغيّر.
+- **أعِد التسمية ضمن الترقية نفسها**، ليبقى العارض على الإصدار نفسه الذي تستخدمه بقية الحزم:
+
+```diff
+  {
+    "dependencies": {
+-     "@mlightcad/cad-viewer": "1.7.8",
++     "@mlightcad/cad-editor": "1.8.0",
+      "@mlightcad/cad-simple-viewer": "1.8.0"
+    }
+  }
+```
+
+```diff
+- import { MlCadViewer, i18n } from '@mlightcad/cad-viewer'
++ import { MlCadViewer, i18n } from '@mlightcad/cad-editor'
+```
+
+إذا كنت تثبّت ملفات CDN على إصدار محدد (jsDelivr أو unpkg أو غيرهما)، فحدّث أسماء الملفات أيضًا:
+
+```diff
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.js
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.css
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.js
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.css
+```
+
+::: tip اسم المستودع لم يتغيّر
+مستودع GitHub ما زال [`mlightcad/cad-viewer`](https://github.com/mlightcad/cad-viewer)، كما تحتفظ مواقع التوثيق والعروض الحية بمساراتها الحالية. التغيير يخص **اسم حزمة npm** فقط، لذا تبقى جميع روابط المستودع والمشكلات في هذا الدليل صالحة.
+:::
+:::
 
 ## نظرة عامة
 
-`@mlightcad/cad-simple-viewer` و`@mlightcad/cad-viewer` **ليسا حزمتين مستقلتين**. إنهما جزء من منظومة مترابطة بإحكام تشترك في قاعدة شيفرة ودورة إصدار مشتركتين. يجمع كل إصدار مجموعة منسّقة من التحديثات عبر الإضافات والعارضات وحزم نموذج البيانات ومكتبات عرض النصوص وأطر عمل واجهة المستخدم الخارجية.
+`@mlightcad/cad-simple-viewer` و`@mlightcad/cad-editor` **ليسا حزمتين مستقلتين**. إنهما جزء من منظومة مترابطة بإحكام تشترك في قاعدة شيفرة ودورة إصدار مشتركتين. يجمع كل إصدار مجموعة منسّقة من التحديثات عبر الإضافات والعارضات وحزم نموذج البيانات ومكتبات عرض النصوص وأطر عمل واجهة المستخدم الخارجية.
 
-**ترقية `cad-simple-viewer` أو `cad-viewer` وحدهما بمعزل عن غيرهما قد تؤدي إلى أعطال خفية في وقت التشغيل**، بما في ذلك:
+**ترقية `cad-simple-viewer` أو `cad-editor` وحدهما بمعزل عن غيرهما قد تؤدي إلى أعطال خفية في وقت التشغيل**، بما في ذلك:
 
 - واجهات الإضافات التي تتوقع توقيعات API تغيّرت في إصدارات النواة الأحدث (أو الأقدم)
 - عدم تطابق شكل نموذج البيانات بين ما تتوقعه النواة وما ينتجه محلّل/عارض أقدم
@@ -24,14 +60,14 @@ title: "ترقية cad-simple-viewer و cad-viewer"
 
 ## المنظومة في لمحة
 
-قبل الترقية، من المفيد معرفة الحزم التي تنتمي إلى الإصدار المنسّق وأيها خارجي. تُزامَن الفئات التالية مع إصدار cad-viewer نفسه:
+قبل الترقية، من المفيد معرفة الحزم التي تنتمي إلى الإصدار المنسّق وأيها خارجي. تُزامَن الفئات التالية مع إصدار cad-editor نفسه:
 
 ### حزم العارض الأساسية
 
 | الحزمة | الدور |
 | --- | --- |
 | `@mlightcad/cad-simple-viewer` | النواة المستقلة عن إطار العمل (إدارة المستندات، مكدس الأوامر، لصق العرض) |
-| `@mlightcad/cad-viewer` | غلاف واجهة المستخدم Vue 3 + Element Plus المبني فوق cad-simple-viewer |
+| `@mlightcad/cad-editor` | غلاف واجهة المستخدم Vue 3 + Element Plus المبني فوق cad-simple-viewer |
 
 ### الإضافات — **يجب أن تطابق إصدار cad-simple-viewer بدقة**
 
@@ -66,9 +102,9 @@ title: "ترقية cad-simple-viewer و cad-viewer"
 | `@mlightcad/mtext-renderer` | عارض MTEXT → هندسة THREE |
 | `@mlightcad/mtext-input-box` | أداة تحرير MTEXT داخل اللوحة |
 
-### اعتماديات واجهة Vue الخاصة بـ cad-viewer فقط
+### اعتماديات واجهة Vue الخاصة بـ cad-editor فقط
 
-تظهر هذه في تجاوزات `pnpm-workspace.yaml` لكنها مطلوبة فقط عند استخدام `@mlightcad/cad-viewer` (واجهة Vue 3 الكاملة). لا تثبّتها تكاملات cad-simple-viewer مباشرةً.
+تظهر هذه في تجاوزات `pnpm-workspace.yaml` لكنها مطلوبة فقط عند استخدام `@mlightcad/cad-editor` (واجهة Vue 3 الكاملة). لا تثبّتها تكاملات cad-simple-viewer مباشرةً.
 
 | الحزمة | الغرض |
 | --- | --- |
@@ -80,9 +116,9 @@ title: "ترقية cad-simple-viewer و cad-viewer"
 | الحزمة |
 | --- |
 | `three` |
-| `vue` (لـ cad-viewer فقط) |
-| `element-plus` (لـ cad-viewer فقط) |
-| `vue-i18n` (لـ cad-viewer فقط) |
+| `vue` (لـ cad-editor فقط) |
+| `element-plus` (لـ cad-editor فقط) |
+| `vue-i18n` (لـ cad-editor فقط) |
 | `lodash-es` |
 
 ---
@@ -129,13 +165,13 @@ title: "ترقية cad-simple-viewer و cad-viewer"
      vue-i18n: '^11.4.4'
    ```
 
-4. حدّث كل `@mlightcad/cad-*-plugin` تستخدمه إلى **الإصدار نفسه** كـ `cad-simple-viewer` / `cad-viewer`:
+4. حدّث كل `@mlightcad/cad-*-plugin` تستخدمه إلى **الإصدار نفسه** كـ `cad-simple-viewer` / `cad-editor`:
 
    ```json
    {
      "dependencies": {
        "@mlightcad/cad-simple-viewer": "1.7.5",
-       "@mlightcad/cad-viewer": "1.7.5",
+       "@mlightcad/cad-editor": "1.7.5",
        "@mlightcad/cad-html-plugin": "1.7.5",
        "@mlightcad/cad-pdf-plugin": "1.7.5",
        "@mlightcad/cad-svg-plugin": "1.7.5",

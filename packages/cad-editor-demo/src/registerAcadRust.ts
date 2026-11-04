@@ -1,6 +1,6 @@
 /**
  * Opt into copyleft-free DWG parsing (acadrust / MPL-2.0) for this example app.
- * `@mlightcad/cad-simple-viewer` / `@mlightcad/cad-viewer` do not register a
+ * `@mlightcad/cad-simple-viewer` / `@mlightcad/cad-editor` do not register a
  * DWG converter by default.
  *
  * DWG: Architecture-B native mapping (`dwg_open` -> CadDocument -> sectioned

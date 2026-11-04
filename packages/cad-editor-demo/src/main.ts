@@ -1,8 +1,10 @@
 import 'element-plus/dist/index.css'
 
-import { ACADRUST_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
-import { LIBREDWG_PARSER_WORKER_FILE } from '@mlightcad/cad-simple-viewer'
-import { i18n } from '@mlightcad/cad-viewer'
+import { i18n } from '@mlightcad/cad-editor'
+import {
+  ACADRUST_PARSER_WORKER_FILE,
+  LIBREDWG_PARSER_WORKER_FILE
+} from '@mlightcad/cad-simple-viewer'
 import ElementPlus from 'element-plus'
 import { createApp } from 'vue'
 

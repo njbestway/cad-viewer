@@ -844,6 +844,7 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
    * @inheritdoc
    */
   area(area: AcGeArea2d) {
+    this.solidifyBackgroundFill()
     // A wide polyline is emitted by the data model as a solid-fill band of
     // per-segment quads. Two cases must be stroked as a centerline instead of
     // filled solid:
@@ -875,6 +876,35 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
   }
 
   /**
+   * Background fills (wipeouts) are always a solid mask.
+   *
+   * `AcDbWipeout` only sets `isBackgroundFill`, so `fillType` still holds the
+   * pattern of the last hatch drawn. Left as is, the wipeout got a hatch
+   * shader (background-coloured lines that do not mask) and was unbatched.
+   * Normalizing the shared traits covers both the direct-capture and
+   * {@link AcTrPolygon} paths; the next hatch sets its own `fillType`.
+   */
+  private solidifyBackgroundFill() {
+    const traits = this._subEntityTraits
+    if (!traits.isBackgroundFill) {
+      return
+    }
+    const fillType = traits.fillType
+    if (
+      fillType.solidFill &&
+      !fillType.gradient &&
+      !fillType.definitionLines?.length
+    ) {
+      return
+    }
+    traits.fillType = {
+      solidFill: true,
+      patternAngle: 0,
+      definitionLines: []
+    }
+  }
+
+  /**
    * Reconstructs the WCS centerline of a wide-polyline solid-fill band so it can
    * be stroked (dash pattern / glyphs, or a >=1px hairline for a needle-thin
    * band) instead of filled solid.
@@ -889,6 +919,12 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
     // diagonal renders well below one device pixel; promote it to a hairline.
     const THIN_WIDE_POLYLINE_RATIO = 0.02
     const traits = this._subEntityTraits
+    // A background fill (wipeout) must stay a solid mask -- see
+    // {@link solidifyBackgroundFill}: stroking it as a centerline would
+    // erase the mask it exists to draw.
+    if (traits.isBackgroundFill) {
+      return null
+    }
     if (traits.fillType?.solidFill !== true) {
       return null
     }

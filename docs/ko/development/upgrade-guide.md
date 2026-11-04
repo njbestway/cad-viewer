@@ -1,16 +1,52 @@
 ---
-title: "cad-simple-viewer 및 cad-viewer 업그레이드"
+title: "cad-simple-viewer 및 cad-editor 업그레이드"
 ---
 
-# cad-simple-viewer 및 cad-viewer 업그레이드
+# cad-simple-viewer 및 cad-editor 업그레이드
 
-이 가이드는 `@mlightcad/cad-simple-viewer`와 `@mlightcad/cad-viewer`를 안전하게 업그레이드하는 방법을 설명합니다. 즉, 왜 이들을 개별적으로 올릴 수 없는지, 어떤 관련 패키지가 함께 이동해야 하는지, 그리고 주어진 릴리스에 대해 올바른 호환 버전 집합을 확인하는 두 가지 신뢰할 수 있는 방법을 다룹니다.
+이 가이드는 `@mlightcad/cad-simple-viewer`와 `@mlightcad/cad-editor`를 안전하게 업그레이드하는 방법을 설명합니다. 즉, 왜 이들을 개별적으로 올릴 수 없는지, 어떤 관련 패키지가 함께 이동해야 하는지, 그리고 주어진 릴리스에 대해 올바른 호환 버전 집합을 확인하는 두 가지 신뢰할 수 있는 방법을 다룹니다.
+
+::: warning 패키지 이름 변경: `@mlightcad/cad-viewer` → `@mlightcad/cad-editor`
+**1.8.0**부터 패키지 이름이 실제 기능을 드러내도록 `@mlightcad/cad-viewer`의 이름이 `@mlightcad/cad-editor`로 변경되었습니다.
+
+- **이전 패키지는 더 이상 업데이트되지 않습니다.** `@mlightcad/cad-viewer`는 1.7.x에서 멈추고 이후 버전은 registry에 게시되지 않으므로 `pnpm add @mlightcad/cad-viewer@1.8.0`은 404 오류가 납니다. 프로젝트가 중단된 것이 아니라 이름만 바뀐 것이므로 새 이름을 사용하세요.
+- **API는 전혀 바뀌지 않았습니다.** 패키지 이름과 산출물 파일 이름만 변경되었고 `MlCadViewer`, `i18n` 등 내보내기와 사용법은 동일합니다.
+- **나머지 패키지와 같은 버전으로 올리면서 이름도 한 번에 변경하세요:**
+
+```diff
+  {
+    "dependencies": {
+-     "@mlightcad/cad-viewer": "1.7.8",
++     "@mlightcad/cad-editor": "1.8.0",
+      "@mlightcad/cad-simple-viewer": "1.8.0"
+    }
+  }
+```
+
+```diff
+- import { MlCadViewer, i18n } from '@mlightcad/cad-viewer'
++ import { MlCadViewer, i18n } from '@mlightcad/cad-editor'
+```
+
+CDN 파일을 버전으로 고정해 사용한다면(jsDelivr, unpkg 등) 파일 이름도 함께 변경하세요:
+
+```diff
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.js
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.css
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.js
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.css
+```
+
+::: tip 저장소 이름은 변경되지 않았습니다
+GitHub 저장소는 여전히 [`mlightcad/cad-viewer`](https://github.com/mlightcad/cad-viewer)이며 문서 사이트와 라이브 데모도 기존 경로를 유지합니다. **npm 패키지 이름**만 변경되었으므로 이 가이드의 저장소·이슈 링크는 그대로 유효합니다.
+:::
+:::
 
 ## 개요
 
-`@mlightcad/cad-simple-viewer`와 `@mlightcad/cad-viewer`는 **독립형 패키지가 아닙니다**. 이들은 공통 코드베이스와 릴리스 주기를 공유하는 긴밀히 통합된 생태계의 일부입니다. 각 릴리스는 플러그인, 렌더러, 데이터 모델 패키지, 텍스트 렌더링 라이브러리, 서드파티 UI 프레임워크에 걸친 조정된 업데이트 집합을 묶어 제공합니다.
+`@mlightcad/cad-simple-viewer`와 `@mlightcad/cad-editor`는 **독립형 패키지가 아닙니다**. 이들은 공통 코드베이스와 릴리스 주기를 공유하는 긴밀히 통합된 생태계의 일부입니다. 각 릴리스는 플러그인, 렌더러, 데이터 모델 패키지, 텍스트 렌더링 라이브러리, 서드파티 UI 프레임워크에 걸친 조정된 업데이트 집합을 묶어 제공합니다.
 
-**`cad-simple-viewer` 또는 `cad-viewer`만 개별적으로 업그레이드하면 미묘한 런타임 실패가 발생할 수 있습니다**, 예를 들어:
+**`cad-simple-viewer` 또는 `cad-editor`만 개별적으로 업그레이드하면 미묘한 런타임 실패가 발생할 수 있습니다**, 예를 들어:
 
 - 플러그인 인터페이스가 최신(또는 이전) 코어 버전에서 변경된 API 시그니처를 기대함
 - 코어가 기대하는 데이터 모델 형태와 이전 파서/렌더러가 생성하는 형태 간의 불일치
@@ -24,14 +60,14 @@ title: "cad-simple-viewer 및 cad-viewer 업그레이드"
 
 ## 생태계 한눈에 보기
 
-업그레이드 전에 어떤 패키지가 조정된 릴리스에 속하고 어떤 것이 서드파티인지 아는 것이 도움이 됩니다. 다음 범주는 동일한 cad-viewer 릴리스로 동기화됩니다:
+업그레이드 전에 어떤 패키지가 조정된 릴리스에 속하고 어떤 것이 서드파티인지 아는 것이 도움이 됩니다. 다음 범주는 동일한 cad-editor 릴리스로 동기화됩니다:
 
 ### 코어 뷰어 패키지
 
 | 패키지 | 역할 |
 | --- | --- |
 | `@mlightcad/cad-simple-viewer` | 프레임워크 독립적 코어(문서 관리, 명령 스택, 렌더링 연결) |
-| `@mlightcad/cad-viewer` | cad-simple-viewer 위에 구축된 Vue 3 + Element Plus UI 래퍼 |
+| `@mlightcad/cad-editor` | cad-simple-viewer 위에 구축된 Vue 3 + Element Plus UI 래퍼 |
 
 ### 플러그인 — **cad-simple-viewer 버전과 정확히 일치해야 함**
 
@@ -66,9 +102,9 @@ title: "cad-simple-viewer 및 cad-viewer 업그레이드"
 | `@mlightcad/mtext-renderer` | MTEXT → THREE 형상 렌더러 |
 | `@mlightcad/mtext-input-box` | 캔버스 내 MTEXT 편집기 위젯 |
 
-### cad-viewer 전용 Vue UI 의존성
+### cad-editor 전용 Vue UI 의존성
 
-이들은 `pnpm-workspace.yaml` overrides에 나타나지만 `@mlightcad/cad-viewer`(전체 Vue 3 UI)를 사용할 때만 필요합니다. Cad-simple-viewer 통합에서는 직접 설치하지 않습니다.
+이들은 `pnpm-workspace.yaml` overrides에 나타나지만 `@mlightcad/cad-editor`(전체 Vue 3 UI)를 사용할 때만 필요합니다. Cad-simple-viewer 통합에서는 직접 설치하지 않습니다.
 
 | 패키지 | 목적 |
 | --- | --- |
@@ -80,9 +116,9 @@ title: "cad-simple-viewer 및 cad-viewer 업그레이드"
 | 패키지 |
 | --- |
 | `three` |
-| `vue`(cad-viewer 전용) |
-| `element-plus`(cad-viewer 전용) |
-| `vue-i18n`(cad-viewer 전용) |
+| `vue`(cad-editor 전용) |
+| `element-plus`(cad-editor 전용) |
+| `vue-i18n`(cad-editor 전용) |
 | `lodash-es` |
 
 ---
@@ -129,13 +165,13 @@ title: "cad-simple-viewer 및 cad-viewer 업그레이드"
      vue-i18n: '^11.4.4'
    ```
 
-4. 사용하는 모든 `@mlightcad/cad-*-plugin`을 `cad-simple-viewer` / `cad-viewer`와 **동일한 버전**으로 업데이트합니다:
+4. 사용하는 모든 `@mlightcad/cad-*-plugin`을 `cad-simple-viewer` / `cad-editor`와 **동일한 버전**으로 업데이트합니다:
 
    ```json
    {
      "dependencies": {
        "@mlightcad/cad-simple-viewer": "1.7.5",
-       "@mlightcad/cad-viewer": "1.7.5",
+       "@mlightcad/cad-editor": "1.7.5",
        "@mlightcad/cad-html-plugin": "1.7.5",
        "@mlightcad/cad-pdf-plugin": "1.7.5",
        "@mlightcad/cad-svg-plugin": "1.7.5",

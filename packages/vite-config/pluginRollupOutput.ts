@@ -94,7 +94,7 @@ export const PLUGIN_PACKAGE_IDS = [
 export const VIEWER_PACKAGE_IDS = [
   'cad-simple-viewer',
   'cad-diff-viewer',
-  'cad-viewer',
+  'cad-editor',
   'three-renderer',
   'cad-html-core',
   'cad-agent-core',
@@ -133,16 +133,9 @@ function isPluginRegisterModule(id: string, pluginId: string): boolean {
   )
 }
 
-/** Folder under packages/ may differ from the published package id (cad-viewer → cad-editor). */
-function monorepoPackageFolder(packageId: string): string {
-  return packageId === 'cad-viewer' ? 'cad-editor' : packageId
-}
-
 function matchMonorepoPackage(id: string, packageId: string): boolean {
   const normalized = id.replace(/\\/g, '/')
-  const folderId = monorepoPackageFolder(packageId)
   return (
-    normalized.includes(`/packages/${folderId}/`) ||
     normalized.includes(`/packages/${packageId}/`) ||
     normalized.includes(`/node_modules/@mlightcad/${packageId}/`) ||
     normalized.includes(`@mlightcad/${packageId}/`) ||

@@ -13,6 +13,8 @@
       "@mlightcad/cad-html-exporter",
       "@mlightcad/cad-html-plugin",
       "@mlightcad/cad-onedrive-plugin",
+      "@mlightcad/cad-pdf-core",
+      "@mlightcad/cad-pdf-exporter",
       "@mlightcad/cad-pdf-plugin",
       "@mlightcad/cad-simple-ui-plugin",
       "@mlightcad/cad-simple-viewer",
@@ -23,7 +25,7 @@
       "@mlightcad/cad-diff-viewer-example",
       "@mlightcad/cad-svg-plugin",
       "@mlightcad/pdf-renderer",
-      "@mlightcad/cad-viewer",
+      "@mlightcad/cad-editor",
       "@mlightcad/cad-editor-demo",
       "@mlightcad/cad-demo-gallery",
       "@mlightcad/three-renderer"
@@ -34,5 +36,8 @@
   "baseBranch": "main",
   "version": true,
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  }
 }

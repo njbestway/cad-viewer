@@ -1,16 +1,52 @@
 ---
-title: "Upgrading cad-simple-viewer and cad-viewer"
+title: "Upgrading cad-simple-viewer and cad-editor"
 ---
 
-# Upgrading cad-simple-viewer and cad-viewer
+# Upgrading cad-simple-viewer and cad-editor
 
-This guide explains how to safely upgrade `@mlightcad/cad-simple-viewer` and`@mlightcad/cad-viewer` — why they cannot be bumped in isolation, which related packages must move together, and two reliable ways to determine the correct compatible version set for any given release.
+This guide explains how to safely upgrade `@mlightcad/cad-simple-viewer` and`@mlightcad/cad-editor` — why they cannot be bumped in isolation, which related packages must move together, and two reliable ways to determine the correct compatible version set for any given release.
+
+::: warning Package renamed: `@mlightcad/cad-viewer` → `@mlightcad/cad-editor`
+Starting with **1.8.0**, the package previously published as `@mlightcad/cad-viewer` is now `@mlightcad/cad-editor`, so that its name matches what it actually does.
+
+- **The old package is frozen.** `@mlightcad/cad-viewer` stops at 1.7.x and no release after that will appear on the registry, so `pnpm add @mlightcad/cad-viewer@1.8.0` fails with a 404. The project is still maintained — just under the new name.
+- **Nothing else changed.** Only the package name and the emitted artifact filenames moved; the exports (`MlCadViewer`, `i18n`, …) and their usage are identical.
+- **Rename as part of the same upgrade**, so the viewer stays on the same version as the rest of the package set:
+
+```diff
+  {
+    "dependencies": {
+-     "@mlightcad/cad-viewer": "1.7.8",
++     "@mlightcad/cad-editor": "1.8.0",
+      "@mlightcad/cad-simple-viewer": "1.8.0"
+    }
+  }
+```
+
+```diff
+- import { MlCadViewer, i18n } from '@mlightcad/cad-viewer'
++ import { MlCadViewer, i18n } from '@mlightcad/cad-editor'
+```
+
+If you pin CDN files by version (jsDelivr, unpkg, …), update the filenames as well:
+
+```diff
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.js
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.css
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.js
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.css
+```
+
+::: tip The repository name did not change
+The GitHub repository is still [`mlightcad/cad-viewer`](https://github.com/mlightcad/cad-viewer), and the docs site and live demos keep their existing paths. Only the **npm package name** changed, so every repository and issue link in this guide still works.
+:::
+:::
 
 ## Overview
 
-`@mlightcad/cad-simple-viewer` and `@mlightcad/cad-viewer` are **not standalone packages**. They are part of a tightly integrated ecosystem that shares a common codebase and release cycle. Each release bundles a coordinated set of updates across plugins, renderers, data-model packages, text-rendering libraries, and third-party UI frameworks.
+`@mlightcad/cad-simple-viewer` and `@mlightcad/cad-editor` are **not standalone packages**. They are part of a tightly integrated ecosystem that shares a common codebase and release cycle. Each release bundles a coordinated set of updates across plugins, renderers, data-model packages, text-rendering libraries, and third-party UI frameworks.
 
-**Upgrading only `cad-simple-viewer` or `cad-viewer` in isolation can lead to subtle runtime failures**, including:
+**Upgrading only `cad-simple-viewer` or `cad-editor` in isolation can lead to subtle runtime failures**, including:
 
 - Plugin interfaces expecting API signatures that changed in newer (or older) core versions
 - Data-model shape mismatches between what the core expects and what an older parser/renderer produces
@@ -24,14 +60,14 @@ Always upgrade the **entire set of related packages together**. The two reliable
 
 ## Ecosystem at a Glance
 
-Before upgrading, it helps to know which packages belong to the coordinated release and which are third-party. The following categories are synchronized to the same cad-viewer release:
+Before upgrading, it helps to know which packages belong to the coordinated release and which are third-party. The following categories are synchronized to the same cad-editor release:
 
 ### Core viewer packages
 
 | Package | Role |
 | --- | --- |
 | `@mlightcad/cad-simple-viewer` | Framework-agnostic core (document mgmt, command stack, rendering glue) |
-| `@mlightcad/cad-viewer` | Vue 3 + Element Plus UI wrapper built on top of cad-simple-viewer |
+| `@mlightcad/cad-editor` | Vue 3 + Element Plus UI wrapper built on top of cad-simple-viewer |
 
 ### Plugins — **must match the cad-simple-viewer version exactly**
 
@@ -66,9 +102,9 @@ These are consumed internally by plugins and cad-simple-viewer. You typically do
 | `@mlightcad/mtext-renderer` | MTEXT → THREE geometry renderer |
 | `@mlightcad/mtext-input-box` | In-canvas MTEXT editor widget |
 
-### cad-viewer-only Vue UI dependencies
+### cad-editor-only Vue UI dependencies
 
-These appear in the `pnpm-workspace.yaml` overrides but are only needed when using `@mlightcad/cad-viewer` (the full Vue 3 UI). Cad-simple-viewer integrations do not install them directly.
+These appear in the `pnpm-workspace.yaml` overrides but are only needed when using `@mlightcad/cad-editor` (the full Vue 3 UI). Cad-simple-viewer integrations do not install them directly.
 
 | Package | Purpose |
 | --- | --- |
@@ -80,9 +116,9 @@ These appear in the `pnpm-workspace.yaml` overrides but are only needed when usi
 | Package |
 | --- |
 | `three` |
-| `vue` (for cad-viewer only) |
-| `element-plus` (for cad-viewer only) |
-| `vue-i18n` (for cad-viewer only) |
+| `vue` (for cad-editor only) |
+| `element-plus` (for cad-editor only) |
+| `vue-i18n` (for cad-editor only) |
 | `lodash-es` |
 
 ---
@@ -129,13 +165,13 @@ The canonical source of truth for every release is the monorepo's `pnpm-workspac
      vue-i18n: '^11.4.4'
    ```
 
-4. Update every `@mlightcad/cad-*-plugin` you use to the **same version** as `cad-simple-viewer` / `cad-viewer`:
+4. Update every `@mlightcad/cad-*-plugin` you use to the **same version** as `cad-simple-viewer` / `cad-editor`:
 
    ```json
    {
      "dependencies": {
        "@mlightcad/cad-simple-viewer": "1.7.5",
-       "@mlightcad/cad-viewer": "1.7.5",
+       "@mlightcad/cad-editor": "1.7.5",
        "@mlightcad/cad-html-plugin": "1.7.5",
        "@mlightcad/cad-pdf-plugin": "1.7.5",
        "@mlightcad/cad-svg-plugin": "1.7.5",

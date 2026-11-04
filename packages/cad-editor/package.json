@@ -1,5 +1,5 @@
 {
-  "name": "@mlightcad/cad-viewer",
+  "name": "@mlightcad/cad-editor",
   "version": "1.7.8",
   "license": "MIT",
   "type": "module",
@@ -10,6 +10,7 @@
   "keywords": [
     "autocad",
     "cad",
+    "cad-editor",
     "cad-viewer",
     "dwg",
     "dwg-viewer",
@@ -18,13 +19,13 @@
     "mlight",
     "mlightcad"
   ],
-  "main": "./dist/cad-viewer.js",
-  "module": "./dist/cad-viewer.js",
-  "types": "./dist/cad-viewer.d.ts",
+  "main": "./dist/cad-editor.js",
+  "module": "./dist/cad-editor.js",
+  "types": "./dist/cad-editor.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/cad-viewer.d.ts",
-      "import": "./dist/cad-viewer.js"
+      "types": "./dist/cad-editor.d.ts",
+      "import": "./dist/cad-editor.js"
     }
   },
   "files": [
@@ -50,6 +51,7 @@
     "@mlightcad/cad-html-plugin": "workspace:*",
     "@mlightcad/cad-onedrive-plugin": "workspace:*",
     "@mlightcad/cad-google-drive-plugin": "workspace:*",
+    "@mlightcad/cad-pdf-core": "workspace:*",
     "@mlightcad/cad-pdf-plugin": "workspace:*",
     "@mlightcad/pdf-renderer": "workspace:*",
     "@mlightcad/cad-svg-plugin": "workspace:*",
@@ -77,19 +79,20 @@
     "vue-tsc": "^2.1.6"
   },
   "peerDependencies": {
-    "@mlightcad/cad-agent-core": "workspace:*",
-    "@mlightcad/cad-script-core": "workspace:*",
-    "@mlightcad/cad-agent-plugin": "workspace:*",
-    "@mlightcad/cad-script-plugin": "workspace:*",
-    "@mlightcad/cad-html-plugin": "workspace:*",
-    "@mlightcad/cad-onedrive-plugin": "workspace:*",
-    "@mlightcad/cad-google-drive-plugin": "workspace:*",
-    "@mlightcad/cad-pdf-plugin": "workspace:*",
-    "@mlightcad/pdf-renderer": "workspace:*",
-    "@mlightcad/cad-svg-plugin": "workspace:*",
-    "@mlightcad/cad-simple-viewer": "workspace:*",
+    "@mlightcad/cad-agent-core": "workspace:^",
+    "@mlightcad/cad-script-core": "workspace:^",
+    "@mlightcad/cad-agent-plugin": "workspace:^",
+    "@mlightcad/cad-script-plugin": "workspace:^",
+    "@mlightcad/cad-html-plugin": "workspace:^",
+    "@mlightcad/cad-onedrive-plugin": "workspace:^",
+    "@mlightcad/cad-google-drive-plugin": "workspace:^",
+    "@mlightcad/cad-pdf-core": "workspace:^",
+    "@mlightcad/cad-pdf-plugin": "workspace:^",
+    "@mlightcad/pdf-renderer": "workspace:^",
+    "@mlightcad/cad-svg-plugin": "workspace:^",
+    "@mlightcad/cad-simple-viewer": "workspace:^",
     "@mlightcad/data-model": "1.15.21",
-    "@mlightcad/three-renderer": "workspace:*",
+    "@mlightcad/three-renderer": "workspace:^",
     "@vueuse/core": "^11.1.0",
     "element-plus": "^2.12.0",
     "lodash-es": "4.17.21",
@@ -117,6 +120,9 @@
       "optional": true
     },
     "@mlightcad/cad-google-drive-plugin": {
+      "optional": true
+    },
+    "@mlightcad/cad-pdf-core": {
       "optional": true
     },
     "@mlightcad/cad-pdf-plugin": {

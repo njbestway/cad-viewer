@@ -1,16 +1,52 @@
 ---
-title: "cad-simple-viewer ve cad-viewer Yükseltme"
+title: "cad-simple-viewer ve cad-editor Yükseltme"
 ---
 
-# cad-simple-viewer ve cad-viewer Yükseltme
+# cad-simple-viewer ve cad-editor Yükseltme
 
-Bu kılavuz, `@mlightcad/cad-simple-viewer` ve `@mlightcad/cad-viewer` paketlerinin güvenli şekilde nasıl yükseltileceğini açıklar — neden tek başlarına yükseltilemeyeceklerini, hangi ilgili paketlerin birlikte hareket etmesi gerektiğini ve belirli bir sürüm için doğru uyumlu sürüm kümesini belirlemenin iki güvenilir yolunu.
+Bu kılavuz, `@mlightcad/cad-simple-viewer` ve `@mlightcad/cad-editor` paketlerinin güvenli şekilde nasıl yükseltileceğini açıklar — neden tek başlarına yükseltilemeyeceklerini, hangi ilgili paketlerin birlikte hareket etmesi gerektiğini ve belirli bir sürüm için doğru uyumlu sürüm kümesini belirlemenin iki güvenilir yolunu.
+
+::: warning Paket adı değişti: `@mlightcad/cad-viewer` → `@mlightcad/cad-editor`
+**1.8.0** sürümünden itibaren, adının gerçek işlevini yansıtması için `@mlightcad/cad-viewer` paketinin adı `@mlightcad/cad-editor` olarak değiştirildi.
+
+- **Eski paket artık güncellenmiyor.** `@mlightcad/cad-viewer` 1.7.x'te kalır ve registry'de bundan sonra yeni sürümü yayınlanmaz; bu nedenle `pnpm add @mlightcad/cad-viewer@1.8.0` 404 hatası verir. Bu, projenin durdurulduğu anlamına gelmez — yalnızca yeni adı kullanın.
+- **API'de hiçbir değişiklik yok.** Yalnızca paket adı ve üretilen dosya adları değişti; `MlCadViewer`, `i18n` ve diğer dışa aktarımlar ile kullanımları aynıdır.
+- **Adı, diğer paketlerle aynı sürüme geçerken bir defada değiştirin:**
+
+```diff
+  {
+    "dependencies": {
+-     "@mlightcad/cad-viewer": "1.7.8",
++     "@mlightcad/cad-editor": "1.8.0",
+      "@mlightcad/cad-simple-viewer": "1.8.0"
+    }
+  }
+```
+
+```diff
+- import { MlCadViewer, i18n } from '@mlightcad/cad-viewer'
++ import { MlCadViewer, i18n } from '@mlightcad/cad-editor'
+```
+
+CDN dosyalarını sürüme göre sabitliyorsanız (jsDelivr, unpkg, …) dosya adlarını da güncelleyin:
+
+```diff
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.js
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.css
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.js
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.css
+```
+
+::: tip Depo adı değişmedi
+GitHub deposu hâlâ [`mlightcad/cad-viewer`](https://github.com/mlightcad/cad-viewer); belge sitesi ve canlı demolar da mevcut yollarını koruyor. Yalnızca **npm paket adı** değişti, bu yüzden bu kılavuzdaki tüm depo ve issue bağlantıları geçerliliğini korur.
+:::
+:::
 
 ## Genel Bakış
 
-`@mlightcad/cad-simple-viewer` ve `@mlightcad/cad-viewer` **bağımsız paketler değildir**. Ortak bir kod tabanını ve sürüm döngüsünü paylaşan sıkı entegre bir ekosistemin parçasıdırlar. Her sürüm, eklentiler, işleyiciler, veri modeli paketleri, metin işleme kütüphaneleri ve üçüncü taraf arayüz çerçeveleri genelinde koordineli bir güncelleme kümesini bir arada sunar.
+`@mlightcad/cad-simple-viewer` ve `@mlightcad/cad-editor` **bağımsız paketler değildir**. Ortak bir kod tabanını ve sürüm döngüsünü paylaşan sıkı entegre bir ekosistemin parçasıdırlar. Her sürüm, eklentiler, işleyiciler, veri modeli paketleri, metin işleme kütüphaneleri ve üçüncü taraf arayüz çerçeveleri genelinde koordineli bir güncelleme kümesini bir arada sunar.
 
-**Yalnızca `cad-simple-viewer` veya `cad-viewer` paketini tek başına yükseltmek ince çalışma zamanı hatalarına yol açabilir**, bunlar dahil:
+**Yalnızca `cad-simple-viewer` veya `cad-editor` paketini tek başına yükseltmek ince çalışma zamanı hatalarına yol açabilir**, bunlar dahil:
 
 - Eklenti arayüzlerinin, daha yeni (veya daha eski) çekirdek sürümlerde değişen API imzalarını beklemesi
 - Çekirdeğin beklediği veri modeli yapısı ile daha eski bir ayrıştırıcı/işleyicinin ürettiği yapı arasındaki uyuşmazlıklar
@@ -24,14 +60,14 @@ Her zaman **ilgili paketlerin tüm kümesini birlikte** yükseltin. Doğru sür�
 
 ## Ekosisteme Bir Bakış
 
-Yükseltmeden önce hangi paketlerin koordineli sürüme ait olduğunu ve hangilerinin üçüncü taraf olduğunu bilmek faydalıdır. Aşağıdaki kategoriler aynı cad-viewer sürümüne senkronize edilir:
+Yükseltmeden önce hangi paketlerin koordineli sürüme ait olduğunu ve hangilerinin üçüncü taraf olduğunu bilmek faydalıdır. Aşağıdaki kategoriler aynı cad-editor sürümüne senkronize edilir:
 
 ### Temel görüntüleyici paketleri
 
 | Paket | Rol |
 | --- | --- |
 | `@mlightcad/cad-simple-viewer` | Çerçeveden bağımsız çekirdek (belge yönetimi, komut yığını, işleme yapıştırıcısı) |
-| `@mlightcad/cad-viewer` | cad-simple-viewer üzerine kurulu Vue 3 + Element Plus arayüz sarmalayıcısı |
+| `@mlightcad/cad-editor` | cad-simple-viewer üzerine kurulu Vue 3 + Element Plus arayüz sarmalayıcısı |
 
 ### Eklentiler — **cad-simple-viewer sürümüyle tam olarak eşleşmelidir**
 
@@ -66,9 +102,9 @@ Bunlar eklentiler ve cad-simple-viewer tarafından dahili olarak tüketilir. Gen
 | `@mlightcad/mtext-renderer` | MTEXT → THREE geometri işleyicisi |
 | `@mlightcad/mtext-input-box` | Tuval içi MTEXT düzenleyici bileşeni |
 
-### Yalnızca cad-viewer'a özel Vue arayüz bağımlılıkları
+### Yalnızca cad-editor'a özel Vue arayüz bağımlılıkları
 
-Bunlar `pnpm-workspace.yaml` override'larında görünür ancak yalnızca `@mlightcad/cad-viewer` (tam Vue 3 arayüzü) kullanılırken gereklidir. Cad-simple-viewer entegrasyonları bunları doğrudan kurmaz.
+Bunlar `pnpm-workspace.yaml` override'larında görünür ancak yalnızca `@mlightcad/cad-editor` (tam Vue 3 arayüzü) kullanılırken gereklidir. Cad-simple-viewer entegrasyonları bunları doğrudan kurmaz.
 
 | Paket | Amaç |
 | --- | --- |
@@ -80,9 +116,9 @@ Bunlar `pnpm-workspace.yaml` override'larında görünür ancak yalnızca `@mlig
 | Paket |
 | --- |
 | `three` |
-| `vue` (yalnızca cad-viewer için) |
-| `element-plus` (yalnızca cad-viewer için) |
-| `vue-i18n` (yalnızca cad-viewer için) |
+| `vue` (yalnızca cad-editor için) |
+| `element-plus` (yalnızca cad-editor için) |
+| `vue-i18n` (yalnızca cad-editor için) |
 | `lodash-es` |
 
 ---
@@ -129,13 +165,13 @@ Her sürüm için kanonik doğruluk kaynağı, ilgili Git etiketindeki monorepo'
      vue-i18n: '^11.4.4'
    ```
 
-4. Kullandığınız her `@mlightcad/cad-*-plugin` paketini `cad-simple-viewer` / `cad-viewer` ile **aynı sürüme** güncelleyin:
+4. Kullandığınız her `@mlightcad/cad-*-plugin` paketini `cad-simple-viewer` / `cad-editor` ile **aynı sürüme** güncelleyin:
 
    ```json
    {
      "dependencies": {
        "@mlightcad/cad-simple-viewer": "1.7.5",
-       "@mlightcad/cad-viewer": "1.7.5",
+       "@mlightcad/cad-editor": "1.7.5",
        "@mlightcad/cad-html-plugin": "1.7.5",
        "@mlightcad/cad-pdf-plugin": "1.7.5",
        "@mlightcad/cad-svg-plugin": "1.7.5",

@@ -1,16 +1,52 @@
 ---
-title: "cad-simple-viewer と cad-viewer のアップグレード"
+title: "cad-simple-viewer と cad-editor のアップグレード"
 ---
 
-# cad-simple-viewer と cad-viewer のアップグレード
+# cad-simple-viewer と cad-editor のアップグレード
 
-このガイドでは、`@mlightcad/cad-simple-viewer` と`@mlightcad/cad-viewer` を安全にアップグレードする方法を説明します。単独でバージョンを上げられない理由、一緒に更新する必要がある関連パッケージ、および任意のリリースに対して正しい互換バージョンのセットを判断する 2 つの信頼できる方法について説明します。
+このガイドでは、`@mlightcad/cad-simple-viewer` と`@mlightcad/cad-editor` を安全にアップグレードする方法を説明します。単独でバージョンを上げられない理由、一緒に更新する必要がある関連パッケージ、および任意のリリースに対して正しい互換バージョンのセットを判断する 2 つの信頼できる方法について説明します。
+
+::: warning パッケージ名の変更: `@mlightcad/cad-viewer` → `@mlightcad/cad-editor`
+**1.8.0** から、パッケージ名が実際の機能を表すように、`@mlightcad/cad-viewer` を `@mlightcad/cad-editor` に改名しました。
+
+- **旧パッケージは更新されません。** `@mlightcad/cad-viewer` は 1.7.x で止まり、それ以降のバージョンは registry に公開されないため、`pnpm add @mlightcad/cad-viewer@1.8.0` は 404 になります。プロジェクトが終了したわけではなく、新しい名前を使う必要があるだけです。
+- **API は一切変わっていません。** 変わったのはパッケージ名と出力ファイル名だけで、`MlCadViewer` や `i18n` などのエクスポートと使い方は同じです。
+- **他のパッケージと同じバージョンに上げる際に、まとめて名前を変更してください:**
+
+```diff
+  {
+    "dependencies": {
+-     "@mlightcad/cad-viewer": "1.7.8",
++     "@mlightcad/cad-editor": "1.8.0",
+      "@mlightcad/cad-simple-viewer": "1.8.0"
+    }
+  }
+```
+
+```diff
+- import { MlCadViewer, i18n } from '@mlightcad/cad-viewer'
++ import { MlCadViewer, i18n } from '@mlightcad/cad-editor'
+```
+
+CDN（jsDelivr、unpkg など）でファイルをバージョン固定している場合は、ファイル名も更新してください:
+
+```diff
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.js
+- https://cdn.jsdelivr.net/npm/@mlightcad/cad-viewer@1.7.8/dist/cad-viewer.css
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.js
++ https://cdn.jsdelivr.net/npm/@mlightcad/cad-editor@1.8.0/dist/cad-editor.css
+```
+
+::: tip リポジトリ名は変わっていません
+GitHub リポジトリは引き続き [`mlightcad/cad-viewer`](https://github.com/mlightcad/cad-viewer) で、ドキュメントサイトとライブデモも既存のパスを維持しています。変わったのは **npm パッケージ名**だけなので、このガイド内のリポジトリや issue へのリンクはすべてそのまま使えます。
+:::
+:::
 
 ## 概要
 
-`@mlightcad/cad-simple-viewer` と `@mlightcad/cad-viewer` は**独立したパッケージではありません**。これらは共通のコードベースとリリースサイクルを共有する、緊密に統合されたエコシステムの一部です。各リリースには、プラグイン、レンダラー、data-model パッケージ、テキストレンダリングライブラリ、サードパーティの UI フレームワークにまたがる、調整された一連の更新が含まれています。
+`@mlightcad/cad-simple-viewer` と `@mlightcad/cad-editor` は**独立したパッケージではありません**。これらは共通のコードベースとリリースサイクルを共有する、緊密に統合されたエコシステムの一部です。各リリースには、プラグイン、レンダラー、data-model パッケージ、テキストレンダリングライブラリ、サードパーティの UI フレームワークにまたがる、調整された一連の更新が含まれています。
 
-**`cad-simple-viewer` または `cad-viewer` のみを単独でアップグレードすると、微妙な実行時障害が発生する可能性があります**。たとえば：
+**`cad-simple-viewer` または `cad-editor` のみを単独でアップグレードすると、微妙な実行時障害が発生する可能性があります**。たとえば：
 
 - プラグインのインターフェースが、新しい（または古い）コアバージョンで変更された API シグネチャを期待している
 - コアが期待するデータモデルの形状と、古いパーサー/レンダラーが生成する形状の不一致
@@ -24,14 +60,14 @@ title: "cad-simple-viewer と cad-viewer のアップグレード"
 
 ## エコシステムの全体像
 
-アップグレードする前に、どのパッケージが調整されたリリースに属し、どれがサードパーティ製かを知っておくと役立ちます。次のカテゴリは、同じ cad-viewer リリースに同期されます。
+アップグレードする前に、どのパッケージが調整されたリリースに属し、どれがサードパーティ製かを知っておくと役立ちます。次のカテゴリは、同じ cad-editor リリースに同期されます。
 
 ### コアビューアパッケージ
 
 | パッケージ | 役割 |
 | --- | --- |
 | `@mlightcad/cad-simple-viewer` | フレームワーク非依存のコア（ドキュメント管理、コマンドスタック、レンダリングの接着層） |
-| `@mlightcad/cad-viewer` | cad-simple-viewer の上に構築された Vue 3 + Element Plus の UI ラッパー |
+| `@mlightcad/cad-editor` | cad-simple-viewer の上に構築された Vue 3 + Element Plus の UI ラッパー |
 
 ### プラグイン — **cad-simple-viewer のバージョンと完全に一致させる必要があります**
 
@@ -66,9 +102,9 @@ title: "cad-simple-viewer と cad-viewer のアップグレード"
 | `@mlightcad/mtext-renderer` | MTEXT → THREE ジオメトリのレンダラー |
 | `@mlightcad/mtext-input-box` | キャンバス内の MTEXT エディターウィジェット |
 
-### cad-viewer 専用の Vue UI 依存関係
+### cad-editor 専用の Vue UI 依存関係
 
-これらは `pnpm-workspace.yaml` のオーバーライドに含まれていますが、`@mlightcad/cad-viewer`（完全な Vue 3 UI）を使用する場合にのみ必要です。cad-simple-viewer の統合では直接インストールしません。
+これらは `pnpm-workspace.yaml` のオーバーライドに含まれていますが、`@mlightcad/cad-editor`（完全な Vue 3 UI）を使用する場合にのみ必要です。cad-simple-viewer の統合では直接インストールしません。
 
 | パッケージ | 目的 |
 | --- | --- |
@@ -80,9 +116,9 @@ title: "cad-simple-viewer と cad-viewer のアップグレード"
 | パッケージ |
 | --- |
 | `three` |
-| `vue`（cad-viewer 専用） |
-| `element-plus`（cad-viewer 専用） |
-| `vue-i18n`（cad-viewer 専用） |
+| `vue`（cad-editor 専用） |
+| `element-plus`（cad-editor 専用） |
+| `vue-i18n`（cad-editor 専用） |
 | `lodash-es` |
 
 ---
@@ -129,13 +165,13 @@ title: "cad-simple-viewer と cad-viewer のアップグレード"
      vue-i18n: '^11.4.4'
    ```
 
-4. 使用するすべての `@mlightcad/cad-*-plugin` を、`cad-simple-viewer` / `cad-viewer` と**同じバージョン**に更新します。
+4. 使用するすべての `@mlightcad/cad-*-plugin` を、`cad-simple-viewer` / `cad-editor` と**同じバージョン**に更新します。
 
    ```json
    {
      "dependencies": {
        "@mlightcad/cad-simple-viewer": "1.7.5",
-       "@mlightcad/cad-viewer": "1.7.5",
+       "@mlightcad/cad-editor": "1.7.5",
        "@mlightcad/cad-html-plugin": "1.7.5",
        "@mlightcad/cad-pdf-plugin": "1.7.5",
        "@mlightcad/cad-svg-plugin": "1.7.5",
