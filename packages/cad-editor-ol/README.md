@@ -33,22 +33,26 @@ pnpm --filter @mlightcad/cad-editor-ol build
 worker（acad-rust 解析器、mtext 渲染器）由 `vite-plugin-static-copy` 复制到
 `assets/`。
 
-## 本地 data-model 覆盖
+## 本地 data-model / mtext 覆盖
 
-本包直接对接 `realdwg-web` 仓库里维护的 `@mlightcad/data-model`，而不是
-`pnpm` 装上的固定版本（根 `pnpm-workspace.yaml` 的 override 指向 vendored
-tarball）。覆盖只发生在**本包的 vite 配置**里，因此根配置与
-`pnpm-lock.yaml` 保持与上游一致，合并上游时不会冲突，也不影响其他包。
+本包直接对接兄弟目录里维护的三个 checkout：`realdwg-web` 的
+`@mlightcad/data-model`，以及 `mtext-renderer` / `mtext-parser` 仓库。
+`node_modules` 里装的是 `pnpm` 按上游声明固定的版本（根
+`pnpm-workspace.yaml` 的 override 指向 vendored data-model tarball）。覆盖只
+发生在**本包的 vite 配置**里，因此根配置、`pnpm-lock.yaml` 与其他包保持与
+上游一致，合并上游时不会冲突。
 
 ```bash
-# 默认：使用兄弟目录 ../realdwg-web 的构建产物 packages/data-model/lib/
+# 默认：data-model 用 ../realdwg-web/packages/data-model/lib/，
+# mtext 用 ../mtext-renderer/... 与 ../mtext-parser 的 dist 产物
 pnpm --filter @mlightcad/cad-editor-ol dev
 
-# 直连源码（免 build，改完 src 直接生效）
+# 直连 data-model 源码（免 build，改完 src 直接生效）
 CAD_LOCAL_REALDWG_SRC=1 pnpm --filter @mlightcad/cad-editor-ol dev
 
-# 关闭覆盖（回到 node_modules 里的版本，用于验证固定版本）
+# 关闭某一族覆盖（回到 node_modules 里的固定版本，用于验证固定版本）
 CAD_LOCAL_REALDWG=0 pnpm --filter @mlightcad/cad-editor-ol dev
+CAD_LOCAL_MTEXT=0 pnpm --filter @mlightcad/cad-editor-ol dev
 
 # 用本地 data-model 的类型做类型检查 + 构建
 pnpm --filter @mlightcad/cad-editor-ol build:local
@@ -58,16 +62,27 @@ pnpm --filter @mlightcad/cad-editor-ol build:local
 | --- | --- |
 | `CAD_LOCAL_REALDWG` | checkout 根目录，默认 `../../../realdwg-web`；`0`/`false`/`off` 关闭 |
 | `CAD_LOCAL_REALDWG_SRC` | `1` 时别名到 `src/index.ts`（需 vite 现编），默认用 `lib/index.js` |
+| `CAD_LOCAL_MTEXT` | `0`/`false`/`off` 关闭 mtext 覆盖，默认探测到 checkout 即启用 |
 
-实现见 `localMlightcad.ts`：只重写 `@mlightcad/data-model` 一个说明符，它的
-内部依赖（`common` / `geometry-engine` / `graphic-interface` / `emf-converter`）
-沿 checkout 自己的 `node_modules` 解析，家族版本保持一致、全图只有一个实例。
-checkout 不存在时自动回退到 node_modules，因此 CI 与没有该目录的机器照常
+实现见 `localMlightcad.ts`，每个包名只重写一次说明符：
+
+- `@mlightcad/data-model` 的内部依赖（`common` / `geometry-engine` /
+  `graphic-interface` / `emf-converter`）沿 checkout 自己的 `node_modules`
+  解析，家族版本保持一致、全图只有一个实例。
+- `@mlightcad/mtext-renderer` / `@mlightcad/mtext-parser` 必须成对重写：
+  renderer 的产物会从自己的 `node_modules` 找 parser，只改其一会得到两个
+  parser 实例。
+- `three` 一并指到本包解析到的那份：checkout 自带 `three`，否则跨边界的
+  `instanceof THREE.*` 会失效。
+- mtext worker 是独立 bundle，alias 管不到，因此直接复制 checkout 自己的
+  `dist/mtext-renderer-worker.js`，保证主线程与 worker 同源。
+
+checkout 不存在时自动回退到 `node_modules`，因此 CI 与没有这些目录的机器照常
 构建。类型侧由 `tsconfig.local.json`（`build:local` / `typecheck:local`）对齐。
 
-> `vite build` 的产物中 data-model 仍是外部依赖（`peerDepsExternal`），
-> 所以覆盖只作用于本包的 dev/preview；由别的应用消费 `dist` 时，需在其
-> 构建配置中复用 `localMlightcad()` 的 alias。
+> `vite build` 的产物中 data-model / mtext-renderer 仍是外部依赖
+> （`peerDepsExternal`），所以覆盖只作用于本包的 dev/preview；由别的应用
+> 消费 `dist` 时，需在其构建配置中复用 `localMlightcad()` 的 alias。
 
 ## 使用
 

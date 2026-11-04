@@ -124,18 +124,21 @@ const acadRustWasmSrc = resolve(
 )
 
 /** MTEXT layout/shaping worker shipped by `@mlightcad/cad-simple-viewer`. */
-const mtextWorkerSrc = `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
+const pinnedMtextWorkerSrc = `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
 
 export default defineConfig(({ command, mode }: ConfigEnv) => {
-  // Private fork: prefer the realdwg-web checkout over the pinned install.
+  // Private fork: prefer the sibling checkouts over the pinned installs.
   const local = localMlightcad()
-  if (local.enabled) {
-    console.info(
-      `[cad-editor-ol] @mlightcad/data-model <- ${local.entry} (${local.reason})`
-    )
-  } else {
-    console.info(`[cad-editor-ol] local data-model off: ${local.reason}`)
+  for (const message of local.messages) {
+    console.info(`[cad-editor-ol] ${message}`)
   }
+
+  // viteStaticCopy resolves `src` through fast-glob, which needs forward
+  // slashes: a backslash in an absolute Windows path (`\r`, `\m`, ...) is read
+  // as an escape and the match comes back empty.
+  const mtextWorkerSrc = local.mtextWorkerFile
+    ? local.mtextWorkerFile.replace(/\\/g, '/')
+    : pinnedMtextWorkerSrc
 
   const plugins: PluginOption[] = [
     vue() as PluginOption,
@@ -208,20 +211,20 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
     server: local.enabled
       ? {
           fs: {
-            // The aliased build lives outside this workspace.
+            // The rewritten entries live outside this workspace.
             allow: [resolve(__dirname, '../..'), ...local.fsAllow]
           },
           watch: {
-            // realdwg-web rebuilds its own outputs; ignore them so they do not
-            // thrash HMR (same treatment as the demo packages).
-            ignored: ['**/realdwg-web/**']
+            // The checkouts rebuild their own outputs; ignore them so they do
+            // not thrash HMR (same treatment as the demo packages).
+            ignored: local.watchIgnore
           }
         }
       : undefined,
     optimizeDeps: {
       // The CAD Script plugin is a workspace package compiled by Vite in dev.
-      // The aliased data-model must not be pre-bundled either: its cache goes
-      // stale on every realdwg-web rebuild (`504 Outdated Optimize Dep`).
+      // The rewritten entries must not be pre-bundled either: their cache goes
+      // stale on every checkout rebuild (`504 Outdated Optimize Dep`).
       exclude:
         command === 'serve'
           ? ['@mlightcad/cad-script-plugin', ...local.optimizeDepsExclude]

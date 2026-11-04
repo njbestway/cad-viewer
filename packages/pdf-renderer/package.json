@@ -46,11 +46,11 @@
   },
   "devDependencies": {
     "@mlightcad/data-model": "1.15.21",
-    "@mlightcad/mtext-parser": "workspace:*",
+    "@mlightcad/mtext-parser": "1.5.7",
     "@types/pako": "^1.0.7"
   },
   "peerDependencies": {
     "@mlightcad/data-model": "1.15.21",
-    "@mlightcad/mtext-parser": "workspace:*"
+    "@mlightcad/mtext-parser": "1.5.7"
   }
 }

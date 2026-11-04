@@ -5,7 +5,11 @@
     "paths": {
       "@mlightcad/data-model": [
         "../../../realdwg-web/packages/data-model/lib/index.d.ts"
-      ]
+      ],
+      "@mlightcad/mtext-renderer": [
+        "../../../mtext-renderer/packages/mtext-renderer/lib/index.d.ts"
+      ],
+      "@mlightcad/mtext-parser": ["../../../mtext-parser/dist/types/parser.d.ts"]
     }
   }
 }
