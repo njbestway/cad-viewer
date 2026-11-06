@@ -28,7 +28,7 @@ Single test file: `pnpm jest packages/<pkg>/__tests__/Foo.spec.ts`.
 - `*-plugin` (`cad-simple-ui`, `cad-script`, `cad-agent`, `cad-pdf`, `cad-html`, `cad-svg`, `cad-onedrive`, `cad-google-drive`): optional features, lazy-loaded.
 - `cad-html-core` / `cad-html-exporter` / `cad-simple-viewer-cli` / `cad-mcp-server`: self-contained HTML export, CLI, MCP server.
 - `cad-pdf-core` / `cad-pdf-exporter`: shared PDF export pipeline (no `cad-simple-viewer` / DOM dependency) and the headless Node PDF exporter built on it; `cad-pdf-plugin` uses the same core in the browser.
-- `cad-script-core` -> `@mlightcad/cad-script-core`: agent script runtime (`cad.*` host, tool catalog, headless `createDatabaseSession`). Depends on `data-model` only; ESLint rejects other `@mlightcad/*`, `three`, and `vue` imports there. `cad-agent-core` binds it to `cad-simple-viewer` and re-exports it.
+- `cad-script-core` -> `@mlightcad/cad-script-core`: agent script runtime (`cad.*` host, tool catalog, headless `createDatabaseSession`). Depends on `data-model` + `cad-pdf-core` (`cad.file.savePdf`); HTML export (`cad.file.saveHtml`) uses a `CadSession.exportHtml` hook filled by `cad-agent-core`. ESLint rejects `cad-simple-viewer`, `cad-html-core`, `three`, and `vue` imports there. `cad-agent-core` binds it to `cad-simple-viewer` and re-exports it.
 - `*-demo` / `*-example`: sample apps (not published). `vite-config`: shared Rollup/Vite helpers.
 
 Layering: `data-model` (external) -> renderers (`three-renderer`) -> view layer (`cad-simple-viewer`) -> UI (`cad-editor`) / plugins. **Low-level packages must never depend on higher-level ones.**
@@ -49,8 +49,8 @@ Always read the actual source when a dependency's behavior matters; do not infer
 - ESLint: single quotes, `simple-import-sort` (third party block, blank line, relative imports), prefix unused vars/args with `_`. Run `pnpm lint:fix` before committing.
 - TypeScript is `strict` with `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` (see `tsconfig.base.json`). Avoid `any`; prefer explicit types/interfaces.
 - **Prefixes encode the owning layer** and apply to classes _and_ to exported functions/values, not just types:
-  - Classes: `AcAp` (app/core), `AcEd` (editor/commands), `AcTr` (three renderer), `AcEx` (extended interaction, e.g. osnap), `AcUi` (UI controllers), `AcSv`/`AcSvg` (SVG), `AcPd` (PDF).
-  - Exported functions/values: same prefix in lowerCamelCase — `acapFoo()`, `acedFoo()`, `acTrFoo()`, `acExFoo()`, `acuiFoo()`. Exceptions: Vue hooks/composables use `use*` (e.g. `useSettings`), and local (non-exported) helpers do not need a prefix.
+  - Classes/types: `AcAp` (app/core), `AcEd` (editor/commands), `AcTr` (three renderer), `AcEx` (extended interaction, e.g. osnap), `AcExHtml` (`cad-html-core`), `AcUi` (UI controllers), `AcSv`/`AcSvg` (SVG), `AcPdf` (PDF renderer), `AcExPdf` (`cad-pdf-core`).
+  - Exported functions/values: same prefix in lowerCamelCase — `acapFoo()`, `acedFoo()`, `acTrFoo()`, `acExFoo()`, `acexHtmlFoo()`, `acexPdfFoo()`, `acuiFoo()`. Exceptions: Vue hooks/composables use `use*` (e.g. `useSettings`), and local (non-exported) helpers do not need a prefix.
 - File name matches its primary class (`AcApFoo.ts`); commands are `AcAp<Name>Cmd.ts`.
 - Public API gets JSDoc — TypeDoc generates the API reference from it. Inline comments explain _why_, not _what_.
 - Entry point is always `src/index.ts` (re-exports); plugins additionally expose `src/register.ts`.
@@ -80,5 +80,5 @@ The full recipe for a new CAD command lives in `packages/cad-simple-viewer/src/c
 
 - Client secrets/config reach the build through `VITE_*` env vars (CI injects secrets/vars). **Never export empty `VITE_*` values** — Vite treats them as set and will not fall back to `.env`.
 - Cross-repo debugging (`realdwg-web`, `mtext-renderer`) uses temporary `file:` overrides in `pnpm-workspace.yaml`, not `pnpm link`; revert before committing. See `docs/development/debugging-with-multiple-repo-changes.md`.
-- Docs: development guides live in `docs/development/` (English) plus `docs/{zh,ja,ko,ar,cs,tr}/`; new dev docs should be added to the translations too.
+- Docs: development guides live in `docs/development/` (English) plus `docs/{zh,ja,ko,ar,cs,tr}/`; new dev docs should be added to the translations too. **After a large module split/move or a user-facing public API change, update the upgrade guide** (`docs/development/upgrade-guide.md` and every locale under `docs/{zh,ja,ko,ar,cs,tr}/development/upgrade-guide.md`): state which release the change lands in, what consumers must migrate, and keep related development guides / package READMEs in sync with the new names and package layout.
 - `dist/`, `lib/`, `public/` are build output — never edit by hand.

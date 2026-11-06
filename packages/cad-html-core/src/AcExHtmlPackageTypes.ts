@@ -1,0 +1,180 @@
+import {
+  ACEX_SNAPSHOT_VERSION,
+  type AcExHtmlExtents,
+  type AcExHtmlLayerSnapshot,
+  type AcExHtmlSnapshot,
+  type AcExHtmlSnapshotVersion,
+  type AcExHtmlViewportSnapshot
+} from './AcExHtmlSnapshotTypes'
+
+/** Current multi-file package / manifest protocol version. */
+export const ACEX_PACKAGE_VERSION = 1 as const
+
+export type AcExHtmlPackageVersion = typeof ACEX_PACKAGE_VERSION
+
+/** Snapshot schema version embedded in package manifests (matches ACEX batches). */
+export type AcExHtmlPackageSnapshotVersion = AcExHtmlSnapshotVersion
+
+/** One geometry chunk listed in the package manifest (gzip or raw ACEC). */
+export interface AcExHtmlPackageChunkRef {
+  /** Stable chunk id (also used in the default file name). */
+  id: string
+  /** Relative URL from the manifest file (e.g. `chunks/L0-000.acex.gz`). */
+  href: string
+  /** Layout BTR id this chunk belongs to. */
+  layoutBtrId: string
+  /** Uncompressed ACEC byte length. */
+  byteLength: number
+  /** Stored payload byte length (gzip when compressed, else same as byteLength). */
+  compressedByteLength: number
+  /** Number of line batches in this chunk. */
+  lineBatchCount: number
+  /** Number of mesh batches in this chunk. */
+  meshBatchCount: number
+  /** Optional content hash (hex SHA-256). Not required by the loader. */
+  sha256?: string
+}
+
+/**
+ * One ACEO OSNAP chunk (measure mode), gzip or raw.
+ * Loaded after geometry so viewing does not wait on snap catalogs.
+ */
+export interface AcExHtmlPackageOsnapChunkRef {
+  /** Stable chunk id (also used in the default file name). */
+  id: string
+  /** Relative URL from the manifest (e.g. `chunks/L0-osnap-000.osnap.gz`). */
+  href: string
+  /** Layout BTR id this chunk belongs to. */
+  layoutBtrId: string
+  /** Uncompressed ACEO byte length. */
+  byteLength: number
+  /** Stored payload byte length (gzip when compressed, else same as byteLength). */
+  compressedByteLength: number
+  /** Number of analytic primitives in this chunk. */
+  primitiveCount: number
+  /** Optional content hash (hex SHA-256). Not required by the loader. */
+  sha256?: string
+}
+
+/**
+ * Layout directory entry in the package manifest.
+ * Geometry and OSNAP catalogs live in referenced files, not inline.
+ */
+export interface AcExHtmlPackageLayoutRef {
+  btrId: string
+  name: string
+  isModelSpace: boolean
+  /** Paper-space viewports (model space omits this). */
+  viewports?: AcExHtmlViewportSnapshot[]
+  /**
+   * AutoCAD saved view for this layout (model: VPORT `*ACTIVE`; paper: limits).
+   * Omitted when the drawing has no usable saved view.
+   */
+  savedView?: AcExHtmlExtents
+  /**
+   * Export-time zoom-to-fit box for this layout, so the offline viewer frames
+   * the same box before its geometry chunks arrive.
+   */
+  fitExtents?: AcExHtmlExtents
+  /** Geometry chunks for this layout, in paint order. */
+  chunkIds: string[]
+  /**
+   * OSNAP chunk ids for this layout (measure mode).
+   * Omitted when the layout has no analytic snap data.
+   */
+  osnapChunkIds?: string[]
+}
+
+/**
+ * Versioned package manifest (`*.acex.json`).
+ * Small JSON fetched first; geometry is loaded progressively from chunks.
+ */
+export interface AcExHtmlPackageManifest {
+  /** Discriminator for package manifests. */
+  format: 'acex-package'
+  /** Package protocol version ({@link ACEX_PACKAGE_VERSION}). */
+  packageVersion: AcExHtmlPackageVersion
+  /** Batch / snapshot schema version ({@link ACEX_SNAPSHOT_VERSION}). */
+  snapshotVersion: AcExHtmlPackageSnapshotVersion
+  /** Document-level metadata (same shape as {@link AcExHtmlSnapshot.meta}). */
+  meta: AcExHtmlSnapshot['meta']
+  layers: AcExHtmlLayerSnapshot[]
+  activeLayoutBtrId: string
+  layouts: AcExHtmlPackageLayoutRef[]
+  /** Flat geometry chunk list; layouts reference ids via {@link AcExHtmlPackageLayoutRef.chunkIds}. */
+  chunks: AcExHtmlPackageChunkRef[]
+  /**
+   * Flat OSNAP chunk list (measure mode). Layouts reference ids via
+   * {@link AcExHtmlPackageLayoutRef.osnapChunkIds}. Omitted or empty for view-only.
+   */
+  osnapChunks?: AcExHtmlPackageOsnapChunkRef[]
+}
+
+/** One file in a multi-file package before zipping for download. */
+export interface AcExHtmlPackageFile {
+  /** Path relative to the package root (forward slashes). */
+  path: string
+  /** File bytes (UTF-8 for text, raw for binary). */
+  bytes: Uint8Array
+}
+
+/**
+ * Complete multi-file package ready to zip or write to disk.
+ */
+export interface AcExHtmlPackageFiles {
+  /** Shell HTML (`viewer.html`) with `#mlcad-package` config. */
+  html: string
+  /** Manifest object (also serialized as `*.acex.json`). */
+  manifest: AcExHtmlPackageManifest
+  /** Manifest file name at package root (always `drawing.acex.json`). */
+  manifestFileName: string
+  /** All package files including HTML, manifest, and chunk `.acex` / `.acex.gz` files. */
+  files: AcExHtmlPackageFile[]
+}
+
+/**
+ * Default max uncompressed ACEC size per geometry chunk (~2 MiB).
+ *
+ * Gzip typically brings a 2 MiB slice down to well under 200 KiB. Smaller
+ * slices cause too many inflate round-trips and slow first open.
+ */
+export const ACEX_DEFAULT_CHUNK_MAX_BYTES = 2 * 1024 * 1024
+
+/**
+ * Max uncompressed size of one line/mesh batch piece (~2 MiB).
+ *
+ * Scene collection packs by layer (and material), so a busy layer can be tens
+ * of megabytes in a single batch. The packager splits those batches at this
+ * threshold so each package chunk can download, inflate, and paint independently.
+ * Kept in sync with {@link ACEX_DEFAULT_CHUNK_MAX_BYTES} so pieces are not cut
+ * smaller than a chunk and then packed back together.
+ */
+export const ACEX_MAX_GEOMETRY_BATCH_BYTES = 2 * 1024 * 1024
+
+/**
+ * Legacy default max estimated uncompressed ACEO size per OSNAP chunk (~512 KiB).
+ * Multi-file package builds now default OSNAP chunk size to the geometry
+ * {@link ACEX_DEFAULT_CHUNK_MAX_BYTES} budget unless overridden explicitly.
+ */
+export const ACEX_DEFAULT_OSNAP_CHUNK_MAX_BYTES = 512 * 1024
+
+/**
+ * Estimated uncompressed geometry+OSNAP size above which self-contained HTML
+ * switches from a monolithic ACEX payload to embedded progressive chunks.
+ */
+export const ACEX_EMBEDDED_CHUNK_THRESHOLD_BYTES = 8 * 1024 * 1024
+
+/**
+ * Max uncompressed ACEC size per chunk when embedding in a self-contained HTML
+ * file. Larger than the hosted-package default because there is no HTTP
+ * round-trip cost — fewer inflate/paint cycles improve first open.
+ */
+export const ACEX_EMBEDDED_CHUNK_MAX_BYTES = 12 * 1024 * 1024
+
+/**
+ * Max estimated uncompressed ACEO size per OSNAP chunk in embedded HTML.
+ */
+export const ACEX_EMBEDDED_OSNAP_CHUNK_MAX_BYTES = 2 * 1024 * 1024
+
+export { ACEX_SNAPSHOT_VERSION }
+

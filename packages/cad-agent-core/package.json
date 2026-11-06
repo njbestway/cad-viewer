@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-agent-core",
-  "version": "1.7.8",
+  "version": "1.8.0-preview.0",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -36,13 +36,23 @@
     "lint:fix": "eslint --fix --quiet src/"
   },
   "devDependencies": {
+    "@mlightcad/cad-html-plugin": "workspace:*",
+    "@mlightcad/cad-pdf-core": "workspace:*",
     "@mlightcad/cad-script-core": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.21"
+    "@mlightcad/data-model": "1.15.22",
+    "@mlightcad/mtext-parser": "1.5.7",
+    "@mlightcad/pdf-renderer": "workspace:*",
+    "@mlightcad/three-renderer": "workspace:*"
   },
   "peerDependencies": {
+    "@mlightcad/cad-html-plugin": "workspace:^",
+    "@mlightcad/cad-pdf-core": "workspace:^",
     "@mlightcad/cad-script-core": "workspace:^",
     "@mlightcad/cad-simple-viewer": "workspace:^",
-    "@mlightcad/data-model": "1.15.21"
+    "@mlightcad/data-model": "1.15.22",
+    "@mlightcad/mtext-parser": "1.5.7",
+    "@mlightcad/pdf-renderer": "workspace:^",
+    "@mlightcad/three-renderer": "workspace:^"
   }
 }

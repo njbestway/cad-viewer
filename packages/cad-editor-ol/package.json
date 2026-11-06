@@ -48,7 +48,7 @@
   "devDependencies": {
     "@mlightcad/cad-script-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.21",
+    "@mlightcad/data-model": "1.15.22",
     "@mlightcad/ribbon": "0.1.13",
     "@mlightcad/three-renderer": "workspace:*",
     "@mlightcad/three-viewcube": "0.0.9",
@@ -75,7 +75,7 @@
   "peerDependencies": {
     "@mlightcad/cad-script-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.21",
+    "@mlightcad/data-model": "1.15.22",
     "@mlightcad/three-renderer": "workspace:*",
     "@vueuse/core": "^11.1.0",
     "element-plus": "^2.12.0",
