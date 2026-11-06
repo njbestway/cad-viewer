@@ -6,7 +6,10 @@ import {
   HIGHLIGHT_HOVER_COLOR,
   HIGHLIGHT_SELECT_COLOR
 } from '../util/AcTrMaterialUtil'
-import { getSceneDrawableUserData } from '../util/AcTrObjectUserData'
+import {
+  getHighlightUserData,
+  getSceneDrawableUserData
+} from '../util/AcTrObjectUserData'
 import type { AcTrBatchHighlightKind } from './highlight'
 
 const _matrix = /*@__PURE__*/ new THREE.Matrix4()
@@ -636,6 +639,9 @@ export class AcTrMeshGlyphWorldBatch {
       overlay.renderOrder = 10000
       overlay.raycast = () => {}
       getSceneDrawableUserData(overlay).sharesTemplateGeometry = false
+      const highlightUserData = getHighlightUserData(overlay)
+      highlightUserData.transientHighlight = true
+      highlightUserData.objectId = objectId
       // Instance matrices are origin-rebased at flush; parenting under the
       // InstancedMesh inherits the bucket origin on `mesh.position`.
       slot.mesh.add(overlay)

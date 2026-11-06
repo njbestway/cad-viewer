@@ -97,7 +97,7 @@ The build runs `vue-tsc`, then copies parser workers and `viewer-runtime.iife.js
 | Format | Notes |
 |--------|--------|
 | **DXF** | Built-in parser in `@mlightcad/data-model` |
-| **DWG** | `@njbestway/acad-rust-converter` (acadrust, MPL-2.0, copyleft-free) — registered by this example |
+| **DWG** | Optional `@mlightcad/libredwg-converter` (GPL) — registered by this example |
 
 ## What this example demonstrates
 

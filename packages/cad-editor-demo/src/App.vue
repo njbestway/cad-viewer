@@ -3,17 +3,15 @@
     <!-- Upload screen when no drawing is open -->
     <div v-if="!showViewer" class="upload-screen">
       <FileUpload
-        :get-cloud-sources="getLandingCloudSources"
-        :cloud-sources-epoch="landingSourcesEpoch"
+        :landing-manager="landingDataSources"
         @file-select="handleFileSelect"
         @new-drawing="handleNewDrawing"
         @url-select="handleUrlSelect"
-        @data-source-action="handleDataSourceAction"
       />
     </div>
 
     <!-- CAD viewer when a file is selected or a new drawing is created -->
-    <div v-else>
+    <div v-else-if="viewerPrepared">
       <MlCadViewer
         locale="default"
         :url="store.selectedUrl ?? undefined"
@@ -34,41 +32,34 @@
 </template>
 
 <script setup lang="ts">
-import { MlCadViewer } from '@mlightcad/cad-editor'
 import {
-  type AcApDataSource,
   AcApDataSourceManager,
-  type AcApDataSourceMenuItem,
-  AcApDocManager,
-  acapInvokeDataSourceMenuAction,
   AcApOpenViewMode,
-  acapRunDataSourceMenuAction,
-  AcApSettingManager,
-  AcEdCommandStack,
   AcEdOpenMode,
-  layoutBackgroundColorFromRgb
-} from '@mlightcad/cad-simple-viewer'
+  acuiAttachDataSources} from '@mlightcad/cad-simple-viewer/file-open-panel'
 import {
   ACDB_DRAW_CIRCLE_SIDES_DRAFT,
   ACGI_PAPER_SPACE_BACKGROUND,
   log
 } from '@mlightcad/data-model'
-import { computed, nextTick, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
 
-import { AcApQuitCmd } from './commands'
 import FileUpload from './components/FileUpload.vue'
 import {
   getGoogleDriveEnvConfig,
   registerGoogleDriveFromEnv
 } from './googleDriveEnv'
 import { initializeLocale } from './locale'
-import { getOneDriveEnvConfig, registerOneDriveFromEnv } from './onedriveEnv'
+import {
+  getOneDriveEnvConfig,
+  registerOneDriveFromEnv
+} from './onedriveEnv'
+import { registerLibreDwgConverter } from './registerLibreDwg'
 import { store } from './store'
 
-// Isolate this example's prefs from cad-simple-viewer-demo on localhost.
-AcApSettingManager.configure({
-  storageKey: 'mlightcad.settings.cad-viewer'
-})
+const MlCadViewer = defineAsyncComponent(() =>
+  import('@mlightcad/cad-editor').then(m => m.MlCadViewer)
+)
 
 initializeLocale()
 
@@ -77,19 +68,10 @@ const googleDriveEnv = getGoogleDriveEnvConfig()
 
 /**
  * Landing-page registry used before DocManager exists.
- * Cloud plugins register the same {@link AcApDataSource} types here so the
- * open panel needs no provider-specific UI.
+ * Outlives the upload screen so the same cloud source instances can be
+ * attached to DocManager after the viewer mounts.
  */
 const landingDataSources = new AcApDataSourceManager()
-const landingSourcesEpoch = ref(0)
-const bumpLandingSources = () => {
-  landingSourcesEpoch.value += 1
-}
-
-landingDataSources.on('changed', bumpLandingSources)
-landingDataSources.on('auth-changed', bumpLandingSources)
-
-const getLandingCloudSources = (): AcApDataSource[] => landingDataSources.list()
 
 const setupLandingCloudSources = async () => {
   if (oneDriveEnv) {
@@ -131,13 +113,33 @@ void setupLandingCloudSources()
 
 let oneDriveRegistered = false
 let googleDriveRegistered = false
+let viewerRuntimeReady = false
 
-const registerOneDriveIfConfigured = async () => {
+const viewerPrepared = ref(false)
+
+const ensureViewerRuntime = async () => {
+  if (viewerRuntimeReady) {
+    viewerPrepared.value = true
+    return
+  }
+  const { AcApSettingManager, LIBREDWG_PARSER_WORKER_FILE } = await import(
+    '@mlightcad/cad-simple-viewer'
+  )
+  // Isolate this example's prefs from cad-simple-viewer-demo on localhost.
+  AcApSettingManager.configure({
+    storageKey: 'mlightcad.settings.cad-viewer'
+  })
+  registerLibreDwgConverter(`./assets/${LIBREDWG_PARSER_WORKER_FILE}`)
+  viewerRuntimeReady = true
+  viewerPrepared.value = true
+}
+
+const registerOneDriveIfConfigured = async (
+  pluginManager: import('@mlightcad/cad-simple-viewer').AcApPluginManager
+) => {
   if (oneDriveRegistered || !oneDriveEnv) return
   try {
-    const registered = await registerOneDriveFromEnv(
-      AcApDocManager.instance.pluginManager
-    )
+    const registered = await registerOneDriveFromEnv(pluginManager)
     oneDriveRegistered = registered
     if (registered) {
       log.info('[example] OneDrive data source registered')
@@ -147,12 +149,12 @@ const registerOneDriveIfConfigured = async () => {
   }
 }
 
-const registerGoogleDriveIfConfigured = async () => {
+const registerGoogleDriveIfConfigured = async (
+  pluginManager: import('@mlightcad/cad-simple-viewer').AcApPluginManager
+) => {
   if (googleDriveRegistered || !googleDriveEnv) return
   try {
-    const registered = await registerGoogleDriveFromEnv(
-      AcApDocManager.instance.pluginManager
-    )
+    const registered = await registerGoogleDriveFromEnv(pluginManager)
     googleDriveRegistered = registered
     if (registered) {
       log.info('[example] Google Drive data source registered')
@@ -162,13 +164,13 @@ const registerGoogleDriveIfConfigured = async () => {
   }
 }
 
-const initialize = () => {
-  // e2e probes reach the manager through this global. Development servers always
-  // expose it. A production bundle keeps it private unless it is explicitly
-  // built for measurement (`VITE_E2E_EXPOSE_MANAGER=true`), which is how the
-  // phase 2.8 dev-vs-prod comparison runs the same specs against a minified
-  // bundle. A normal `vite build` sets neither and stays clean.
-  if (import.meta.env.DEV || import.meta.env.VITE_E2E_EXPOSE_MANAGER === 'true') {
+const initialize = async () => {
+  const {
+    AcApDocManager,
+    AcEdCommandStack
+  } = await import('@mlightcad/cad-simple-viewer')
+  const { AcApQuitCmd } = await import('./commands')
+  if (import.meta.env.DEV) {
     ;(
       window as Window & { AcApDocManager?: typeof AcApDocManager }
     ).AcApDocManager = AcApDocManager
@@ -203,8 +205,11 @@ const safe = (fn: any): any => {
     return '<err>'
   }
 }
+// `AcApDocManager` is imported dynamically (see `initialize()`) and only exposed
+// on `window` in dev; referencing the symbol directly would pull the whole
+// viewer back into the landing-page bundle.
 const curDb = (): any =>
-  (AcApDocManager as any).instance?.curDocument?.database ?? null
+  (window as any).AcApDocManager?.instance?.curDocument?.database ?? null
 const mapDefLines = (arr: any) =>
   (arr ?? []).map((l: any) => ({
     angle: l.angle,
@@ -350,6 +355,9 @@ const paperSpaceBackground = ref(ACGI_PAPER_SPACE_BACKGROUND)
 const disableExport = ref(false)
 
 const createNewDrawing = async () => {
+  const { AcApDocManager, layoutBackgroundColorFromRgb } = await import(
+    '@mlightcad/cad-simple-viewer'
+  )
   const success = await AcApDocManager.instance.newDocument({
     mode: selectedMode.value,
     drawNoPlotLayers: drawNoPlotLayers.value,
@@ -366,31 +374,21 @@ const createNewDrawing = async () => {
 }
 
 const onViewerCreate = async () => {
-  initialize()
-  const landingOneDrive = landingDataSources.get('onedrive')
-  if (landingOneDrive) {
-    // Reuse the landing MSAL client. A second PublicClientApplication for the
-    // same client id splits the cache and can block interactive login.
-    AcApDocManager.instance.dataSourceManager.register(landingOneDrive)
-    oneDriveRegistered = true
-  }
-  const landingGoogleDrive = landingDataSources.get('googledrive')
-  if (landingGoogleDrive) {
-    // Reuse the landing GIS client / token so auth state stays consistent.
-    AcApDocManager.instance.dataSourceManager.register(landingGoogleDrive)
-    googleDriveRegistered = true
-  }
-  await registerOneDriveIfConfigured()
-  await registerGoogleDriveIfConfigured()
+  await initialize()
+  const { AcApDocManager } = await import('@mlightcad/cad-simple-viewer')
+  // Reuse landing MSAL / GIS clients — a second client for the same app id
+  // splits the cache and can block interactive login.
+  acuiAttachDataSources(
+    landingDataSources,
+    AcApDocManager.instance.dataSourceManager
+  )
+  if (landingDataSources.get('onedrive')) oneDriveRegistered = true
+  if (landingDataSources.get('googledrive')) googleDriveRegistered = true
+  await registerOneDriveIfConfigured(AcApDocManager.instance.pluginManager)
+  await registerGoogleDriveIfConfigured(AcApDocManager.instance.pluginManager)
   if (store.isNewDrawing) {
     await nextTick()
     await createNewDrawing()
-  }
-  const pending = store.pendingDataSourceAction
-  if (pending) {
-    store.pendingDataSourceAction = null
-    await nextTick()
-    void acapRunDataSourceMenuAction(pending)
   }
 }
 
@@ -414,6 +412,11 @@ const applyOpenOptions = (
   disableExport.value = exportDisabled
 }
 
+const openViewer = async (apply: () => void) => {
+  await ensureViewerRuntime()
+  apply()
+}
+
 const handleFileSelect = (
   file: File,
   mode: AcEdOpenMode,
@@ -425,19 +428,21 @@ const handleFileSelect = (
   paperBg: number,
   exportDisabled: boolean
 ) => {
-  store.isNewDrawing = false
-  store.selectedUrl = null
-  store.selectedFile = file
-  applyOpenOptions(
-    mode,
-    mainThreadDraw,
-    showNoPlotLayers,
-    enableProgressiveRendering,
-    viewMode,
-    sides,
-    paperBg,
-    exportDisabled
-  )
+  void openViewer(() => {
+    store.isNewDrawing = false
+    store.selectedUrl = null
+    store.selectedFile = file
+    applyOpenOptions(
+      mode,
+      mainThreadDraw,
+      showNoPlotLayers,
+      enableProgressiveRendering,
+      viewMode,
+      sides,
+      paperBg,
+      exportDisabled
+    )
+  })
 }
 
 const handleUrlSelect = (
@@ -451,86 +456,21 @@ const handleUrlSelect = (
   paperBg: number,
   exportDisabled: boolean
 ) => {
-  store.isNewDrawing = false
-  store.selectedFile = null
-  store.selectedUrl = url
-  applyOpenOptions(
-    mode,
-    mainThreadDraw,
-    showNoPlotLayers,
-    enableProgressiveRendering,
-    viewMode,
-    sides,
-    paperBg,
-    exportDisabled
-  )
-}
-
-const handleDataSourceAction = (
-  item: AcApDataSourceMenuItem,
-  mode: AcEdOpenMode,
-  mainThreadDraw: boolean,
-  showNoPlotLayers: boolean,
-  enableProgressiveRendering: boolean,
-  viewMode: AcApOpenViewMode | undefined,
-  sides: number,
-  paperBg: number,
-  exportDisabled: boolean
-) => {
-  // Landing page: invoke the AcApDataSource protocol (any cloud plugin).
-  const landingSource = landingDataSources.get(item.sourceId)
-  if (landingSource) {
-    void acapInvokeDataSourceMenuAction(landingSource, item)
-      .then(file => {
-        if (item.action !== 'pick' || !file) return
-        if (file.content) {
-          handleFileSelect(
-            new File([file.content], file.name),
-            mode,
-            mainThreadDraw,
-            showNoPlotLayers,
-            enableProgressiveRendering,
-            viewMode,
-            sides,
-            paperBg,
-            exportDisabled
-          )
-          return
-        }
-        if (file.url) {
-          handleUrlSelect(
-            file.url,
-            mode,
-            mainThreadDraw,
-            showNoPlotLayers,
-            enableProgressiveRendering,
-            viewMode,
-            sides,
-            paperBg,
-            exportDisabled
-          )
-        }
-      })
-      .catch(error => {
-        log.warn('Landing data-source action failed:', error)
-      })
-    return
-  }
-
-  store.pendingDataSourceAction = item
-  store.selectedFile = null
-  store.selectedUrl = null
-  store.isNewDrawing = true
-  applyOpenOptions(
-    mode,
-    mainThreadDraw,
-    showNoPlotLayers,
-    enableProgressiveRendering,
-    viewMode,
-    sides,
-    paperBg,
-    exportDisabled
-  )
+  void openViewer(() => {
+    store.isNewDrawing = false
+    store.selectedFile = null
+    store.selectedUrl = url
+    applyOpenOptions(
+      mode,
+      mainThreadDraw,
+      showNoPlotLayers,
+      enableProgressiveRendering,
+      viewMode,
+      sides,
+      paperBg,
+      exportDisabled
+    )
+  })
 }
 
 const handleNewDrawing = (
@@ -543,43 +483,50 @@ const handleNewDrawing = (
   paperBg: number,
   exportDisabled: boolean
 ) => {
-  store.selectedFile = null
-  store.selectedUrl = null
-  store.isNewDrawing = true
-  applyOpenOptions(
-    mode,
-    mainThreadDraw,
-    showNoPlotLayers,
-    enableProgressiveRendering,
-    viewMode,
-    sides,
-    paperBg,
-    exportDisabled
-  )
+  void openViewer(() => {
+    store.selectedFile = null
+    store.selectedUrl = null
+    store.isNewDrawing = true
+    applyOpenOptions(
+      mode,
+      mainThreadDraw,
+      showNoPlotLayers,
+      enableProgressiveRendering,
+      viewMode,
+      sides,
+      paperBg,
+      exportDisabled
+    )
+  })
 }
 </script>
 
 <style scoped>
 #app-root {
-  height: 100vh;
   position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--ml-ui-bg-page, #141414);
 }
 
 .upload-screen {
-  height: 100vh;
-  width: 100vw;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: safe center;
+  overflow-x: hidden;
   overflow-y: auto;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   margin: 0;
   padding: 16px;
   box-sizing: border-box;
-  position: absolute;
-  top: 0;
-  left: 0;
+  background: var(--ml-ui-bg-page, #141414);
   z-index: 1000;
-  pointer-events: auto; /* Allow clicks on upload screen */
+  pointer-events: auto;
 }
 </style>

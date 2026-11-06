@@ -8,9 +8,6 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 import svgLoader from 'vite-svg-loader'
 
 import {
-  ACADRUST_CONVERTER_PACKAGE,
-  ACADRUST_PARSER_WORKER_FILE,
-  ACADRUST_WASM_FILE,
   LIBREDWG_CONVERTER_PACKAGE,
   LIBREDWG_PARSER_WASM_FILE,
   LIBREDWG_PARSER_WORKER_FILE,
@@ -178,6 +175,20 @@ export default defineConfig(({ command, mode }) => {
     command === 'serve' &&
     useLocalMtextRenderer(mode) &&
     existsSync(LOCAL_MTEXT_RENDERER_ENTRY)
+  // Light landing subpaths — always source so demo builds do not depend on a
+  // prior `cad-simple-viewer` dist chunk graph for the file-open panel.
+  aliases.push({
+    find: /^@mlightcad\/cad-simple-viewer\/file-open-panel$/,
+    replacement: resolve(
+      __dirname,
+      '../cad-simple-viewer/src/file-open-panel.ts'
+    )
+  })
+  aliases.push({
+    find: /^@mlightcad\/cad-editor\/locale$/,
+    replacement: resolve(__dirname, '../cad-editor/src/locale/i18n.ts')
+  })
+
   if (command === 'serve') {
     aliases.push({
       find: /^@mlightcad\/cad-pdf-plugin\/register$/,
@@ -256,15 +267,6 @@ export default defineConfig(({ command, mode }) => {
     'dist',
     LIBREDWG_PARSER_WASM_FILE
   )
-  // Local fork: acadrust (MPL-2.0) parser worker + wasm pair.
-  const acadRustDist = `./node_modules/${ACADRUST_CONVERTER_PACKAGE}/dist`
-  const acadRustWasmSrc = resolve(
-    __dirname,
-    'node_modules',
-    ACADRUST_CONVERTER_PACKAGE,
-    'dist',
-    ACADRUST_WASM_FILE
-  )
   // viteStaticCopy resolves `src` through fast-glob, which requires forward
   // slashes: backslashes in absolute Windows paths (`\r`, `\m`, ...) would be
   // treated as escape sequences and the file match would come back empty.
@@ -291,21 +293,6 @@ export default defineConfig(({ command, mode }) => {
           ? [
               {
                 src: `${libredwgDist}/${LIBREDWG_PARSER_WASM_FILE}`,
-                dest: 'assets',
-                rename: { stripBase: true }
-              }
-            ]
-          : []),
-        // Local fork: acadrust (MPL-2.0) parser worker + wasm pair.
-        {
-          src: `${acadRustDist}/${ACADRUST_PARSER_WORKER_FILE}`,
-          dest: 'assets',
-          rename: { stripBase: true }
-        },
-        ...(existsSync(acadRustWasmSrc)
-          ? [
-              {
-                src: `${acadRustDist}/${ACADRUST_WASM_FILE}`,
                 dest: 'assets',
                 rename: { stripBase: true }
               }

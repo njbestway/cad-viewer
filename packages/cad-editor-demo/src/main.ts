@@ -1,24 +1,23 @@
 import 'element-plus/dist/index.css'
 
-import { i18n } from '@mlightcad/cad-editor'
-import {
-  ACADRUST_PARSER_WORKER_FILE,
-  LIBREDWG_PARSER_WORKER_FILE
-} from '@mlightcad/cad-simple-viewer'
+import { i18n } from '@mlightcad/cad-editor/locale'
+import { acedApplyUiTheme } from '@mlightcad/cad-simple-viewer/file-open-panel'
 import ElementPlus from 'element-plus'
 import { createApp } from 'vue'
 
 import App from './App.vue'
-import { registerAcadRustConverter } from './registerAcadRust'
-import { registerLibreDwgConverter } from './registerLibreDwg'
+
+/** Match MlCadViewer default so the landing page uses the same chrome tokens. */
+const applyLandingTheme = () => {
+  // Isolated hex tokens: Element Plus light CSS is already loaded and would
+  // otherwise make non-isolated `--el-*` fallbacks resolve to light colours.
+  acedApplyUiTheme('dark', document.documentElement, { isolated: true })
+  document.documentElement.classList.add('dark', 'ml-theme-dark')
+  document.documentElement.classList.remove('ml-theme-light')
+}
 
 const initApp = () => {
-  // Opt into GPL DWG support before the viewer mounts.
-  registerLibreDwgConverter(`./assets/${LIBREDWG_PARSER_WORKER_FILE}`)
-  // Local fork: re-register the DWG slot with the copyleft-free acadrust
-  // converter (MPL-2.0). `register` replaces the slot, so acad-rust wins.
-  registerAcadRustConverter(`./assets/${ACADRUST_PARSER_WORKER_FILE}`)
-
+  applyLandingTheme()
   const app = createApp(App)
   // Required when Vite aliases `@mlightcad/ui-components` to source: those SFCs
   // use `<el-*>` tags without local imports (their own build auto-imports them).
