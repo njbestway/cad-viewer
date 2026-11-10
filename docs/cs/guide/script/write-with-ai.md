@@ -71,11 +71,12 @@ Snímek obsahuje `ownerId`. Zahrnuje modelový prostor, výkresový prostor, def
 ### cad.tables
 Tabulky symbolů jako `AcDbDatabase.tables`. Každá tabulka je { id, records: [{ id, name, ... }] }.
 appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
-layerTable obsahuje color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable. Entity v bloku jsou v cad.blocks.
+layerTable obsahuje color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable. Entity v bloku přes cad.entities.inBlock(id).
 
 ### cad.blocks
-Odpovídá sekci BLOCKS v DXF, včetně *Model_Space a *Paper_Space.
-Pole: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entities.
+Pouze metadata (včetně *Model_Space a *Paper_Space).
+Pole: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entityCount, typeCounts.
+Bez pole entities — inBlock(id). Počty přes entityCount / typeCounts.
 
 ### cad.selection
 Ovládání výběru:
@@ -88,7 +89,7 @@ Ovládání výběru:
 
 ### cad.view
 - cad.view.zoomExtents() -> přiblíží na rozsah modelového prostoru
-- cad.view.capturePreview({ longSide? }) -> zařadí PNG snímek po dokončení skriptu; vrací { queued: true, index }. Použijte při vizuální kontrole; u jednoduchých úprav lze vynechat
+- cad.view.capturePreview({ longSide?, selection?, layers? }) -> zařadí PNG snímek po dokončení skriptu; vrací { queued: true, index }. Použijte při vizuální kontrole; u jednoduchých úprav lze vynechat. layers: [názvy] zachytí jen tyto hladiny oříznuté na jejich společný rozsah
 
 ### cad.file
 - cad.file.saveDxf(path?) -> Po úspěšném skriptu exportuje DXF. Řetězec cesty nebo { path?, fileName? }. Agent v aplikaci soubor stáhne; cad-mcp-server zapíše path (relativní cesty od pracovního adresáře serveru). Vrací { queued: true, index, fileName }. Text DXF se nevrací. Výsledek nástroje obsahuje savedFiles
@@ -120,6 +121,14 @@ Metody dostupné v transakci:
 - tx.drawXline({ start: {x,y}, through: {x,y}, layer? }) -> vrací ID nové entity
 - tx.drawSpline({ points: [{x,y}...], closed?, layer? }) -> vrací ID nové entity
 - tx.drawText({ position: {x,y}, text, height?, layer? }) -> vrací ID nové entity
+- tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? }) -> ID nové entity
+- tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? }) -> ID nové entity
+- tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> ID nové entity (nebo chordPoint+farChordPoint)
+- tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> ID nové entity (nebo center+chordPoint)
+- tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> ID nové entity
+- tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> ID nové entity
+- tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? }) -> ID nové entity
+- Pro kóty používejte drawDim*; nenapodobujte je čarami, šipkami a textem
 - tx.erase(ids) -> vrací počet smazaných entit
 - tx.setLayer(ids, layer)
 - tx.move(ids, dx, dy) -> vrací počet přesunutých entit

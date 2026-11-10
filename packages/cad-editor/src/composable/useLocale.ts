@@ -1,7 +1,12 @@
-import { AcApI18n, type AcApLocale } from '@mlightcad/cad-simple-viewer'
+import {
+  AcApI18n,
+  type AcApLocale
+} from '@mlightcad/cad-simple-viewer/file-open-panel'
 import ar from 'element-plus/es/locale/lang/ar'
 import cs from 'element-plus/es/locale/lang/cs'
 import en from 'element-plus/es/locale/lang/en'
+import ja from 'element-plus/es/locale/lang/ja'
+import ko from 'element-plus/es/locale/lang/ko'
 import tr from 'element-plus/es/locale/lang/tr'
 import zh from 'element-plus/es/locale/lang/zh-cn'
 import { computed, ref, watch } from 'vue'
@@ -14,6 +19,8 @@ const STORAGE_KEY = 'preferred_lang'
 export const LOCALE_OPTIONS = [
   { locale: 'en' as const, label: 'English' },
   { locale: 'zh' as const, label: '简体中文' },
+  { locale: 'ja' as const, label: '日本語' },
+  { locale: 'ko' as const, label: '한국어' },
   { locale: 'tr' as const, label: 'Türkçe' },
   { locale: 'cs' as const, label: 'Čeština' },
   { locale: 'ar' as const, label: 'العربية' }
@@ -23,6 +30,8 @@ export const isSupportedLocale = (value: string): value is AcApLocale => {
   return (
     value === 'en' ||
     value === 'zh' ||
+    value === 'ja' ||
+    value === 'ko' ||
     value === 'tr' ||
     value === 'cs' ||
     value === 'ar'
@@ -47,6 +56,10 @@ const ensureLocaleStateListener = () => {
 
 /**
  * Locale composable for cad-viewer.
+ *
+ * Uses the same `@mlightcad/cad-simple-viewer/file-open-panel` {@link AcApI18n}
+ * singleton as `locale/i18n.ts` (vue-i18n host). {@link syncViewerAcApI18n}
+ * mirrors changes onto the full-viewer package singleton for plugins.
  *
  * {@link AcApI18n.setCurrentLocale} is the only write path. vue-i18n is synced
  * from {@link AcApI18n.events.localeChanged} in `locale/i18n.ts`.
@@ -91,6 +104,8 @@ export function useLocale(propLocale?: LocaleProp) {
 
   const elementPlusLocale = computed(() => {
     if (effectiveLocale.value === 'zh') return zh
+    if (effectiveLocale.value === 'ja') return ja
+    if (effectiveLocale.value === 'ko') return ko
     if (effectiveLocale.value === 'tr') return tr
     if (effectiveLocale.value === 'cs') return cs
     if (effectiveLocale.value === 'ar') return ar

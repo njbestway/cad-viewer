@@ -12,8 +12,11 @@ title: 스크립트 예제
 
 ```javascript
 const counts = {}
-for (const entity of cad.entities.where(() => true)) {
-  counts[entity.type] = (counts[entity.type] || 0) + 1
+for (const block of cad.blocks) {
+  if (!block.isModelSpace && !block.isPaperSpace) continue
+  for (const [type, n] of Object.entries(block.typeCounts)) {
+    counts[type] = (counts[type] || 0) + n
+  }
 }
 return {
   title: cad.drawing.title,
@@ -71,6 +74,28 @@ cad.edit.transaction('사각형 그리기', tx => {
   })
 })
 return 'done'
+```
+
+## 원에 지름 치수 추가
+
+각 원의 중심과 반지름으로 실제 지름 치수 엔티티를 만듭니다.
+
+```javascript
+const dimIds = []
+cad.edit.transaction('지름 치수', tx => {
+  for (const c of cad.entities.where(e => e.type === 'Circle')) {
+    const g = c.geometry
+    dimIds.push(
+      tx.drawDimDiameter({
+        center: g.center,
+        radius: g.radius,
+        angleDeg: 0,
+        leaderLength: Math.max(g.radius * 0.25, 1)
+      })
+    )
+  }
+})
+return { count: dimIds.length, dimIds }
 ```
 
 ## 레이어의 모든 엔티티 이동
@@ -155,7 +180,8 @@ return cad.blocks.map(block => ({
   name: block.name,
   isModelSpace: block.isModelSpace,
   isPaperSpace: block.isPaperSpace,
-  count: block.entities.length
+  count: block.entityCount,
+  typeCounts: block.typeCounts
 }))
 ```
 

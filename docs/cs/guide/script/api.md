@@ -24,7 +24,7 @@ Pro výpis informací použijte `cad.log()` a nespoléhejte na `console.log` —
 
 ### Zakázaná API prohlížeče
 
-Následující prvky jsou přímo odmítnuty již při validaci skriptu a vyvolají chybu `forbidden_identifier` / `forbidden_syntax` / `forbidden_member`:
+Následující prvky jsou přímo odmítnuty již při validaci skriptu a vyvolají chybu `forbidden_identifier` / `forbidden_syntax` / `forbidden_member`. Klíče objektů jako `{ window: count }` jsou povoleny; volné identifikátory jako `window.foo` ne.
 
 - Stránka a DOM: `window`, `document`, `globalThis`
 - Síť a komunikace: `fetch`, `XMLHttpRequest`, `WebSocket`, `importScripts`
@@ -59,7 +59,15 @@ cad.log('Celkový počet hladin:', info.layers.length)
 
 ## cad.entities
 
-Vrací všechny entity v databázi: modelový prostor, každý výkresový prostor, každou definici bloku a atributy na referencích bloků. `ownerId` atributu je reference bloku, u ostatních entit je to záznam tabulky bloků.
+`where` / `count` / `inBox` procházejí **jen modelový a výkresový prostor** (definice bloků přes `inBlock(id)`). `ownerId` atributu je reference bloku, u ostatních záznam tabulky bloků. Typ reference bloku je `BlockReference`.
+
+### `cad.entities.count(predicate)`
+
+Počítá shody bez sestavování snímků. Pro součty preferujte toto — `where(pred).length` stále vytváří snímky.
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
@@ -80,9 +88,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+Snímkuje entity uložené přímo v jedné definici bloku (nebo modelovém/výkresovém prostoru).
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-Vrací všechny snímky entit nacházející se v obdélníku WCS.
+Vrací snímky z layout prostorů, jejichž extents protínají obdélník (jen model/výkres).
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -159,7 +176,7 @@ Jen pro čtení, všechny tabulky symbolů jako `AcDbDatabase.tables`. Každá t
 
 ## cad.blocks
 
-Všechny definice bloků, obdobně jako sekce BLOCKS v DXF, včetně `*Model_Space` a `*Paper_Space`.
+**Pouze metadata** definic bloků (jako sekce BLOCKS v DXF, včetně `*Model_Space` a `*Paper_Space`). Bez pole entit — použijte `cad.entities.inBlock(id)`.
 
 | Pole                            | Popis                                              |
 | ------------------------------- | -------------------------------------------------- |
@@ -169,7 +186,8 @@ Všechny definice bloků, obdobně jako sekce BLOCKS v DXF, včetně `*Model_Spa
 | `isModelSpace` / `isPaperSpace` | Modelový / výkresový prostor                       |
 | `flags`                         | Skupinový kód 70 objektu BLOCK                     |
 | `pathName` / `isXref`           | Cesta a příznak externí reference                  |
-| `entities`                      | Snímky entit uložených přímo v bloku               |
+| `entityCount`                   | Počet entit (bez snapshotů)                                    |
+| `typeCounts`                    | Počty podle typu (bez snapshotů)                               |
 
 ## cad.selection
 
@@ -235,14 +253,20 @@ Přiblíží pohled na rozsah modelového prostoru.
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
 Zařadí PNG snímek rozsahu výkresu. Snímek se pořídí až po dokončení těla skriptu. Vrací `{ queued: true, index }`. V Agent chatu se obrázky připojí k výsledku nástroje pro model (nevracejí se jako JSON data URL).
+
+Po `cad.selection.replace(ids)` předáte `selection: true` pro zachycení jen aktuálního výběru.
+
+Předáním `layers` (název hladiny nebo pole názvů, bez ohledu na velikost písmen) se vykreslí jen geometrie modelového prostoru na těchto hladinách a snímek se ořízne na společný rozsah těchto hladin místo celého výkresu, takže nevznikají velké prázdné okraje. Stav zapnutí/vypnutí hladin se ignoruje; neznámé názvy hladin vyhodí chybu; `layers` nelze kombinovat se `selection`.
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // optional: cad.view.capturePreview({ longSide: 512 })
+// optional: cad.view.capturePreview({ selection: true })
+// optional: cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -342,6 +366,15 @@ Metody dostupné v transakci:
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | ID nové entity    |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | ID nové entity    |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | ID nové entity    |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | body `{x,y}`                     | ID nové entity    |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | bez `rotationDeg` → H/V podle umístění | ID nové entity |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | střed+poloměr nebo tětiva        | ID nové entity    |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | střed+poloměr nebo střed+tětiva  | ID nové entity    |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3bodový úhel                     | ID nové entity    |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | délka oblouku                    | ID nové entity    |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | souřadnicová kóta                | ID nové entity    |
+
+Pro kóty používejte `drawDim*`. Nenapodobujte je čarami, šipkami a textem. Výchozí je `$DIMSTYLE` výkresu; přepište ho pomocí `styleName` z `cad.tables.dimStyleTable`.
 
 ### Metody úprav
 

@@ -12,8 +12,11 @@ title: أمثلة على البرامج النصية
 
 ```javascript
 const counts = {}
-for (const entity of cad.entities.where(() => true)) {
-  counts[entity.type] = (counts[entity.type] || 0) + 1
+for (const block of cad.blocks) {
+  if (!block.isModelSpace && !block.isPaperSpace) continue
+  for (const [type, n] of Object.entries(block.typeCounts)) {
+    counts[type] = (counts[type] || 0) + n
+  }
 }
 return {
   title: cad.drawing.title,
@@ -71,6 +74,28 @@ cad.edit.transaction('画矩形', tx => {
   })
 })
 return 'done'
+```
+
+## إضافة أبعاد قطر للدوائر
+
+ينشئ كيانات بُعد قطر حقيقية من مركز ونصف قطر كل دائرة.
+
+```javascript
+const dimIds = []
+cad.edit.transaction('أبعاد القطر', tx => {
+  for (const c of cad.entities.where(e => e.type === 'Circle')) {
+    const g = c.geometry
+    dimIds.push(
+      tx.drawDimDiameter({
+        center: g.center,
+        radius: g.radius,
+        angleDeg: 0,
+        leaderLength: Math.max(g.radius * 0.25, 1)
+      })
+    )
+  }
+})
+return { count: dimIds.length, dimIds }
 ```
 
 ## نقل جميع الكيانات الموجودة في طبقة معينة
@@ -155,7 +180,8 @@ return cad.blocks.map(block => ({
   name: block.name,
   isModelSpace: block.isModelSpace,
   isPaperSpace: block.isPaperSpace,
-  count: block.entities.length
+  count: block.entityCount,
+  typeCounts: block.typeCounts
 }))
 ```
 

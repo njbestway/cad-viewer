@@ -6,6 +6,50 @@ title: "cad-simple-viewer ve cad-editor Yükseltme"
 
 Bu kılavuz, `@mlightcad/cad-simple-viewer` ve `@mlightcad/cad-editor` paketlerinin güvenli şekilde nasıl yükseltileceğini açıklar — neden tek başlarına yükseltilemeyeceklerini, hangi ilgili paketlerin birlikte hareket etmesi gerektiğini ve belirli bir sürüm için doğru uyumlu sürüm kümesini belirlemenin iki güvenilir yolunu.
 
+::: info Akıllı Bloklar: Ara ve Dönüştür (`BSEARCH`)
+Bu değişikliği içeren sürümden itibaren `@mlightcad/cad-simple-viewer` **-BSEARCH** komutunu kaydeder; `@mlightcad/cad-editor` inceleme araç çubuğu ve Bloğa Dönüştür iletişim kutusuyla **BSEARCH** (diğer adı `BCONVERT`) ekler (şeritte Ekle ve AI sekmeleri).
+
+Şekil eşleştirme `@mlightcad/cad-pdf-plugin` paketinden `@mlightcad/cad-simple-viewer` paketine taşındı. İçe aktarmaları taşıyın:
+
+| `@mlightcad/cad-pdf-plugin` (kullanımdan kalktı) | `@mlightcad/cad-simple-viewer` |
+| --- | --- |
+| `findPdfShapeMatches` | `acedFindShapeMatches` |
+| `applyPdfAffine` | `acedApplyAffine2d` |
+| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
+
+Eski adlar kullanımdan kalkmış diğer adlar olarak çalışmaya devam eder. Metin `kind` alanından `label` alanına taşındı. `pdfblock` artık `-BSEARCH` istem sırasını izler (Dönüştür → Yeni/Mevcut → ad → ekleme noktası → kapsam); eski istemlere yanıt veren betikler güncellenmelidir.
+:::
+
+::: info AutoCAD grupları (`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
+Bu değişikliği içeren sürümden itibaren `@mlightcad/cad-simple-viewer` **GROUP**, **-GROUP**, **UNGROUP** ve **GROUPEDIT** komutlarını kaydeder; `PICKSTYLE` `1` veya `3` iken seçimi genişletir; seçilebilir gruplar için `GROUPDISPLAYMODE` tutamaçlarını uygular. `@mlightcad/cad-editor` **CLASSICGROUP** (Nesne Gruplama iletişim kutusu) ve Giriş → Gruplar şerit panelini ekler.
+
+`PICKSTYLE` (0–3, varsayılan `1`) ve `GROUPDISPLAYMODE` (0–2, varsayılan `2`) sistem değişkenlerini kaydeden `@mlightcad/data-model` gerekir. İlişkili tarama ortak seçimi (`PICKSTYLE` 2/3), `AcDbHatch` üzerinde sınır soft-pointer’ları olana kadar no-op kalır.
+:::
+
+::: info `cad.view.capturePreview` seçim önizlemesi
+Bu değişikliği içeren sürümden itibaren `CadSession.capturePreview` tek bir `longSide` sayısı yerine bir seçenek nesnesi alır:
+
+```ts
+capturePreview?(options?: {
+  longSide?: number
+  selection?: boolean
+}): Promise<CaptureDrawingPreviewResult>
+```
+
+Betikte `cad.view.capturePreview({ longSide?, selection? })` kullanın. `cad.selection.replace(ids)` sonrasında `selection: true` geçmek, seçili nesneleri ENTPREVIEW ile aynı batch önizleme yolundan çıkarır (sahne sınırlarıyla çerçeveleme; veritabanı `geometricExtents` değil) ve PNG’yi araç sonucuna ekler. Boş seçim `reason: 'no-selection'` döner. Görüntüleyici olmayan `createDatabaseSession` önizlemeleri atlamaya devam eder.
+:::
+
+::: info `cad.view.capturePreview` katman önizlemesi
+Bu değişikliği içeren sürümden itibaren `CadCapturePreviewOptions` içine `layers?: string | string[]`, `CaptureDrawingPreviewFailure` içine `'no-layers'` eklenir:
+
+```ts
+cad.view.capturePreview({ layers: ['WALL', 'DOOR'], longSide: 1024 })
+```
+
+Yalnızca bu katmanlardaki model alanı geometrisi çizilir (INSERT yalnızca bu katmanlardaki parçalarıyla katkıda bulunur) ve görüntü tüm çizim yerine katmanların birleşik sınırlarına göre kadrajlanır. Katman adları büyük/küçük harf duyarsızdır; bilinmeyen adlar komut dosyası çalışırken hata fırlatır; `layers`, `selection: true` ile birlikte kullanılamaz. `normalizeCadCapturePreviewOptions` artık `NormalizedCadCapturePreviewOptions` döndürür (`layers` yinelenmeyen bir `string[]`). Özel `CadSession.capturePreview` uygulamaları `options.layers` değerini işlemeli ya da `reason: 'no-layers'` döndürmelidir. Görüntüleyici uygulaması yeni `AcApEntityPreviewConvertor.captureLayers(layerNames, longSide)` işlevini kullanır.
+:::
+
 ::: info Hafif dosya açma giriş ekranı girişi
 **1.8.0** sürümünden itibaren `@mlightcad/cad-simple-viewer`, açılış sayfaları için DocManager’sız bir alt yol sunar. **`acuiCreateFileOpenSession`** (tembel `createDocManager` + otomatik açma / `attachSourcesTo`) tercih edin. Çizimleri kendiniz açtığınızda (ör. Vue `MlCadViewer`) `AcUiFileOpenLanding` kullanın:
 
@@ -77,6 +121,23 @@ Davranış değişmez; yalnızca sembol adları değişir. 1.7.x’ten yükselti
 ```
 
 Diğer HTML-core yardımcıları da aynı şekilde yeniden adlandırıldı (örneğin `captureAcExSavedViewExtents` → `acexHtmlCaptureSavedViewExtents`, `buildOsnapCatalog` → `acexHtmlBuildOsnapCatalog`). `AcApHtmlConvertor` ile `chtml` / `-chtml` gibi komut düzeyindeki API’ler etkilenmez. Geliştirme kılavuzlarındaki yeni adlar **1.8.0+** içindir; 1.7.x’te eski sembolleri kullanmaya devam edin.
+:::
+
+::: tip Betik host’u: gerçek ölçü varlıkları oluşturun (`drawDim*`)
+**1.8.0-preview.2** sonrasındaki sürümden itibaren `@mlightcad/cad-script-core` içindeki `cad.edit.transaction` ölçü varlıkları oluşturabilir (önceden yalnızca anlık görüntü okunurdu):
+
+- `drawDimAligned`, `drawDimLinear`, `drawDimDiameter`, `drawDimRadius`
+- `drawDimAngular`, `drawDimArc`, `drawDimOrdinate`
+
+Agent / betikler ölçüleri çizgi, ok ve metinle taklit etmemeli; bu API’leri kullanmalıdır. Çap/yarıçap `center` + `radius` kabul eder, böylece çember anlık görüntüsü doğrudan verilebilir. Ayrıntılar: [Betik API](../guide/script/api.md).
+:::
+
+::: tip Betik hostu: blok başına özet `cad.blocks` üzerinde
+Bu değişikliği içeren sürümden itibaren `cad.blocks` her blok için `entityCount` / `typeCounts` meta verisi verir; tam `entities` dizisi gömmez. Sayımlarda bu alanları veya `count(pred)` kullanın. Anlık görüntüler `where` / `inBlock(id, pred)` ile — tüm uzay anlık görüntüsü ~500’de `too_many_matches` ile durur. `where` / `count` / `inBox` yalnızca model ve kağıt alanını tarar.
+:::
+
+::: info SVG File → Open
+**1.8.0** sürümünden itibaren `.svg` dosyaları normal File → Open / `openDocument` / `openUrl` ile çizim olarak açılabilir. Dönüştürme yeni [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter) paketindedir (yalnızca `@mlightcad/data-model`). `cad-editor` içindeki `initializeCadViewer` otomatik kaydeder; yalnızca `cad-simple-viewer` kullanıyorsanız başlangıçta bir kez `registerSvgConverter()` çağırın. Dışa aktarma hâlâ `cad-svg-plugin` içindeki `csvg`dir.
 :::
 
 ::: info PDF dışa aktarma paylaşılan çekirdeğe ayrıldı (tarayıcı + Node)

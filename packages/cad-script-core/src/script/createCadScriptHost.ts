@@ -1,6 +1,10 @@
 import { AcDbEntity, AcGePoint3d } from '@mlightcad/data-model'
 
 import { getDrawingContext } from '../context/DrawingContextProvider'
+import {
+  type CadCapturePreviewOptions,
+  normalizeCadCapturePreviewOptions
+} from '../preview/types'
 import type { CadSession } from '../session/CadSession'
 import { requireDocument } from '../session/documentAccess'
 import { runInsideScriptEdit } from '../session/editDepth'
@@ -11,7 +15,7 @@ import type { Point2dInput, ToolResult } from '../tools/types'
 import { createCadMeasure } from './createCadMeasure'
 import {
   type EntitySnapshot,
-  iterateDatabaseEntities,
+  iterateLayoutEntities,
   openEntityFilterView,
   toEntitySnapshot
 } from './entitySnapshot'
@@ -28,12 +32,26 @@ import {
   normalizePdfSaveRequest
 } from './savePdf'
 import { CAD_EDIT_TX_METHODS, CAD_SCRIPT_API_TREE } from './scriptApi'
-import { toBlockSnapshots, toDatabaseTables } from './tableSnapshot'
+import {
+  type BlockSnapshot,
+  toBlockSnapshots,
+  toDatabaseTables
+} from './tableSnapshot'
 
 /** Queued screenshot request from `cad.view.capturePreview`. */
 export interface CadScriptPreviewRequest {
   /** Optional max dimension in pixels for the PNG. */
   longSide?: number
+  /**
+   * When `true`, extract the current selection (batch geometry + scene bounds).
+   * Fulfilled after the script body finishes.
+   */
+  selection?: boolean
+  /**
+   * Layer names to render together, framed to their combined bounds.
+   * Names are resolved to the drawing's layer casing when queued.
+   */
+  layers?: string[]
 }
 
 /** Side effects collected while a script runs. */
@@ -66,18 +84,27 @@ export interface CadScriptEffects {
   htmlSaveRequests: CadScriptHtmlSaveRequest[]
 }
 
-/** Limits enforced by `cad.__tick`. */
+/** Limits enforced by `cad.__tick` and snapshot queries. */
 export interface CadScriptLimits {
   /** Maximum tick calls before the script is stopped. */
   maxTicks: number
   /** Maximum wall-clock time in milliseconds. */
   maxMilliseconds: number
+  /**
+   * Maximum entities `where` / bare `inBlock` may snapshot.
+   * Exceeding throws `too_many_matches` so callers narrow the predicate.
+   */
+  maxWhereMatches: number
 }
 
 const DEFAULT_LIMITS: CadScriptLimits = {
   maxTicks: 100_000,
-  maxMilliseconds: 2_000
+  maxMilliseconds: 5_000,
+  maxWhereMatches: 500
 }
+
+const TOO_MANY_MATCHES =
+  'too_many_matches: snapshot query returned too many entities. Narrow the predicate (type + keywords). Use cad.blocks (entityCount/typeCounts) or count(pred) for tallies — never snapshot a whole model/paper space.'
 
 /**
  * Builds the `cad` value injected into a script.
@@ -87,7 +114,8 @@ const DEFAULT_LIMITS: CadScriptLimits = {
  *
  * @param session - Drawing and view access.
  * @param effects - Mutable log, highlight, and created-id collectors.
- * @param limits - Tick budget. Defaults to 100000 statements or 2 seconds.
+ * @param limits - Tick / match budget. Defaults to 100000 ticks, 5 seconds,
+ *   and 500 snapshot matches.
  * @returns The host passed as the `cad` argument.
  */
 export function createCadScriptHost(
@@ -98,6 +126,36 @@ export function createCadScriptHost(
   const executor = new CadActionExecutor(session)
   const startedAt = Date.now()
   let ticks = 0
+  let blocksCache: BlockSnapshot[] | undefined
+  const maxWhereMatches = limits.maxWhereMatches
+
+  /** Shared tick so script loops and long entity walks share one budget. */
+  function hostTick(): void {
+    ticks++
+    if (
+      ticks > limits.maxTicks ||
+      Date.now() - startedAt > limits.maxMilliseconds
+    ) {
+      throw new Error('script_timeout')
+    }
+  }
+
+  function pushMatch(
+    matches: EntitySnapshot[],
+    entity: Parameters<typeof toEntitySnapshot>[0]
+  ): void {
+    if (matches.length >= maxWhereMatches) {
+      throw new Error(TOO_MANY_MATCHES)
+    }
+    matches.push(toEntitySnapshot(entity))
+  }
+
+  function getBlocks(): BlockSnapshot[] {
+    if (!blocksCache) {
+      blocksCache = toBlockSnapshots(requireDocumentRecord(session).database)
+    }
+    return blocksCache
+  }
 
   const entities = {
     where(predicate: (entity: EntitySnapshot) => boolean): EntitySnapshot[] {
@@ -106,7 +164,10 @@ export function createCadScriptHost(
       }
       const doc = requireDocumentRecord(session)
       const matches: EntitySnapshot[] = []
-      for (const entity of iterateDatabaseEntities(doc.database)) {
+      let visited = 0
+      // Layout spaces only — block-definition contents use inBlock(id).
+      for (const entity of iterateLayoutEntities(doc.database)) {
+        if ((++visited & 255) === 0) hostTick()
         const view = openEntityFilterView(entity)
         let matched = false
         try {
@@ -114,12 +175,72 @@ export function createCadScriptHost(
         } finally {
           view.release()
         }
-        if (matched) matches.push(toEntitySnapshot(entity))
+        if (matched) pushMatch(matches, entity)
       }
       return matches
     },
+    /**
+     * Counts layout-space entities matching a predicate without snapshots.
+     * Prefer this for tallies; `where(pred).length` still snapshots every match.
+     * Do not read `e.extents` here on large drawings — use `inBox` instead.
+     */
+    count(predicate: (entity: EntitySnapshot) => boolean): number {
+      if (typeof predicate !== 'function') {
+        throw new Error('cad.entities.count expects a function')
+      }
+      const doc = requireDocumentRecord(session)
+      let matched = 0
+      let visited = 0
+      for (const entity of iterateLayoutEntities(doc.database)) {
+        if ((++visited & 255) === 0) hostTick()
+        const view = openEntityFilterView(entity)
+        try {
+          if (predicate(view.value)) matched++
+        } finally {
+          view.release()
+        }
+      }
+      return matched
+    },
     byId(id: string): EntitySnapshot | undefined {
       return snapshotById(session, id)
+    },
+    /**
+     * Snapshots entities stored in one block (or model/paper space).
+     * Pass a predicate to snapshot only matches. Bare `inBlock(id)` on a large
+     * space hits {@link CadScriptLimits.maxWhereMatches}.
+     */
+    inBlock(
+      blockId: string,
+      predicate?: (entity: EntitySnapshot) => boolean
+    ): EntitySnapshot[] {
+      if (typeof blockId !== 'string' || !blockId) {
+        throw new Error('cad.entities.inBlock expects a block id string')
+      }
+      if (predicate !== undefined && typeof predicate !== 'function') {
+        throw new Error('cad.entities.inBlock predicate must be a function')
+      }
+      const doc = requireDocumentRecord(session)
+      const record = doc.database.tables.blockTable.getIdAt(blockId)
+      if (!record) return []
+      const matches: EntitySnapshot[] = []
+      let visited = 0
+      for (const entity of record.newIterator()) {
+        if ((++visited & 1023) === 0) hostTick()
+        if (!predicate) {
+          pushMatch(matches, entity)
+          continue
+        }
+        const view = openEntityFilterView(entity)
+        let matched = false
+        try {
+          matched = Boolean(predicate(view.value))
+        } finally {
+          view.release()
+        }
+        if (matched) pushMatch(matches, entity)
+      }
+      return matches
     },
     inBox(min: Point2dInput, max: Point2dInput): EntitySnapshot[] {
       const doc = requireDocumentRecord(session)
@@ -128,7 +249,11 @@ export function createCadScriptHost(
       const minY = Math.min(min.y, max.y)
       const maxY = Math.max(min.y, max.y)
       const snapshots: EntitySnapshot[] = []
-      for (const entity of iterateDatabaseEntities(doc.database)) {
+      let visited = 0
+      for (const entity of iterateLayoutEntities(doc.database)) {
+        // Extents are expensive — tick often so large layouts hit the budget
+        // instead of hanging past maxMilliseconds without feedback.
+        if ((++visited & 63) === 0) hostTick()
         const view = openEntityFilterView(entity)
         const extents = view.value.extents
         view.release()
@@ -138,7 +263,7 @@ export function createCadScriptHost(
           extents.min.x <= maxX &&
           extents.max.y >= minY &&
           extents.min.y <= maxY
-        if (hits) snapshots.push(toEntitySnapshot(entity))
+        if (hits) pushMatch(snapshots, entity)
       }
       return snapshots
     }
@@ -184,27 +309,39 @@ export function createCadScriptHost(
       if (!result.success) throw new Error(result.message)
     },
     /**
-     * Queues a PNG screenshot of the current drawing extents.
+     * Queues a PNG screenshot of the drawing, the current selection, or a set
+     * of layers.
      *
      * Capture runs after the script body finishes (async WebGL). The image is
      * attached to the tool result for the model; it is not returned inline
      * (data URLs exceed the script JSON size limit).
      *
-     * @param options - Optional `longSide` in pixels (default 1024).
+     * @param options - Optional `longSide` in pixels (default 1024). Pass
+     *   `selection: true` to render only selected entities instead of the
+     *   full drawing. Pass `layers: ['A', 'B']` to render only geometry on
+     *   those layers, framed to their combined extents. A bare positive
+     *   number is treated as `longSide`.
      * @returns `{ queued: true, index }` identifying this capture.
+     * @throws Error for unknown layer names, an empty `layers` list, or
+     *   `selection` combined with `layers`.
      */
-    capturePreview(options?: { longSide?: number }): {
+    capturePreview(options?: CadCapturePreviewOptions | number): {
       queued: true
       index: number
     } {
-      const longSide =
-        options && typeof options.longSide === 'number'
-          ? options.longSide
-          : undefined
+      const normalized = normalizeCadCapturePreviewOptions(options)
+      const request: CadScriptPreviewRequest = {}
+      if (typeof normalized.longSide === 'number') {
+        request.longSide = normalized.longSide
+      }
+      if (normalized.selection === true) {
+        request.selection = true
+      }
+      if (normalized.layers) {
+        request.layers = resolveDrawingLayerNames(session, normalized.layers)
+      }
       const index = effects.previewRequests.length
-      effects.previewRequests.push(
-        longSide !== undefined ? { longSide } : {}
-      )
+      effects.previewRequests.push(request)
       return { queued: true, index }
     }
   }
@@ -286,6 +423,8 @@ export function createCadScriptHost(
           )
         })
       })
+      // Counts may change; do not serve a pre-edit blocks snapshot.
+      blocksCache = undefined
     }
   }
 
@@ -312,7 +451,7 @@ export function createCadScriptHost(
       return toDatabaseTables(requireDocumentRecord(session).database)
     },
     get blocks() {
-      return toBlockSnapshots(requireDocumentRecord(session).database)
+      return getBlocks()
     },
     selection,
     view,
@@ -323,13 +462,7 @@ export function createCadScriptHost(
       effects.log.push(values.map(formatLogValue).join(' '))
     },
     __tick(): void {
-      ticks++
-      if (
-        ticks > limits.maxTicks ||
-        Date.now() - startedAt > limits.maxMilliseconds
-      ) {
-        throw new Error('script_timeout')
-      }
+      hostTick()
     }
   }
 
@@ -403,6 +536,71 @@ export interface CadEditTransaction {
     height?: number
     layer?: string
   }): string
+  drawDimAligned(input: {
+    xLine1Point: Point2dInput
+    xLine2Point: Point2dInput
+    dimLinePoint: Point2dInput
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
+  drawDimLinear(input: {
+    xLine1Point: Point2dInput
+    xLine2Point: Point2dInput
+    dimLinePoint: Point2dInput
+    rotationDeg?: number
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
+  drawDimDiameter(input: {
+    center?: Point2dInput
+    radius?: number
+    angleDeg?: number
+    chordPoint?: Point2dInput
+    farChordPoint?: Point2dInput
+    leaderLength?: number
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
+  drawDimRadius(input: {
+    center: Point2dInput
+    chordPoint?: Point2dInput
+    radius?: number
+    angleDeg?: number
+    leaderLength?: number
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
+  drawDimAngular(input: {
+    center: Point2dInput
+    xLine1Point: Point2dInput
+    xLine2Point: Point2dInput
+    arcPoint: Point2dInput
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
+  drawDimArc(input: {
+    center: Point2dInput
+    xLine1Point: Point2dInput
+    xLine2Point: Point2dInput
+    arcPoint: Point2dInput
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
+  drawDimOrdinate(input: {
+    definingPoint: Point2dInput
+    leaderEndPoint: Point2dInput
+    useXAxis?: boolean
+    origin?: Point2dInput
+    text?: string
+    styleName?: string
+    layer?: string
+  }): string
   erase(ids: string[]): number
   setLayer(ids: string[], layer: string): void
   move(ids: string[], dx: number, dy: number): number
@@ -437,6 +635,13 @@ function createTransaction(
     drawXline: input => created(executor.drawXline(input)),
     drawSpline: input => created(executor.drawSpline(input)),
     drawText: input => created(executor.drawText(input)),
+    drawDimAligned: input => created(executor.drawDimAligned(input)),
+    drawDimLinear: input => created(executor.drawDimLinear(input)),
+    drawDimDiameter: input => created(executor.drawDimDiameter(input)),
+    drawDimRadius: input => created(executor.drawDimRadius(input)),
+    drawDimAngular: input => created(executor.drawDimAngular(input)),
+    drawDimArc: input => created(executor.drawDimArc(input)),
+    drawDimOrdinate: input => created(executor.drawDimOrdinate(input)),
     erase(ids) {
       return session.getDocument()!.entityService.eraseEntities(ids)
     },
@@ -567,4 +772,38 @@ function seal<T extends object>(target: T, allowed: readonly string[]): T {
       return false
     }
   })
+}
+
+/**
+ * Maps requested layer names (case-insensitive) to the drawing's layer names.
+ *
+ * Failing fast here, while the script runs, gives the caller an error it can
+ * act on instead of a silent missing screenshot after the script returns.
+ */
+function resolveDrawingLayerNames(
+  session: CadSession,
+  requested: readonly string[]
+): string[] {
+  const doc = session.getDocument()
+  if (!doc) throw new Error('no_document')
+  const byUpperName = new Map<string, string>()
+  for (const layer of doc.layerStore.getLayers()) {
+    byUpperName.set(layer.name.toUpperCase(), layer.name)
+  }
+  const resolved: string[] = []
+  const missing: string[] = []
+  for (const name of requested) {
+    const actual = byUpperName.get(name.toUpperCase())
+    if (actual) {
+      resolved.push(actual)
+    } else {
+      missing.push(name)
+    }
+  }
+  if (missing.length) {
+    throw new Error(
+      `capturePreview: unknown layer(s): ${missing.join(', ')}. Use cad.drawing.layers for valid names.`
+    )
+  }
+  return resolved
 }

@@ -6,6 +6,50 @@ title: "Upgrading cad-simple-viewer and cad-editor"
 
 This guide explains how to safely upgrade `@mlightcad/cad-simple-viewer` and`@mlightcad/cad-editor` — why they cannot be bumped in isolation, which related packages must move together, and two reliable ways to determine the correct compatible version set for any given release.
 
+::: info Smart Blocks: Search and Convert (`BSEARCH`)
+Starting with the release that includes this change, `@mlightcad/cad-simple-viewer` registers **-BSEARCH** and `@mlightcad/cad-editor` adds **BSEARCH** (alias `BCONVERT`) with a review toolbar and a Convert to Block dialog (Insert and AI ribbon tabs).
+
+Shape matching moved from `@mlightcad/cad-pdf-plugin` to `@mlightcad/cad-simple-viewer`. Migrate imports:
+
+| `@mlightcad/cad-pdf-plugin` (deprecated) | `@mlightcad/cad-simple-viewer` |
+| --- | --- |
+| `findPdfShapeMatches` | `acedFindShapeMatches` |
+| `applyPdfAffine` | `acedApplyAffine2d` |
+| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
+
+The old names still work as deprecated aliases. Text strings moved from the feature `kind` to `label` (compare with `ignoreLabels: false`, the default). `pdfblock` now runs the `-BSEARCH` prompts (Convert → New/Existing → name → insertion point → scope); scripts that answered its old prompts must follow the new order.
+:::
+
+::: info AutoCAD groups (`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
+Starting with the release that includes this change, `@mlightcad/cad-simple-viewer` registers **GROUP**, **-GROUP**, **UNGROUP**, and **GROUPEDIT**, expands selection when `PICKSTYLE` is `1` or `3`, and applies `GROUPDISPLAYMODE` grips for selectable groups. `@mlightcad/cad-editor` adds **CLASSICGROUP** (Object Grouping dialog) and a Home → Groups ribbon panel.
+
+Requires `@mlightcad/data-model` that registers `PICKSTYLE` (0–3, default `1`) and `GROUPDISPLAYMODE` (0–2, default `2`). Associative hatch co-selection (`PICKSTYLE` 2/3) remains a no-op until hatch boundary soft-pointers exist on `AcDbHatch`.
+:::
+
+::: info `cad.view.capturePreview` selection preview
+Starting with the release that includes this change, `CadSession.capturePreview` takes an options object instead of a bare `longSide` number (a bare positive number is still accepted as `longSide`):
+
+```ts
+capturePreview?(options?: {
+  longSide?: number
+  selection?: boolean
+}): Promise<CaptureDrawingPreviewResult>
+```
+
+Script callers use `cad.view.capturePreview({ longSide?, selection? })`. Pass `selection: true` after `cad.selection.replace(ids)` to extract the selected entities via the same batch-preview path as ENTPREVIEW (scene bounds, not database `geometricExtents`) and attach a PNG to the tool result. Empty selection returns `reason: 'no-selection'`. Headless `createDatabaseSession` still skips previews (no renderer).
+:::
+
+::: info `cad.view.capturePreview` layer preview
+Starting with the release that includes this change, `CadCapturePreviewOptions` adds `layers?: string | string[]`, and `CaptureDrawingPreviewFailure` adds `'no-layers'`:
+
+```ts
+cad.view.capturePreview({ layers: ['WALL', 'DOOR'], longSide: 1024 })
+```
+
+Only model-space geometry on those layers is rendered (an INSERT contributes just its fragments on those layers), framed to the combined extents of the layers instead of the whole drawing. Names are case-insensitive; unknown names throw while the script runs; `layers` cannot be combined with `selection: true`. `normalizeCadCapturePreviewOptions` now returns `NormalizedCadCapturePreviewOptions` (with `layers` as a de-duplicated `string[]`). Custom `CadSession.capturePreview` implementations should honor `options.layers` or return `reason: 'no-layers'`. The viewer implementation uses the new `AcApEntityPreviewConvertor.captureLayers(layerNames, longSide)`.
+:::
+
 ::: info Lightweight file-open landing entry
 Starting with **1.8.0**, `@mlightcad/cad-simple-viewer` exposes a DocManager-free subpath for landing pages. Prefer **`acuiCreateFileOpenSession`** (lazy `createDocManager` + auto open / `attachSourcesTo`). Use `AcUiFileOpenLanding` when you open drawings yourself (e.g. Vue `MlCadViewer`):
 
@@ -77,6 +121,35 @@ Behavior is unchanged; only the symbol names moved. Update imports when you upgr
 ```
 
 The same rename applies to other HTML-core helpers (for example `captureAcExSavedViewExtents` → `acexHtmlCaptureSavedViewExtents`, `buildOsnapCatalog` → `acexHtmlBuildOsnapCatalog`). Command-level APIs such as `AcApHtmlConvertor` and `chtml` / `-chtml` are unaffected. Development guides that show the new names target **1.8.0+**; on 1.7.x keep using the old symbols.
+:::
+
+::: tip Script host: create real dimension entities (`drawDim*`)
+Starting with the release that follows **1.8.0-preview.2**, `cad.edit.transaction` in `@mlightcad/cad-script-core` can create dimension entities — not only read their snapshots:
+
+- `drawDimAligned`, `drawDimLinear`, `drawDimDiameter`, `drawDimRadius`
+- `drawDimAngular`, `drawDimArc`, `drawDimOrdinate`
+
+Agents and scripts should call these instead of approximating dimensions with lines, arrows, and text. Diameter/radius accept `center` + `radius` so a circle snapshot can feed them directly. See [Script API](../guide/script/api.md).
+:::
+
+::: tip Script host: per-block tallies on `cad.blocks`
+In the release that includes this change, `cad.blocks` exposes per-block `entityCount` / `typeCounts` metadata — no embedded entity arrays. Prefer those fields / `count(pred)` for tallies. Snapshot with `where` / `inBlock(id, pred)` — bare whole-space snapshots stop at ~500 matches (`too_many_matches`). `where` / `count` / `inBox` scan model and paper spaces only (use `inBlock` for block definitions). Block references use `type === 'BlockReference'`.
+:::
+
+::: info SVG File → Open
+Starting with **1.8.0**, `.svg` can be opened as a drawing through the normal File → Open / `openDocument` / `openUrl` path. Vector conversion lives in the new package [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter) (depends only on `@mlightcad/data-model`).
+
+**Integrators using `@mlightcad/cad-editor`:** `initializeCadViewer` registers the converter automatically. Install `@mlightcad/cad-svg-converter` next to the other fixed-group packages (same version).
+
+**Integrators using only `@mlightcad/cad-simple-viewer`:** call once at startup:
+
+```ts
+import { registerSvgConverter } from '@mlightcad/cad-svg-converter'
+
+registerSvgConverter()
+```
+
+Supported subset (v1): `line`, `polyline` / `polygon` / `rect`, `circle`, `ellipse` (polyline approx when non-uniform), `path` (tessellated), `text`, nested `g` + transforms. Export remains `csvg` in `@mlightcad/cad-svg-plugin`. Save after editing is still DXF (`cdxf`) or re-export SVG — there is no native SVG save.
 :::
 
 ::: info PDF export split into a shared core (browser + Node)
@@ -151,6 +224,7 @@ Before upgrading, it helps to know which packages belong to the coordinated rele
 | `@mlightcad/cad-html-plugin` | One-click self-contained HTML export |
 | `@mlightcad/cad-pdf-plugin` | Browser PDF export and PDF-to-CAD import |
 | `@mlightcad/cad-svg-plugin` | SVG export |
+| `@mlightcad/cad-svg-converter` | SVG File → Open (vector → AcDb entities) |
 | `@mlightcad/cad-simple-ui-plugin` | Plain-DOM toolbar, layer manager, dock panel |
 | `@mlightcad/cad-agent-plugin` | AI-agent-powered interaction |
 | `@mlightcad/cad-onedrive-plugin` | OneDrive integration |

@@ -24,7 +24,7 @@ Tüm ECMAScript standart yerleşik nesneleri kullanılabilir:
 
 ### Yasaklanan Tarayıcı API'leri
 
-Aşağıdaki içerikler betik doğrulama aşamasında doğrudan reddedilir ve `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` hatalarını tetikler:
+Aşağıdaki içerikler betik doğrulama aşamasında doğrudan reddedilir ve `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` hatalarını tetikler. `{ window: count }` gibi nesne anahtarlarına izin verilir; `window.foo` gibi serbest tanımlayıcılara izin verilmez.
 
 - Sayfa ve DOM: `window`, `document`, `globalThis`
 - Ağ ve iletişim: `fetch`, `XMLHttpRequest`, `WebSocket`, `importScripts`
@@ -59,7 +59,15 @@ cad.log('Toplam katman sayısı:', info.layers.length)
 
 ## cad.entities
 
-Veritabanındaki tüm varlıkları döndürür: model alanı, her kağıt alanı, her blok tanımı ve blok referanslarındaki öznitelikler. Bir özniteliğin `ownerId` değeri blok referansıdır; diğer varlıkların `ownerId` değeri ait oldukları blok tablosu kaydıdır.
+`where` / `count` / `inBox` **yalnızca model ve kağıt alanlarını** tarar (blok tanımları için `inBlock(id)`). Özniteliğin `ownerId` değeri blok referansıdır; diğerlerinde blok tablosu kaydıdır. Blok referansı tipi `BlockReference`’dır.
+
+### `cad.entities.count(predicate)`
+
+Eşleşmeleri anlık görüntü oluşturmadan sayar. Sayımlarda bunu tercih edin — `where(pred).length` her eşleşmeyi hâlâ anlık görüntüler.
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
@@ -80,9 +88,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+Tek bir blok tanımında (veya model/kağıt alanında) doğrudan duran varlıkları anlık görüntüler.
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-WCS (World Coordinate System) dikdörtgen kutusu içindeki tüm varlık anlık görüntülerini döndürür.
+Extents’i dikdörtgenle kesişen layout-alanı anlık görüntülerini döndürür (yalnızca model/kağıt).
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -161,7 +178,7 @@ data-model içindeki her somut varlık türünün `geometry` alanı vardır: `Ha
 
 ## cad.blocks
 
-DXF BLOCKS bölümüne karşılık gelen tüm blok tanımları. `*Model_Space` ve `*Paper_Space` dahildir.
+DXF BLOCKS’a karşılık gelen **yalnızca meta veri** (`*Model_Space` / `*Paper_Space` dahil). Varlık dizisi yok — `cad.entities.inBlock(id)` kullanın.
 
 | Alan                            | Açıklama                                                          |
 | ------------------------------- | ----------------------------------------------------------------- |
@@ -171,7 +188,8 @@ DXF BLOCKS bölümüne karşılık gelen tüm blok tanımları. `*Model_Space` v
 | `isModelSpace` / `isPaperSpace` | Model alanı / kağıt alanı                                         |
 | `flags`                         | BLOCK grup kodu 70                                                |
 | `pathName` / `isXref`           | Dış referans yolu ve bayrağı                                      |
-| `entities`                      | Blokta doğrudan duran varlık anlık görüntüleri                    |
+| `entityCount`                   | Varlık sayısı (anlık görüntü yok)                              |
+| `typeCounts`                    | Türe göre sayılar (anlık görüntü yok)                          |
 
 ## cad.selection
 
@@ -237,14 +255,20 @@ Görünümü model alanı sınırlarına sığdırır.
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
 Çizim sınırlarının PNG ekran görüntüsünü kuyruğa alır. Yakalama, komut dosyası gövdesi bittikten sonra çalışır. `{ queued: true, index }` döner. Agent sohbetinde görüntüler model için araç sonucuna eklenir (JSON data URL olarak dönmez).
+
+`cad.selection.replace(ids)` sonrasında `selection: true` geçerek yalnızca geçerli seçimi yakalayın.
+
+`layers` (bir katman adı veya ad dizisi, büyük/küçük harf duyarsız) geçerseniz yalnızca bu katmanlardaki model alanı geometrisi çizilir ve görüntü tüm çizim yerine bu katmanların birleşik sınırlarına göre kadrajlanır; böylece büyük boş kenar boşlukları oluşmaz. Katmanın açık/kapalı durumu yok sayılır; bilinmeyen katman adları hata fırlatır; `layers`, `selection` ile birlikte kullanılamaz.
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // optional: cad.view.capturePreview({ longSide: 512 })
+// optional: cad.view.capturePreview({ selection: true })
+// optional: cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -344,6 +368,15 @@ cad.edit.transaction('Toplu değişiklik', tx => {
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | Yeni varlık ID'si |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | Yeni varlık ID'si |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | Yeni varlık ID'si |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | noktalar `{x,y}`                 | Yeni varlık ID'si |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | `rotationDeg` yoksa yerleşime göre Y/D | Yeni varlık ID'si |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | merkez+yarıçap veya kiriş       | Yeni varlık ID'si |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | merkez+yarıçap veya merkez+kiriş | Yeni varlık ID'si |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3 noktalı açı                    | Yeni varlık ID'si |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | yay uzunluğu                     | Yeni varlık ID'si |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | ordinat ölçüsü                   | Yeni varlık ID'si |
+
+Ölçüler için `drawDim*` kullanın; çizgi, ok ve metinle ölçü taklidi yapmayın. Varsayılan çizimin `$DIMSTYLE` değeridir; `cad.tables.dimStyleTable` içinden `styleName` geçerek geçersiz kılın.
 
 ### Düzenleme Yöntemleri
 

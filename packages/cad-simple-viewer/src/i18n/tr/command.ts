@@ -13,6 +13,10 @@ export default {
     acadver: {
       description: 'Çizim veritabanı sürüm tanımlayıcısını saklar (salt okunur)'
     },
+    annoallvisible: {
+      description:
+        'Geçerli açıklama ölçeğini desteklemeyen açıklamalı nesnelerin görüntülenip görüntülenmeyeceğini denetler'
+    },
     angbase: {
       description: 'Geçerli KKS\'ye göre 0 açı temel yönünü ayarlar'
     },
@@ -32,6 +36,9 @@ export default {
     },
     bmpout: {
       description: 'BMP olarak dışa aktarır'
+    },
+    cannoscale: {
+      description: 'Geçerli açıklama ölçeğinin adını ayarlar'
     },
     cdxf: {
       description: 'Geçerli çizimi DXF olarak dışa aktarır'
@@ -151,6 +158,25 @@ export default {
       description: 'Seçili varlıkları çizimden siler',
       prompt: 'Varlıkları seçin'
     },
+    group: {
+      description:
+        'Grup adı verilen kaydedilmiş nesne kümeleri oluşturur ve yönetir'
+    },
+    '-bsearch': {
+      description:
+        'Aynı geometriyi bulur ve bloklara dönüştürür (komut satırı)',
+      prompt: 'Aranacak nesneleri seçin'
+    },
+    '-group': {
+      description: 'Komut satırı seçenekleriyle grup oluşturur ve yönetir'
+    },
+    groupedit: {
+      description:
+        'Bir gruba nesne ekler/kaldırır veya grubu yeniden adlandırır'
+    },
+    ungroup: {
+      description: 'Nesnelerin bir grupla ilişkisini kaldırır'
+    },
     extmax: {
       description:
         'Model alanı çizim kapsamının sağ üst köşesini saklar (salt okunur)'
@@ -200,6 +226,25 @@ export default {
     hatch: {
       description:
         'Kapalı bir alanı veya seçili nesneleri bir tarama deseniyle doldurur'
+    },
+    pdfdim: {
+      description:
+        'Patlatılmış PDF ölçülerini ölçü nesnelerine geri dönüştürür',
+      prompt: 'Ölçüleri içeren alanı seçin'
+    },
+    pdfblock: {
+      description: 'PDF içindeki tekrarlanan geometriyi bloğa geri dönüştürür',
+      prompt: 'Bir blok örneğinin nesnelerini seçin'
+    },
+    pdftext: {
+      description:
+        'Patlatılmış PDF metin çizgilerini metin nesnelerine geri dönüştürür',
+      prompt: 'Dönüştürülecek metin çizgilerini seçin'
+    },
+    pdfscale: {
+      description:
+        'İçe aktarılan PDF geometrisini bilinen bir mesafeye göre kalibre eder',
+      prompt: 'Ölçeklenecek nesneleri seçin'
     },
     ipdf: {
       description: 'Bir PDF dosyasından vektör geometrisini içe aktarır'
@@ -364,6 +409,19 @@ export default {
     modelbkcolor: {
       description: 'Model alanı çizim alanının arka plan rengini ayarlar'
     },
+    leader: {
+      description: 'Açıklamayı bir öğeye bağlayan bir kılavuz çizgisi oluşturur'
+    },
+    mleader: {
+      description: 'Bir çoklu kılavuz çizgisi nesnesi oluşturur'
+    },
+    mleaderedit: {
+      description:
+        'Çoklu kılavuz çizgisine kılavuz çizgileri ekler veya bunlardan kılavuz çizgileri kaldırır'
+    },
+    mleadereditremove: {
+      description: 'Çoklu kılavuz çizgisinden kılavuz çizgilerini kaldırır'
+    },
     mline: {
       description:
         'Tek bir çoklu çizgi nesnesi olarak birden çok paralel çizgi oluşturur'
@@ -371,6 +429,11 @@ export default {
     move: {
       description: 'Seçili varlıkları bir yer değiştirme vektörüne göre taşır',
       prompt: 'Varlıkları seçin'
+    },
+    objectscale: {
+      description:
+        'Seçili açıklamalı nesneler için desteklenen açıklama ölçeklerini ekler veya siler',
+      prompt: 'Açıklamalı nesneleri seçin'
     },
     offset: {
       description:
@@ -387,7 +450,8 @@ export default {
         'Dosya açma aşaması zamanlama profillerinin konsola kaydedilip kaydedilmeyeceğini denetler'
     },
     openperf: {
-      description: 'Son çizim açılışının zamanlamalarını Open Performance paletinde gösterir'
+      description:
+        'Son çizim açılışının zamanlamalarını Open Performance paletinde gösterir'
     },
     orthomode: {
       description: 'İmleç hareketini yatay veya dikey eksenle sınırlar'
@@ -526,6 +590,10 @@ export default {
     switchbg: {
       description: 'Çizim alanı arka planını beyaz ve siyah arasında değiştirir'
     },
+    readingmode: {
+      description:
+        'Okuma modunu açar/kapatır: daha kolay inceleme için beyaz tuval üzerinde siyah çizgiler'
+    },
     unisolateobjects: {
       description:
         'HIDEOBJECTS tarafından gizlenen tüm nesneleri yeniden görüntüler'
@@ -544,6 +612,24 @@ export default {
     zoom: {
       description:
         'Tüm varlıkların maksimum sınırlarını görüntülemek için yakınlaştırır'
+    },
+    view: {
+      description:
+        'Adlı görünümleri oluşturmak, geri yüklemek ve silmek için Görünüm Yöneticisi\'ni açar'
+    },
+    newview: {
+      description:
+        'Geçerli görüntüden veya bir pencereden yeni bir adlı görünüm oluşturur'
+    },
+    viewrestore: {
+      description: 'Adlı bir görünümü adıyla geri yükler'
+    },
+    ucs: {
+      description:
+        'Geçerli kullanıcı koordinat sisteminin orijinini ve yönünü ayarlar'
+    },
+    ucsman: {
+      description: 'Adlı UCS tanımlarını ve UCS simgesi ayarlarını yönetir'
     }
   },
   USER: {}

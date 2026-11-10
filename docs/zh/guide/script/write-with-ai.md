@@ -71,12 +71,12 @@ title: 用 AI 编写脚本
 只读符号表，对应 AcDbDatabase.tables。每张表为 { id, records: [{ id, name, ... }] }。
 - appIdTable、blockTable、dimStyleTable、linetypeTable、textStyleTable、ucsTable、viewTable、layerTable、viewportTable
 - layerTable 记录包含 color、linetype、lineWeight、isOff、isFrozen、isLocked、isPlottable
-- blockTable 只有块定义。块内实体使用 cad.blocks
+- blockTable 只有块定义。块内实体用 cad.entities.inBlock(id)
 
 ### cad.blocks
-全部块定义，对应 DXF 的 BLOCKS 段，包含 *Model_Space 和 *Paper_Space。
-- 字段：id、name、origin、isModelSpace、isPaperSpace、flags、pathName、isXref、layoutId、entities
-- entities 与 cad.entities 使用同一套快照
+仅块元数据（对应 DXF BLOCKS 段），含 *Model_Space 与 *Paper_Space。
+- 字段：id、name、origin、isModelSpace、isPaperSpace、flags、pathName、isXref、layoutId、entityCount、typeCounts
+- 无 entities 数组 — 用 cad.entities.inBlock(id)。统计用 block.entityCount / typeCounts
 
 ### cad.selection
 控制选择集：
@@ -89,7 +89,7 @@ title: 用 AI 编写脚本
 
 ### cad.view
 - cad.view.zoomExtents() -> 缩放到模型空间范围
-- cad.view.capturePreview({ longSide? }) -> 脚本结束后排队截取 PNG；返回 { queued: true, index }。复杂结果需要视觉自检时使用，简单修改可跳过
+- cad.view.capturePreview({ longSide?, selection?, layers? }) -> 脚本结束后排队截取 PNG；返回 { queued: true, index }。复杂结果需要视觉自检时使用，简单修改可跳过。传入 layers: [图层名] 只截取这些图层，并按其叠加范围取景
 
 ### cad.file
 - cad.file.saveDxf(path?) -> 脚本成功后导出 DXF。路径字符串或 { path?, fileName? }。应用内 Agent 触发下载；cad-mcp-server 把文件写到 path（相对路径相对于服务器工作目录）。返回 { queued: true, index, fileName }。不返回 DXF 正文。工具结果包含 savedFiles
@@ -121,6 +121,14 @@ title: 用 AI 编写脚本
 - tx.drawXline({ start: {x,y}, through: {x,y}, layer? }) -> 返回新实体 ID
 - tx.drawSpline({ points: [{x,y}...], closed?, layer? }) -> 返回新实体 ID
 - tx.drawText({ position: {x,y}, text, height?, layer? }) -> 返回新实体 ID
+- tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? }) -> 新实体 ID
+- tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? }) -> 新实体 ID
+- tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> 新实体 ID（或 chordPoint+farChordPoint）
+- tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> 新实体 ID（或 center+chordPoint）
+- tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> 新实体 ID
+- tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> 新实体 ID
+- tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? }) -> 新实体 ID
+- 标注请用 drawDim*，不要用直线、箭头和文字拼假标注
 - tx.erase(ids) -> 返回删除的实体数量
 - tx.setLayer(ids, layer)
 - tx.move(ids, dx, dy) -> 返回移动的实体数量

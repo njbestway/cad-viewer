@@ -143,6 +143,22 @@ export default {
       description: '从图纸中删除所选对象',
       prompt: '选择对象'
     },
+    group: {
+      description: '创建和管理称为编组的对象集合'
+    },
+    '-bsearch': {
+      description: '查找相同的几何图形并将其转换为块（命令行）',
+      prompt: '选择要搜索的对象'
+    },
+    '-group': {
+      description: '通过命令行选项创建和管理编组'
+    },
+    groupedit: {
+      description: '向编组添加或从编组中删除对象，或重命名编组'
+    },
+    ungroup: {
+      description: '取消对象与编组的关联'
+    },
     extmax: {
       description: '存储模型空间图形范围的右上角（只读）'
     },
@@ -183,6 +199,22 @@ export default {
     },
     hatch: {
       description: '用填充图案填充封闭区域或所选对象'
+    },
+    pdfdim: {
+      description: '将 PDF 中被打散的标注恢复为标注对象',
+      prompt: '选择包含标注的区域'
+    },
+    pdfblock: {
+      description: '将 PDF 中重复的图形恢复为块',
+      prompt: '选择一个块实例的对象'
+    },
+    pdftext: {
+      description: '将 PDF 中被打散的文字笔画转换回文字对象',
+      prompt: '选择要转换的文字笔画'
+    },
+    pdfscale: {
+      description: '根据已知距离校准导入的 PDF 图形比例',
+      prompt: '选择要缩放的对象'
     },
     ipdf: {
       description: '从 PDF 文件导入矢量几何'
@@ -327,6 +359,18 @@ export default {
     },
     modelbkcolor: {
       description: '设置模型空间绘图区域的背景颜色'
+    },
+    leader: {
+      description: '创建将注释连接到特征的引线'
+    },
+    mleader: {
+      description: '创建多重引线对象'
+    },
+    mleaderedit: {
+      description: '向多重引线添加或删除引线'
+    },
+    mleadereditremove: {
+      description: '从多重引线删除引线'
     },
     mline: {
       description: '创建由多条平行线组成的多线对象'
@@ -500,6 +544,21 @@ export default {
     },
     zoom: {
       description: '缩放以显示所有对象'
+    },
+    view: {
+      description: '打开视图管理器以创建、恢复和删除命名视图'
+    },
+    newview: {
+      description: '根据当前显示或窗口创建命名视图'
+    },
+    viewrestore: {
+      description: '按名称恢复命名视图'
+    },
+    ucs: {
+      description: '设置当前用户坐标系的原点和方向'
+    },
+    ucsman: {
+      description: '管理命名 UCS 定义和 UCS 图标设置'
     }
   },
   USER: {}

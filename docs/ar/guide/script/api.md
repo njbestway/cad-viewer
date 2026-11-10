@@ -24,7 +24,7 @@ title: API البرنامج النصي
 
 ### واجهات المتصفح المحظورة
 
-يتم رفض العناصر التالية مباشرةً في مرحلة التحقق من البرنامج النصي، مما يُطلق أخطاء `forbidden_identifier` / `forbidden_syntax` / `forbidden_member`:
+يتم رفض العناصر التالية مباشرةً في مرحلة التحقق من البرنامج النصي، مما يُطلق أخطاء `forbidden_identifier` / `forbidden_syntax` / `forbidden_member`. يُسمح بمفاتيح الكائنات مثل `{ window: count }`؛ ولا يُسمح بالمُعرّفات الحرة مثل `window.foo`.
 
 - الصفحة وDOM: `window` و`document` و`globalThis`
 - الشبكة والاتصالات: `fetch` و`XMLHttpRequest` و`WebSocket` و`importScripts`
@@ -59,7 +59,15 @@ cad.log('图层总数:', info.layers.length)
 
 ## cad.entities
 
-تُعيد كل الكيانات في قاعدة البيانات: مساحة النموذج، وكل مساحات الورق، وكل تعريفات الكتل، وسمات مراجع الكتل. `ownerId` للسمة هو مرجع الكتلة، ولغير ذلك هو سجل جدول الكتل المالك.
+`where` / `count` / `inBox` تمسح **مساحة النموذج ومساحات الورق فقط** (تعريفات الكتل عبر `inBlock(id)`). `ownerId` للسمة هو مرجع الكتلة، ولغير ذلك سجل جدول الكتل. نوع مرجع الكتلة هو `BlockReference`.
+
+### `cad.entities.count(predicate)`
+
+تعدّ المطابقات دون بناء لقطات. فضّله للإحصاء — `where(pred).length` يلتقط كل مطابقة.
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
@@ -80,9 +88,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+تلتقط الكيانات المخزّنة مباشرة في تعريف كتلة واحد (أو مساحة نموذج/ورق).
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-تُعيد جميع لقطات الكيانات الواقعة داخل المستطيل المحدد في نظام الإحداثيات العالمي (WCS).
+تُعيد لقطات مساحة التخطيط التي تتقاطع حدودها مع المستطيل (نموذج/ورق فقط).
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -159,7 +176,7 @@ const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
 
 ## cad.blocks
 
-كل تعريفات الكتل، بما يقابل قسم BLOCKS في DXF، بما في ذلك `*Model_Space` و`*Paper_Space`.
+**بيانات وصفية فقط** لما يقابل قسم BLOCKS في DXF (بما في ذلك `*Model_Space` و`*Paper_Space`). لا مصفوفة كيانات — استخدم `cad.entities.inBlock(id)`.
 
 | الحقل                           | الوصف                                              |
 | ------------------------------- | -------------------------------------------------- |
@@ -169,7 +186,8 @@ const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
 | `isModelSpace` / `isPaperSpace` | مساحة النموذج / مساحة الورق                        |
 | `flags`                         | مجموعة BLOCK رقم 70                                |
 | `pathName` / `isXref`           | مسار المرجع الخارجي وعلامته                        |
-| `entities`                      | لقطات الكيانات المخزنة مباشرة في الكتلة            |
+| `entityCount`                   | عدد الكيانات (بدون لقطات)                                  |
+| `typeCounts`                    | العدد حسب النوع (بدون لقطات)                               |
 
 ## cad.selection
 
@@ -235,14 +253,20 @@ cad.selection.clear()
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
 يضع لقطة PNG لنطاق الرسم في قائمة الانتظار. يُلتقط بعد انتهاء نص السكربت. يُرجع `{ queued: true, index }`. في محادثة Agent تُرفق الصور بنتيجة الأداة للنموذج (لا تُرجع كـ data URL في JSON).
+
+مرّر `selection: true` بعد `cad.selection.replace(ids)` لالتقاط التحديد الحالي فقط.
+
+مرّر `layers` (اسم طبقة أو مصفوفة أسماء، دون تمييز حالة الأحرف) لرسم عناصر فضاء النموذج الموجودة على هذه الطبقات فقط، مع تأطير الصورة على النطاق المجمّع لهذه الطبقات بدلًا من الرسم كله، فلا تظهر هوامش فارغة كبيرة. تُتجاهل حالة تشغيل/إيقاف الطبقة؛ أسماء الطبقات غير الموجودة ترمي خطأ؛ ولا يمكن الجمع بين `layers` و`selection`.
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // optional: cad.view.capturePreview({ longSide: 512 })
+// optional: cad.view.capturePreview({ selection: true })
+// optional: cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -342,6 +366,15 @@ cad.edit.transaction('批量修改', tx => {
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | معرّف الكيان الجديد |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | معرّف الكيان الجديد |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | معرّف الكيان الجديد |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | نقاط `{x,y}`                     | معرّف الكيان الجديد |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | بدون `rotationDeg` → أفقي/عمودي حسب الموضع | معرّف الكيان الجديد |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | مركز+نصف قطر أو وتر              | معرّف الكيان الجديد |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | مركز+نصف قطر أو مركز+وتر         | معرّف الكيان الجديد |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | زاوية بثلاث نقاط                 | معرّف الكيان الجديد |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | طول قوس                          | معرّف الكيان الجديد |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | بُعد إحداثي                      | معرّف الكيان الجديد |
+
+استخدم `drawDim*` لأبعاد حقيقية. لا تقلّد الأبعاد بخطوط وأسهم ونص. الافتراضي هو `$DIMSTYLE` للرسم؛ مرّر `styleName` من `cad.tables.dimStyleTable` للتجاوز.
 
 ### أساليب التحرير
 

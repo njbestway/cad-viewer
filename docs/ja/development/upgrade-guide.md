@@ -6,6 +6,50 @@ title: "cad-simple-viewer と cad-editor のアップグレード"
 
 このガイドでは、`@mlightcad/cad-simple-viewer` と`@mlightcad/cad-editor` を安全にアップグレードする方法を説明します。単独でバージョンを上げられない理由、一緒に更新する必要がある関連パッケージ、および任意のリリースに対して正しい互換バージョンのセットを判断する 2 つの信頼できる方法について説明します。
 
+::: info スマート ブロック：検索して変換（`BSEARCH`）
+本変更を含むリリース以降、`@mlightcad/cad-simple-viewer` は **-BSEARCH** を登録し、`@mlightcad/cad-editor` は確認ツールバーと「ブロックに変換」ダイアログを備えた **BSEARCH**（別名 `BCONVERT`）を追加します（リボンの「挿入」と「AI」タブ）。
+
+形状照合は `@mlightcad/cad-pdf-plugin` から `@mlightcad/cad-simple-viewer` に移動しました。インポートを移行してください：
+
+| `@mlightcad/cad-pdf-plugin`（非推奨） | `@mlightcad/cad-simple-viewer` |
+| --- | --- |
+| `findPdfShapeMatches` | `acedFindShapeMatches` |
+| `applyPdfAffine` | `acedApplyAffine2d` |
+| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
+
+旧名は非推奨の別名として引き続き使えます。文字列は特徴の `kind` から `label` に移りました。`pdfblock` は `-BSEARCH` のプロンプト順（変換 → 新規/既存 → 名前 → 挿入基点 → 範囲）になり、旧プロンプトに応答するスクリプトは調整が必要です。
+:::
+
+::: info AutoCAD グループ（`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`）
+この変更を含むリリースから、`@mlightcad/cad-simple-viewer` は **GROUP**、**-GROUP**、**UNGROUP**、**GROUPEDIT** を登録し、`PICKSTYLE` が `1` または `3` のとき選択を拡張し、選択可能なグループに `GROUPDISPLAYMODE` グリップを適用します。`@mlightcad/cad-editor` は **CLASSICGROUP**（オブジェクトグループ化ダイアログ）とホーム → グループのリボンパネルを追加します。
+
+`PICKSTYLE`（0–3、既定 `1`）と `GROUPDISPLAYMODE`（0–2、既定 `2`）を登録した `@mlightcad/data-model` が必要です。連想ハッチの同時選択（`PICKSTYLE` 2/3）は、`AcDbHatch` に境界ソフトポインタが追加されるまで no-op のままです。
+:::
+
+::: info `cad.view.capturePreview` の選択プレビュー
+この変更を含むリリースから、`CadSession.capturePreview` は単独の `longSide` 数値ではなくオプションオブジェクトを受け取ります。
+
+```ts
+capturePreview?(options?: {
+  longSide?: number
+  selection?: boolean
+}): Promise<CaptureDrawingPreviewResult>
+```
+
+スクリプトでは `cad.view.capturePreview({ longSide?, selection? })` を使います。`cad.selection.replace(ids)` の後に `selection: true` を渡すと、ENTPREVIEW と同じ batch プレビュー経路で選択図形を抽出し（シーン境界でフレーミング。データベースの `geometricExtents` ではない）、PNG をツール結果に添付します。選択が空のときは `reason: 'no-selection'` を返します。レンダラのない `createDatabaseSession` では従来どおりプレビューをスキップします。
+:::
+
+::: info `cad.view.capturePreview` の画層プレビュー
+この変更を含むリリースから、`CadCapturePreviewOptions` に `layers?: string | string[]` が、`CaptureDrawingPreviewFailure` に `'no-layers'` が追加されます。
+
+```ts
+cad.view.capturePreview({ layers: ['WALL', 'DOOR'], longSide: 1024 })
+```
+
+モデル空間のそれらの画層上の図形だけを描画し（INSERT はそれらの画層上の部分のみ）、図面全体ではなく画層を合わせた範囲でフレーミングします。画層名は大文字小文字を区別しません。存在しない画層名はスクリプト実行中にエラーになります。`layers` は `selection: true` と併用できません。`normalizeCadCapturePreviewOptions` は `NormalizedCadCapturePreviewOptions`（`layers` は重複除去済みの `string[]`）を返すようになりました。独自の `CadSession.capturePreview` 実装は `options.layers` を処理するか、`reason: 'no-layers'` を返してください。ビューア実装は新しい `AcApEntityPreviewConvertor.captureLayers(layerNames, longSide)` を使います。
+:::
+
 ::: info 軽量なファイルオープン用ランディング入口
 **1.8.0** から、`@mlightcad/cad-simple-viewer` はランディングページ向けに DocManager 非依存のサブパスを公開します。**`acuiCreateFileOpenSession`**（遅延 `createDocManager` + 自動オープン / `attachSourcesTo`）を優先してください。図面のオープンを自前で行う場合（例: Vue `MlCadViewer`）は `AcUiFileOpenLanding` を使います。
 
@@ -77,6 +121,23 @@ GitHub リポジトリは引き続き [`mlightcad/cad-viewer`](https://github.co
 ```
 
 ほかの HTML-core ヘルパーも同様です（例: `captureAcExSavedViewExtents` → `acexHtmlCaptureSavedViewExtents`、`buildOsnapCatalog` → `acexHtmlBuildOsnapCatalog`）。`AcApHtmlConvertor` や `chtml` / `-chtml` などのコマンド級 API は影響を受けません。開発ガイドに出てくる新しい名前は **1.8.0+** 向けです。1.7.x では従来のシンボルを使い続けてください。
+:::
+
+::: tip スクリプトホスト: 本物の寸法エンティティを作成（`drawDim*`）
+**1.8.0-preview.2** 以降のリリースから、`@mlightcad/cad-script-core` の `cad.edit.transaction` で寸法エンティティを作成できます（以前はスナップショットの読み取りのみ）:
+
+- `drawDimAligned`、`drawDimLinear`、`drawDimDiameter`、`drawDimRadius`
+- `drawDimAngular`、`drawDimArc`、`drawDimOrdinate`
+
+Agent / スクリプトは線・矢印・文字で寸法を模倣せず、これらを呼び出してください。直径/半径は `center` + `radius` を受け取り、円スナップショットをそのまま渡せます。詳細は [スクリプト API](../guide/script/api.md)。
+:::
+
+::: tip スクリプトホスト: ブロック単位の集計は `cad.blocks`
+この変更を含むリリースから、`cad.blocks` はブロックごとの `entityCount` / `typeCounts` メタデータを公開し、完全な `entities` 配列は埋め込みません。集計はこれらのフィールドまたは `count(pred)` を使ってください。スナップショットは `where` / `inBlock(id, pred)` — 空間全体の裸スナップショットは約 500 件で `too_many_matches` になります。`where` / `count` / `inBox` はモデル／ペーパー空間のみです。
+:::
+
+::: info SVG File → Open
+**1.8.0** から、通常の File → Open / `openDocument` / `openUrl` で `.svg` を図面として開けます。変換は新パッケージ [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter)（`@mlightcad/data-model` のみに依存）にあります。`cad-editor` の `initializeCadViewer` は自動登録します。`cad-simple-viewer` のみの場合は起動時に `registerSvgConverter()` を一度呼び出してください。エクスポートは引き続き `cad-svg-plugin` の `csvg` です。
 :::
 
 ::: info PDF エクスポートを共有コアに分割（ブラウザ + Node）

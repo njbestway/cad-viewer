@@ -24,7 +24,7 @@ title: 脚本 API
 
 ### 被禁止的浏览器 API
 
-以下内容会在脚本校验阶段被直接拒绝，触发 `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` 错误：
+以下内容会在脚本校验阶段被直接拒绝，触发 `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` 错误。对象属性名如 `{ window: count }` 允许使用；自由标识符如 `window.foo` 不允许。
 
 - 页面与 DOM：`window`、`document`、`globalThis`
 - 网络与通信：`fetch`、`XMLHttpRequest`、`WebSocket`、`importScripts`
@@ -59,11 +59,19 @@ cad.log('图层总数:', info.layers.length)
 
 ## cad.entities
 
-查询数据库中的全部实体。范围与 DXF 的 ENTITIES 段同一类数据，但不仅限于模型空间：模型空间、每个图纸空间，以及每个块定义里的实体都会返回。块参照上的属性跟在该参照之后，`ownerId` 指向块参照；其余实体的 `ownerId` 指向所属块表记录。
+`where` / `count` / `inBox` 只扫描**模型空间和图纸空间**（块定义内实体请用 `inBlock(id)`）。块参照上的属性跟在该参照之后，`ownerId` 指向块参照；其余实体的 `ownerId` 指向所属块表记录。块参照的 `type` 为 `BlockReference`。
+
+### `cad.entities.count(predicate)`
+
+只计数、不建快照。统计数量请优先用它——`where(pred).length` 仍会对每个匹配项做完整快照，大图上容易 `script_timeout`。
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
-根据条件筛选实体快照，返回匹配的快照数组。
+根据条件筛选实体快照，返回匹配的快照数组。请把过滤条件写进谓词，只对命中项做快照。
 
 ```javascript
 const circles = cad.entities.where(e => e.type === 'Circle')
@@ -80,9 +88,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+快照某一个块定义（或模型/图纸空间）内直接存放的实体。需要块内实体时用它，不要遍历所有 `cad.blocks` 去拉全量实体。
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-返回世界坐标范围与指定矩形相交的实体快照。比较的是实体的 `extents`，因此块定义和图纸空间里的实体也会命中。
+返回世界坐标范围与指定矩形相交的实体快照（仅模型空间与图纸空间）。
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -162,7 +179,7 @@ ByLayer / ByBlock 颜色没有 RGB，需要真实颜色时读取 `resolvedColor`
 | 属性             | 内容                                                                                         |
 | ---------------- | -------------------------------------------------------------------------------------------- |
 | `appIdTable`     | 已注册的应用程序名                                                                           |
-| `blockTable`     | 块表记录。这里只有定义信息，块内实体在 `cad.blocks`                                          |
+| `blockTable`     | 块表记录。这里只有定义信息；块内实体用 `cad.entities.inBlock(id)` 加载                        |
 | `dimStyleTable`  | 标注样式，包含 `dimtxt`、`dimscale` 等标注变量                                               |
 | `linetypeTable`  | 线型，包含 `numDashes`、`patternLength`、`comments`                                          |
 | `textStyleTable` | 文字样式，包含 `fileName`、`textSize`、`xScale`                                              |
@@ -182,7 +199,7 @@ return layers
 
 ## cad.blocks
 
-返回数据库中的全部块定义，对应 DXF 的 BLOCKS 段。模型空间 `*Model_Space` 和各个图纸空间 `*Paper_Space` 也在其中。
+返回全部块定义的**元数据**（对应 DXF BLOCKS 段）。模型空间 `*Model_Space` 和各个图纸空间 `*Paper_Space` 也在其中。**不**内嵌实体几何——需要时用 `cad.entities.inBlock(id)`。大图上对每个块做完整实体快照会 `script_timeout`。
 
 | 字段           | 类型                  | 说明                                  |
 | -------------- | --------------------- | ------------------------------------- |
@@ -195,13 +212,15 @@ return layers
 | `pathName`     | `string`              | 外部参照路径，本地块为空字符串        |
 | `isXref`       | `boolean`             | 是否为外部参照                        |
 | `layoutId`     | `string \| undefined` | 关联的布局 ID                         |
-| `entities`     | `EntitySnapshot[]`    | 直接存放在该块中的实体                |
+| `entityCount`  | `number`              | 块内实体数量（不做快照）              |
+| `typeCounts`   | `Record<string, number>` | 块内按类型计数（不做快照）         |
 
 ```javascript
 const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
 return {
-  count: widget ? widget.entities.length : 0,
-  types: widget ? widget.entities.map(entity => entity.type) : []
+  count: widget ? widget.entityCount : 0,
+  types: ents.map(entity => entity.type)
 }
 ```
 
@@ -269,14 +288,16 @@ cad.selection.clear()
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
-排队截取图纸范围的 PNG 截图。截图在脚本主体执行结束后异步完成。返回 `{ queued: true, index }`。在 Agent 对话中，图片会作为工具结果附件交给模型（不会以 JSON data URL 返回）。
+脚本主体结束后排队截取 PNG。返回 `{ queued: true, index }`。默认按模型空间图纸范围取景。传入 `selection: true`（通常在 `cad.selection.replace(ids)` 之后）则只提取当前选中图元（ENTPREVIEW 同款 batch 路径）。传入 `layers`（单个图层名或图层名数组，不区分大小写）则只渲染模型空间中这些图层上的图元，并按这些图层叠加后的范围取景（而不是整张图纸），图片不会有大片留白。忽略图层的开/关状态；图层名不存在时抛错；`layers` 不能与 `selection` 同时使用。在 Agent 对话中，图片会作为工具结果附件交给模型（不会以 JSON data URL 返回）。
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // 可选：cad.view.capturePreview({ longSide: 512 })
+// 仅选中：cad.view.capturePreview({ selection: true })
+// 仅指定图层：cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -376,6 +397,15 @@ cad.edit.transaction('批量修改', tx => {
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`                | 新实体 ID |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`                | 新实体 ID |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                     | 新实体 ID |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | 点 `{x,y}`                            | 新实体 ID |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | 省略 `rotationDeg` 时按放置推断水平/垂直 | 新实体 ID |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | 圆心+半径 或 弦点对                   | 新实体 ID |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | 圆心+半径 或 圆心+弦点                | 新实体 ID |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 三点角度                              | 新实体 ID |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | 弧长                                  | 新实体 ID |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | 坐标标注                              | 新实体 ID |
+
+请使用 `drawDim*` 创建真正的标注实体，不要用直线、箭头和文字拼假标注。默认使用图纸当前 `$DIMSTYLE`；也可传入 `cad.tables.dimStyleTable` 中的 `styleName`。
 
 ### 编辑方法
 

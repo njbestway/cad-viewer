@@ -867,6 +867,148 @@ export default {
     invalidSelection: '所选对象不能偏移。',
     offsetFailed: '无法在指定侧创建偏移曲线。'
   },
+  leader: {
+    startPoint: '指定引线起点',
+    nextPoint: '指定下一点',
+    nextPointOrOptions: '指定下一点或 [注释(A)/格式(F)/放弃(U)]',
+    formatPrompt: '输入引线格式选项 [样条曲线(S)/直线(T)/箭头(A)/无(N)]',
+    annotationText: '输入注释文字的第一行或 <选项>',
+    nextAnnotationLine: '输入注释文字的下一行',
+    annotationOptions:
+      '输入注释选项 [公差(Tolerance)/复制(C)/块(B)/无(N)/多行文字(M)]',
+    selectAnnotation: '选择要复制的注释对象',
+    rejectAnnotation: '该对象不能用作引线注释。',
+    toleranceUnavailable: '当前版本尚不支持形位公差对话框。',
+    keywords: {
+      annotation: {
+        display: '注释(A)',
+        local: '注释',
+        global: 'Annotation'
+      },
+      format: { display: '格式(F)', local: '格式', global: 'Format' },
+      undo: { display: '放弃(U)', local: '放弃', global: 'Undo' },
+      spline: {
+        display: '样条曲线(S)',
+        local: '样条曲线',
+        global: 'Spline'
+      },
+      straight: {
+        display: '直线(T)',
+        local: '直线',
+        global: 'STraight'
+      },
+      arrow: { display: '箭头(A)', local: '箭头', global: 'Arrow' },
+      none: { display: '无(N)', local: '无', global: 'None' },
+      tolerance: {
+        display: '公差(Tolerance)',
+        local: '公差',
+        global: 'Tolerance'
+      },
+      copy: { display: '复制(C)', local: '复制', global: 'Copy' },
+      block: { display: '块(B)', local: '块', global: 'Block' },
+      mtext: {
+        display: '多行文字(M)',
+        local: '多行文字',
+        global: 'Mtext'
+      }
+    }
+  },
+  mleader: {
+    arrowheadOrOptions:
+      '指定引线箭头位置或 [引线基线优先(L)/内容优先(C)/选项(O)]',
+    landingLocation: '指定引线基线位置',
+    landingFirstPoint: '指定引线基线位置',
+    arrowheadLocation: '指定引线箭头位置',
+    contentLocation: '指定内容位置',
+    nextPoint: '指定下一点',
+    optionsPrompt:
+      '输入选项 [引线类型(T)/基线(A)/内容类型(C)/最大点数(M)/第一角度(F)/第二角度(S)/退出选项(X)]',
+    leaderTypePrompt: '选择引线类型 [直线(S)/样条曲线(P)/无(N)]',
+    landingPrompt: '是否使用基线 [是(Y)/否(N)]',
+    landingLength: '指定基线距离',
+    contentTypePrompt: '选择内容类型 [块(B)/多行文字(M)/无(N)]',
+    maxPoints: '输入引线的最大点数',
+    firstAngle: '输入第一角度约束',
+    secondAngle: '输入第二角度约束',
+    keywords: {
+      landingFirst: {
+        display: '引线基线优先(L)',
+        local: '引线基线优先',
+        global: 'Landing first'
+      },
+      contentFirst: {
+        display: '内容优先(C)',
+        local: '内容优先',
+        global: 'Content first'
+      },
+      options: { display: '选项(O)', local: '选项', global: 'Options' },
+      leaderType: {
+        display: '引线类型(T)',
+        local: '引线类型',
+        global: 'Leader type'
+      },
+      landing: { display: '基线(A)', local: '基线', global: 'lAnding' },
+      contentType: {
+        display: '内容类型(C)',
+        local: '内容类型',
+        global: 'Content type'
+      },
+      maxpoints: {
+        display: '最大点数(M)',
+        local: '最大点数',
+        global: 'Maxpoints'
+      },
+      firstAngle: {
+        display: '第一角度(F)',
+        local: '第一角度',
+        global: 'First angle'
+      },
+      secondAngle: {
+        display: '第二角度(S)',
+        local: '第二角度',
+        global: 'Second angle'
+      },
+      exitOptions: {
+        display: '退出选项(X)',
+        local: '退出选项',
+        global: 'eXit options'
+      },
+      straight: {
+        display: '直线(S)',
+        local: '直线',
+        global: 'Straight'
+      },
+      spline: {
+        display: '样条曲线(P)',
+        local: '样条曲线',
+        global: 'sPline'
+      },
+      noneLeader: { display: '无(N)', local: '无', global: 'None' },
+      yes: { display: '是(Y)', local: '是', global: 'Yes' },
+      no: { display: '否(N)', local: '否', global: 'No' },
+      block: { display: '块(B)', local: '块', global: 'Block' },
+      mtext: {
+        display: '多行文字(M)',
+        local: '多行文字',
+        global: 'Mtext'
+      },
+      none: { display: '无(N)', local: '无', global: 'None' }
+    }
+  },
+  mleaderedit: {
+    selectMLeader: '选择多重引线',
+    rejectMLeader: '必须选择多重引线。',
+    arrowheadOrRemove: '指定引线箭头位置或 [删除引线(R)]',
+    selectLeaderToRemove: '指定要删除的引线或按 Enter 结束',
+    cannotRemoveLast: '无法删除该多重引线的最后一条引线。',
+    keywords: {
+      remove: {
+        display: '删除引线(R)',
+        local: '删除',
+        global: 'Remove'
+      }
+    }
+  },
   mtext: {
     point: '指定多行文本插入点'
   },
@@ -1300,6 +1442,10 @@ export default {
   sysvar: {
     prompt: '请输入新的值'
   },
+  view: {
+    enterName: '输入要恢复的视图名称',
+    notFound: '未找到视图“{name}”。'
+  },
   zoom: {
     mainPrompt: '指定窗口角点或',
     firstCorner: '指定第一个角点',
@@ -1469,5 +1615,455 @@ export default {
         global: 'Monochrome'
       }
     }
+  },
+  ucs: {
+    originOrOptions: '指定 UCS 的原点或',
+    pointOnXAxis: '指定 X 轴上的点或',
+    pointOnXyPlane: '指定 XY 平面上的点或',
+    rotationAngle: '指定绕 {axis} 轴的旋转角度',
+    zAxisOrigin: '指定新的原点',
+    pointOnZAxis: '指定 Z 轴正方向上的点',
+    selectObject: '选择要对齐 UCS 的对象',
+    namedOption: '输入选项',
+    enterName: '输入要恢复的 UCS 名称或 [?]',
+    saveName: '输入用于保存当前 UCS 的名称',
+    deleteName: '输入要删除的 UCS 名称',
+    noPrevious: '当前会话中没有上一个 UCS。',
+    noNamed: '没有命名 UCS 定义。',
+    notFound: '未找到 UCS "{name}"。',
+    invalidName: '无效的 UCS 名称。',
+    invalidObject: '无法将 UCS 对齐到所选对象。',
+    keywords: {
+      named: {
+        display: '命名(A)',
+        local: '命名',
+        global: 'Named'
+      },
+      object: {
+        display: '对象(B)',
+        local: '对象',
+        global: 'Object'
+      },
+      previous: {
+        display: '上一个(P)',
+        local: '上一个',
+        global: 'Previous'
+      },
+      view: {
+        display: '视图(V)',
+        local: '视图',
+        global: 'View'
+      },
+      world: {
+        display: '世界(W)',
+        local: '世界',
+        global: 'World'
+      },
+      x: {
+        display: 'X',
+        local: 'X',
+        global: 'X'
+      },
+      y: {
+        display: 'Y',
+        local: 'Y',
+        global: 'Y'
+      },
+      z: {
+        display: 'Z',
+        local: 'Z',
+        global: 'Z'
+      },
+      zAxis: {
+        display: 'Z 轴(N)',
+        local: 'ZAxis',
+        global: 'ZAxis'
+      },
+      apply: {
+        display: '应用(L)',
+        local: '应用',
+        global: 'Apply'
+      },
+      restore: {
+        display: '恢复(R)',
+        local: '恢复',
+        global: 'Restore'
+      },
+      save: {
+        display: '保存(S)',
+        local: '保存',
+        global: 'Save'
+      },
+      delete: {
+        display: '删除(D)',
+        local: '删除',
+        global: 'Delete'
+      },
+      list: {
+        display: '?(?)',
+        local: '?',
+        global: '?'
+      }
+    }
+  },
+  group: {
+    selectOrOption: '选择对象或',
+    createOrOption: '创建编组或',
+    selectObjects: '选择编组对象',
+    enterName: '输入编组名称',
+    enterDescription: '输入编组说明',
+    invalidName: '无效的编组名称',
+    nameExists: '编组名称已存在',
+    created: '已创建编组 {name}',
+    keywords: {
+      name: {
+        display: '名称(N)',
+        local: '名称',
+        global: 'Name'
+      },
+      description: {
+        display: '说明(D)',
+        local: '说明',
+        global: 'Description'
+      }
+    }
+  },
+  ungroup: {
+    selectOrOption: '选择编组或',
+    selectGroup: '选择编组',
+    enterName: '输入编组名称',
+    notFound: '未找到编组',
+    notInGroup: '对象不是编组成员',
+    multiGroup: '对象属于多个编组 [{name}]',
+    exploded: '已分解编组 {name}',
+    explodedCount: '已分解 {count} 个编组',
+    keywords: {
+      name: {
+        display: '名称(N)',
+        local: '名称',
+        global: 'Name'
+      },
+      all: {
+        display: '全部(A)',
+        local: '全部',
+        global: 'All'
+      },
+      accept: {
+        display: '接受(A)',
+        local: '接受',
+        global: 'Accept'
+      },
+      next: {
+        display: '下一个(N)',
+        local: '下一个',
+        global: 'Next'
+      }
+    }
+  },
+  groupedit: {
+    selectGroup: '选择一个编组',
+    enterName: '输入编组名称',
+    notFound: '未找到编组',
+    multiGroup: '对象属于多个编组 [{name}]',
+    action: '为编组 {name} 输入选项',
+    selectToAdd: '选择要添加到编组的对象',
+    selectToRemove: '选择要从编组中删除的对象',
+    newName: '输入新的编组名称',
+    keywords: {
+      add: {
+        display: '添加对象(A)',
+        local: '添加',
+        global: 'Add'
+      },
+      remove: {
+        display: '删除对象(R)',
+        local: '删除',
+        global: 'Remove'
+      },
+      rename: {
+        display: '重命名(N)',
+        local: '重命名',
+        global: 'Rename'
+      },
+      accept: {
+        display: '接受(A)',
+        local: '接受',
+        global: 'Accept'
+      },
+      next: {
+        display: '下一个(N)',
+        local: '下一个',
+        global: 'Next'
+      }
+    }
+  },
+  dashgroup: {
+    option: '输入选项',
+    empty: '未定义编组',
+    listEntry: '{name}  {description}  [{selectable}]  ({count})',
+    yes: '是',
+    no: '否',
+    enterNameOrBlank: '输入编组名称，或按 Enter 创建未命名编组',
+    enterGroupName: '输入编组名称',
+    selectableSet: '编组 {name} 可选择 = {value}',
+    orderOption: '输入重排选项',
+    fromPosition: '输入要重排对象的位置编号（从 0 开始）',
+    toPosition: '输入对象的新位置编号（从 0 开始）',
+    keywords: {
+      list: {
+        display: '?(?)',
+        local: '?',
+        global: '?'
+      },
+      create: {
+        display: '创建(C)',
+        local: '创建',
+        global: 'Create'
+      },
+      add: {
+        display: '添加(A)',
+        local: '添加',
+        global: 'Add'
+      },
+      remove: {
+        display: '删除(R)',
+        local: '删除',
+        global: 'Remove'
+      },
+      explode: {
+        display: '分解(X)',
+        local: '分解',
+        global: 'Explode'
+      },
+      rename: {
+        display: '重命名(N)',
+        local: '重命名',
+        global: 'Rename'
+      },
+      selectable: {
+        display: '可选择(S)',
+        local: '可选择',
+        global: 'Selectable'
+      },
+      order: {
+        display: '重排(O)',
+        local: '重排',
+        global: 'Order'
+      },
+      reverse: {
+        display: '反向(R)',
+        local: '反向',
+        global: 'Reverse'
+      },
+      position: {
+        display: '位置(P)',
+        local: '位置',
+        global: 'Position'
+      }
+    }
+  },
+  ipdf: {
+    pageNumber: '输入页码 (1-{count})',
+    insertionPoint:
+      '指定插入点（比例 {scale}，模式 {mode}）或',
+    modePrompt: '选择导入方式',
+    modeRecover: '复原图纸',
+    modeVisual: '保留 PDF 视觉效果',
+    scaleFactor: '输入比例因子',
+    keywords: {
+      scale: {
+        display: '比例(S)',
+        local: '比例',
+        global: 'Scale'
+      },
+      mode: {
+        display: '模式(M)',
+        local: '模式',
+        global: 'Mode'
+      },
+      recover: {
+        display: '复原(R)',
+        local: '复原',
+        global: 'Recover'
+      },
+      visual: {
+        display: '视觉(V)',
+        local: '视觉',
+        global: 'Visual'
+      }
+    }
+  },
+  pdfdim: {
+    noDimensions: '所选范围内没有找到标注（需要箭头或斜线标记、尺寸线和数值文字）。',
+    convertAll: '找到 {count} 个标注（图纸比例 1:{scale}）。是否转换？',
+    convertOne: '标注 {index}/{count}“{text}”：是否转换？',
+    summary: '已转换 {count} 个标注；标注样式 PDF_DIM 的测量比例因子为 {scale}。'
+  },
+  bsearch: {
+    unsupported: '所选对象均无法匹配（支持直线、圆弧、圆、多段线、椭圆、样条曲线、文字、多行文字和块参照）。',
+    skipped: '{count} 个所选对象无法匹配，已忽略。',
+    found: '找到 {count} 个匹配实例，将转换 {included} 个。请选择',
+    noMatches: '未找到其他实例。',
+    reviewOne: '实例 {index}/{count}（{state}）',
+    included: '已包含',
+    excluded: '已排除',
+    options: '旋转 {rotation}，镜像 {mirror}，比例 {scale}，相同图层 {layer}，现有块 {blocks}，文字变化 {text}。切换',
+    on: '开',
+    off: '关',
+    target: '转换为',
+    name: '输入新块名',
+    nameExists: '名为“{name}”的块已存在。',
+    nameInvalid: '“{name}”不是有效的块名。',
+    basePoint: '指定插入点',
+    attributeTag: '输入文字“{text}”的属性标记',
+    existingName: '输入现有块名',
+    blockNotFound: '未找到块“{name}”。',
+    rotation: '指定块的旋转角度',
+    scale: '指定块的比例因子',
+    scope: '同时转换找到的 {count} 个实例，还是只转换源对象？',
+    summary: '已转换为块“{name}”：{count} 个参照。',
+    keywords: {
+      convert: {
+        display: '转换(C)',
+        local: '转换',
+        global: 'Convert'
+      },
+      review: {
+        display: '查看(R)',
+        local: '查看',
+        global: 'Review'
+      },
+      options: {
+        display: '选项(O)',
+        local: '选项',
+        global: 'Options'
+      },
+      exit: {
+        display: '退出(X)',
+        local: '退出',
+        global: 'eXit'
+      },
+      include: {
+        display: '包含(I)',
+        local: '包含',
+        global: 'Include'
+      },
+      exclude: {
+        display: '排除(E)',
+        local: '排除',
+        global: 'Exclude'
+      },
+      next: {
+        display: '下一个(N)',
+        local: '下一个',
+        global: 'Next'
+      },
+      previous: {
+        display: '上一个(P)',
+        local: '上一个',
+        global: 'Previous'
+      },
+      done: {
+        display: '完成(D)',
+        local: '完成',
+        global: 'Done'
+      },
+      rotation: {
+        display: '旋转(R)',
+        local: '旋转',
+        global: 'Rotation'
+      },
+      mirror: {
+        display: '镜像(M)',
+        local: '镜像',
+        global: 'Mirror'
+      },
+      scale: {
+        display: '比例(S)',
+        local: '比例',
+        global: 'Scale'
+      },
+      layer: {
+        display: '图层(L)',
+        local: '图层',
+        global: 'Layer'
+      },
+      blocks: {
+        display: '块(B)',
+        local: '块',
+        global: 'Blocks'
+      },
+      text: {
+        display: '文字(T)',
+        local: '文字',
+        global: 'Text'
+      },
+      new: {
+        display: '新建(N)',
+        local: '新建',
+        global: 'New'
+      },
+      existing: {
+        display: '现有(E)',
+        local: '现有',
+        global: 'Existing'
+      },
+      instances: {
+        display: '实例(I)',
+        local: '实例',
+        global: 'Instances'
+      },
+      source: {
+        display: '源对象(S)',
+        local: '源对象',
+        global: 'Source'
+      }
+    }
+  },
+  pdfblock: {
+    keywords: {
+      yes: {
+        display: '是(Y)',
+        local: '是',
+        global: 'Yes'
+      },
+      no: {
+        display: '否(N)',
+        local: '否',
+        global: 'No'
+      },
+      review: {
+        display: '逐个确认(R)',
+        local: '逐个确认',
+        global: 'Review'
+      },
+      all: {
+        display: '全部(A)',
+        local: '全部',
+        global: 'All'
+      },
+      exit: {
+        display: '退出(X)',
+        local: '退出',
+        global: 'eXit'
+      }
+    }
+  },
+  pdftext: {
+    enterText:
+      '文字行 {index}/{count}：输入高亮部分的文字（留空跳过，Esc 结束）',
+    enterTextWithSuggestion:
+      '文字行 {index}/{count}：输入高亮部分的文字',
+    noCandidates: '所选对象中没有找到类似文字的笔画。',
+    summary:
+      '已转换 {converted} 行文字，其中 {automatic} 行自动识别；跳过 {skipped} 行。'
+  },
+  pdfscale: {
+    firstPoint: '指定已知距离的第一点',
+    secondPoint: '指定第二点',
+    realLength: '输入实际长度（测量值 {measured}）',
+    realLengthFromDimensions: '输入实际长度（测量值 {measured}；标注文字显示比例为 1:{scale}）',
+    zeroDistance: '两点重合。',
+    applied: '已按比例 {factor} 缩放 {count} 个对象。'
   }
 }

@@ -1,5 +1,3 @@
-import enJig from '../en/jig'
-
 export default {
   arc: {
     startPointOrCenter: 'Yayın başlangıç noktasını belirtin veya',
@@ -131,19 +129,231 @@ export default {
     }
   },
   dimlinear: {
-    ...enJig.dimlinear,
     xLine1Point: 'İlk uzatma çizgisinin başlangıç noktasını belirtin',
     xLine2Point: 'İkinci uzatma çizgisinin başlangıç noktasını belirtin',
-    dimLinePoint: 'Ölçü çizgisi konumunu belirtin'
+    dimLinePoint: 'Ölçü çizgisi konumunu belirtin',
+    selectObject: 'Ölçülendirilecek nesneyi seçin',
+    rejectObject: 'Nesne DIMLINEAR ile ölçülendirilemez.',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    rotationAngle: 'Ölçü çizgisinin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      },
+      horizontal: {
+        display: 'Yatay(H)',
+        local: 'Yatay',
+        global: 'Horizontal'
+      },
+      vertical: {
+        display: 'Düşey(V)',
+        local: 'Düşey',
+        global: 'Vertical'
+      },
+      rotated: {
+        display: 'Döndürülmüş(R)',
+        local: 'Döndürülmüş',
+        global: 'Rotated'
+      }
+    }
   },
-  dimaligned: { ...enJig.dimaligned },
-  dimradius: { ...enJig.dimradius },
-  dimdiameter: { ...enJig.dimdiameter },
-  dimangular: { ...enJig.dimangular },
-  dimarc: { ...enJig.dimarc },
-  dimordinate: { ...enJig.dimordinate },
-  dimcontinue: { ...enJig.dimcontinue },
-  dimbaseline: { ...enJig.dimbaseline },
+  dimaligned: {
+    xLine1Point: 'Birinci uzatma çizgisi orijinini belirtin veya <nesne seç>',
+    xLine2Point: 'İkinci uzatma çizgisi orijinini belirtin',
+    dimLinePoint: 'Ölçü çizgisi konumunu belirtin',
+    selectObject: 'Ölçülendirilecek nesneyi seçin',
+    rejectObject: 'Nesne DIMALIGNED ile ölçülendirilemez.',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      }
+    }
+  },
+  dimradius: {
+    selectObject: 'Yay veya daire seçin',
+    rejectObject: 'Bir yay veya daire seçilmelidir.',
+    dimLinePoint: 'Ölçü çizgisi konumunu belirtin',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      }
+    }
+  },
+  dimdiameter: {
+    selectObject: 'Yay veya daire seçin',
+    rejectObject: 'Bir yay veya daire seçilmelidir.',
+    dimLinePoint: 'Ölçü çizgisi konumunu belirtin',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      }
+    }
+  },
+  dimangular: {
+    vertexOrSelect: 'Açı köşesini belirtin veya <çizgi seç>',
+    xLine1Point: 'Birinci açı uç noktasını belirtin',
+    xLine2Point: 'İkinci açı uç noktasını belirtin',
+    arcPoint: 'Ölçü yayı çizgisi konumunu belirtin',
+    selectFirstLine: 'Birinci çizgiyi seçin',
+    selectSecondLine: 'İkinci çizgiyi seçin',
+    rejectObject: 'Bir çizgi seçilmelidir.',
+    linesParallel: 'Çizgiler paralel — açı kesişimi yok.',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      }
+    }
+  },
+  dimarc: {
+    selectArc: 'Yay seçin',
+    rejectObject: 'Bir yay seçilmelidir.',
+    arcPoint: 'Yay uzunluğu ölçüsünün konumunu belirtin',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      }
+    }
+  },
+  dimordinate: {
+    featurePoint: 'Öğe konumunu belirtin',
+    leaderEndpoint: 'Kılavuz uç noktasını belirtin',
+    dimensionText: 'Ölçü metnini girin',
+    textAngle: 'Ölçü metninin açısını belirtin',
+    keywords: {
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      },
+      xdatum: {
+        display: 'X referansı(X)',
+        local: 'X referansı',
+        global: 'Xdatum'
+      },
+      ydatum: {
+        display: 'Y referansı(Y)',
+        local: 'Y referansı',
+        global: 'Ydatum'
+      }
+    }
+  },
+  dimcontinue: {
+    nextPoint: 'İkinci uzatma çizgisi orijinini belirtin veya',
+    selectDimension: 'Devam edilecek ölçüyü seçin',
+    rejectObject: 'Doğrusal veya açısal bir ölçü seçilmelidir.',
+    keywords: {
+      select: {
+        display: 'Seç(S)',
+        local: 'Seç',
+        global: 'Select'
+      }
+    }
+  },
+  dimbaseline: {
+    nextPoint: 'İkinci uzatma çizgisi orijinini belirtin veya',
+    selectDimension: 'Taban ölçüyü seçin',
+    rejectObject: 'Doğrusal veya açısal bir ölçü seçilmelidir.',
+    keywords: {
+      select: {
+        display: 'Seç(S)',
+        local: 'Seç',
+        global: 'Select'
+      }
+    }
+  },
   ellipse: {
     axisEndpointOrOptions: 'Elipsin eksen uç noktasını belirtin veya',
     arcAxisEndpointOrCenter: 'Eliptik yayın eksen uç noktasını belirtin veya',
@@ -779,6 +989,204 @@ export default {
     invalidSelection: 'Seçilen nesne ötelenemez.',
     offsetFailed: 'Belirtilen taraf için bir öteleme eğrisi oluşturulamadı.'
   },
+  leader: {
+    startPoint: 'Kılavuz başlangıç noktasını belirtin',
+    nextPoint: 'Sonraki noktayı belirtin',
+    nextPointOrOptions:
+      'Sonraki noktayı belirtin veya [Açıklama/Biçim/Geri al]',
+    formatPrompt: 'Kılavuz biçimi seçeneğini girin [Spline/Düz/Ok/Hiçbiri]',
+    annotationText: 'Açıklama metninin ilk satırını girin veya <seçenekler>',
+    nextAnnotationLine: 'Açıklama metninin sonraki satırını girin',
+    annotationOptions:
+      'Bir açıklama seçeneği girin [Tolerans/Kopyala/Blok/Hiçbiri/Çok satırlı metin]',
+    selectAnnotation: 'Kopyalanacak bir açıklama nesnesi seçin',
+    rejectAnnotation: 'Nesne kılavuz açıklaması olarak kullanılamaz.',
+    toleranceUnavailable:
+      'Geometrik Tolerans iletişim kutusu bu derlemede kullanılamıyor.',
+    keywords: {
+      annotation: {
+        display: 'Açıklama(A)',
+        local: 'Açıklama',
+        global: 'Annotation'
+      },
+      format: {
+        display: 'Biçim(F)',
+        local: 'Biçim',
+        global: 'Format'
+      },
+      undo: {
+        display: 'Geri al(U)',
+        local: 'Geri al',
+        global: 'Undo'
+      },
+      spline: {
+        display: 'Spline(S)',
+        local: 'Spline',
+        global: 'Spline'
+      },
+      straight: {
+        display: 'Düz(T)',
+        local: 'Düz',
+        global: 'STraight'
+      },
+      arrow: {
+        display: 'Ok(A)',
+        local: 'Ok',
+        global: 'Arrow'
+      },
+      none: {
+        display: 'Hiçbiri(N)',
+        local: 'Hiçbiri',
+        global: 'None'
+      },
+      tolerance: {
+        display: 'Tolerans',
+        local: 'Tolerans',
+        global: 'Tolerance'
+      },
+      copy: {
+        display: 'Kopyala(C)',
+        local: 'Kopyala',
+        global: 'Copy'
+      },
+      block: {
+        display: 'Blok(B)',
+        local: 'Blok',
+        global: 'Block'
+      },
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      }
+    }
+  },
+  mleader: {
+    arrowheadOrOptions:
+      'Kılavuz ok ucu konumunu belirtin veya [önce kılavuz İnişi/önce İçerik/Seçenekler]',
+    landingLocation: 'Kılavuz iniş konumunu belirtin',
+    landingFirstPoint: 'Kılavuz iniş konumunu belirtin',
+    arrowheadLocation: 'Kılavuz ok ucu konumunu belirtin',
+    contentLocation: 'İçerik konumunu belirtin',
+    nextPoint: 'Sonraki noktayı belirtin',
+    optionsPrompt:
+      'Bir seçenek girin [Kılavuz türü/iniş/İçerik türü/Maks. nokta/Birinci açı/İkinci açı/seçeneklerden Çık]',
+    leaderTypePrompt: 'Bir kılavuz türü seçin [Düz/Spline/Hiçbiri]',
+    landingPrompt: 'İniş kullanılsın mı [Evet/Hayır]',
+    landingLength: 'İniş mesafesini belirtin',
+    contentTypePrompt: 'Bir içerik türü seçin [Blok/Çok satırlı metin/Hiçbiri]',
+    maxPoints: 'Kılavuz çizgisi için maksimum nokta sayısını girin',
+    firstAngle: 'Birinci açı kısıtlamasını girin',
+    secondAngle: 'İkinci açı kısıtlamasını girin',
+    keywords: {
+      landingFirst: {
+        display: 'Önce iniş(L)',
+        local: 'Önce iniş',
+        global: 'Landing first'
+      },
+      contentFirst: {
+        display: 'Önce içerik(C)',
+        local: 'Önce içerik',
+        global: 'Content first'
+      },
+      options: {
+        display: 'Seçenekler(O)',
+        local: 'Seçenekler',
+        global: 'Options'
+      },
+      leaderType: {
+        display: 'Kılavuz türü(T)',
+        local: 'Kılavuz türü',
+        global: 'Leader type'
+      },
+      landing: {
+        display: 'İniş(A)',
+        local: 'İniş',
+        global: 'lAnding'
+      },
+      contentType: {
+        display: 'İçerik türü(C)',
+        local: 'İçerik türü',
+        global: 'Content type'
+      },
+      maxpoints: {
+        display: 'Maks. nokta(M)',
+        local: 'Maks. nokta',
+        global: 'Maxpoints'
+      },
+      firstAngle: {
+        display: 'Birinci açı(F)',
+        local: 'Birinci açı',
+        global: 'First angle'
+      },
+      secondAngle: {
+        display: 'İkinci açı(S)',
+        local: 'İkinci açı',
+        global: 'Second angle'
+      },
+      exitOptions: {
+        display: 'Seçeneklerden çık(X)',
+        local: 'Seçeneklerden çık',
+        global: 'eXit options'
+      },
+      straight: {
+        display: 'Düz(S)',
+        local: 'Düz',
+        global: 'Straight'
+      },
+      spline: {
+        display: 'Spline(P)',
+        local: 'Spline',
+        global: 'sPline'
+      },
+      noneLeader: {
+        display: 'Hiçbiri(N)',
+        local: 'Hiçbiri',
+        global: 'None'
+      },
+      yes: {
+        display: 'Evet(Y)',
+        local: 'Evet',
+        global: 'Yes'
+      },
+      no: {
+        display: 'Hayır(N)',
+        local: 'Hayır',
+        global: 'No'
+      },
+      block: {
+        display: 'Blok(B)',
+        local: 'Blok',
+        global: 'Block'
+      },
+      mtext: {
+        display: 'Çok satırlı metin(M)',
+        local: 'Çok satırlı metin',
+        global: 'Mtext'
+      },
+      none: {
+        display: 'Hiçbiri(N)',
+        local: 'Hiçbiri',
+        global: 'None'
+      }
+    }
+  },
+  mleaderedit: {
+    selectMLeader: 'Bir çoklu kılavuz seçin',
+    rejectMLeader: 'Bir çoklu kılavuz seçilmelidir.',
+    arrowheadOrRemove:
+      'Kılavuz ok ucu konumunu belirtin veya [Kılavuzları kaldır]',
+    selectLeaderToRemove:
+      'Kaldırılacak bir kılavuz belirtin veya bitirmek için Enter\'a basın',
+    cannotRemoveLast: 'Bu çoklu kılavuzdan son kılavuz kaldırılamaz.',
+    keywords: {
+      remove: {
+        display: 'Kılavuzları kaldır(R)',
+        local: 'Kaldır',
+        global: 'Remove'
+      }
+    }
+  },
   mtext: {
     point: 'Çok satırlı metin ekleme noktasını belirtin'
   },
@@ -1105,8 +1513,8 @@ export default {
         global: 'Increment'
       },
       tolerance: {
-        display: 'toLerance(L)',
-        local: 'toLerance',
+        display: 'Tolerans(L)',
+        local: 'Tolerans',
         global: 'Tolerance'
       },
       line: {
@@ -1188,8 +1596,35 @@ export default {
       }
     }
   },
+  objectscale: {
+    action: 'Bir seçenek girin',
+    scaleName: 'Açıklama ölçeği adını girin',
+    done: 'Güncellenen nesneler',
+    none: '(yok)',
+    keywords: {
+      add: {
+        display: 'Ekle(A)',
+        local: 'Ekle',
+        global: 'Add'
+      },
+      delete: {
+        display: 'Sil(D)',
+        local: 'Sil',
+        global: 'Delete'
+      },
+      list: {
+        display: 'Listele(L)',
+        local: 'Listele',
+        global: 'List'
+      }
+    }
+  },
   sysvar: {
     prompt: 'Lütfen yeni değeri girin'
+  },
+  view: {
+    enterName: 'Geri yüklenecek görünümün adını girin',
+    notFound: '"{name}" görünümü bulunamadı.'
   },
   zoom: {
     mainPrompt: 'Pencerenin köşesini belirtin veya',
@@ -1360,5 +1795,464 @@ export default {
         global: 'Monochrome'
       }
     }
+  },
+  ucs: {
+    originOrOptions: 'UCS orijinini belirtin veya',
+    pointOnXAxis: 'X ekseni üzerinde nokta belirtin veya',
+    pointOnXyPlane: 'XY düzlemi üzerinde nokta belirtin veya',
+    rotationAngle: '{axis} ekseni etrafındaki döndürme açısını belirtin',
+    zAxisOrigin: 'Yeni orijin noktasını belirtin',
+    pointOnZAxis: 'Z ekseninin pozitif kısmında nokta belirtin',
+    selectObject: 'UCS\'nin hizalanacağı nesneyi seçin',
+    namedOption: 'Bir seçenek girin',
+    enterName: 'Geri yüklenecek UCS\'nin adını girin veya [?]',
+    saveName: 'Geçerli UCS\'yi kaydetmek için ad girin',
+    deleteName: 'Silinecek UCS ad(lar)ını girin',
+    noPrevious: 'Bu oturumda önceki UCS yok.',
+    noNamed: 'Adlı UCS tanımı yok.',
+    notFound: '"{name}" UCS\'si bulunamadı.',
+    invalidName: 'Geçersiz UCS adı.',
+    invalidObject: 'UCS seçilen nesneye hizalanamıyor.',
+    keywords: {
+      named: {
+        display: 'Adlı(A)',
+        local: 'Adlı',
+        global: 'Named'
+      },
+      object: {
+        display: 'Nesne(B)',
+        local: 'Nesne',
+        global: 'Object'
+      },
+      previous: {
+        display: 'Önceki(P)',
+        local: 'Önceki',
+        global: 'Previous'
+      },
+      view: {
+        display: 'Görünüm(V)',
+        local: 'Görünüm',
+        global: 'View'
+      },
+      world: {
+        display: 'Dünya(W)',
+        local: 'Dünya',
+        global: 'World'
+      },
+      x: {
+        display: 'X',
+        local: 'X',
+        global: 'X'
+      },
+      y: {
+        display: 'Y',
+        local: 'Y',
+        global: 'Y'
+      },
+      z: {
+        display: 'Z',
+        local: 'Z',
+        global: 'Z'
+      },
+      zAxis: {
+        display: 'Z Ekseni(N)',
+        local: 'Z Ekseni',
+        global: 'ZAxis'
+      },
+      apply: {
+        display: 'Uygula(L)',
+        local: 'Uygula',
+        global: 'Apply'
+      },
+      restore: {
+        display: 'Geri yükle(R)',
+        local: 'Geri yükle',
+        global: 'Restore'
+      },
+      save: {
+        display: 'Kaydet(S)',
+        local: 'Kaydet',
+        global: 'Save'
+      },
+      delete: {
+        display: 'Sil(D)',
+        local: 'Sil',
+        global: 'Delete'
+      },
+      list: {
+        display: '?(?)',
+        local: '?',
+        global: '?'
+      }
+    }
+  },
+  group: {
+    selectOrOption: 'Nesneleri seçin veya',
+    createOrOption: 'Grup oluştur veya',
+    selectObjects: 'Grup için nesneleri seçin',
+    enterName: 'Grup adını girin',
+    enterDescription: 'Grup açıklamasını girin',
+    invalidName: 'Geçersiz grup adı',
+    nameExists: 'Grup adı zaten var',
+    created: 'Grup {name} oluşturuldu',
+    keywords: {
+      name: {
+        display: 'Ad(N)',
+        local: 'Ad',
+        global: 'Name'
+      },
+      description: {
+        display: 'Açıklama(D)',
+        local: 'Açıklama',
+        global: 'Description'
+      }
+    }
+  },
+  ungroup: {
+    selectOrOption: 'Grup seçin veya',
+    selectGroup: 'Grup seçin',
+    enterName: 'Grup adını girin',
+    notFound: 'Grup bulunamadı',
+    notInGroup: 'Nesne bir grubun üyesi değil',
+    multiGroup: 'Nesne birden fazla grubun üyesi [{name}]',
+    exploded: 'Grup {name} patlatıldı',
+    explodedCount: '{count} grup patlatıldı',
+    keywords: {
+      name: {
+        display: 'Ad(N)',
+        local: 'Ad',
+        global: 'Name'
+      },
+      all: {
+        display: 'Tümü(A)',
+        local: 'Tümü',
+        global: 'All'
+      },
+      accept: {
+        display: 'Kabul(A)',
+        local: 'Kabul',
+        global: 'Accept'
+      },
+      next: {
+        display: 'Sonraki(N)',
+        local: 'Sonraki',
+        global: 'Next'
+      }
+    }
+  },
+  groupedit: {
+    selectGroup: 'Bir grup seçin',
+    enterName: 'Grup adını girin',
+    notFound: 'Grup bulunamadı',
+    multiGroup: 'Nesne birden fazla grubun üyesi [{name}]',
+    action: '{name} grubu için bir seçenek girin',
+    selectToAdd: 'Gruba eklenecek nesneleri seçin',
+    selectToRemove: 'Gruptan kaldırılacak nesneleri seçin',
+    newName: 'Yeni grup adını girin',
+    keywords: {
+      add: {
+        display: 'Nesne ekle(A)',
+        local: 'Ekle',
+        global: 'Add'
+      },
+      remove: {
+        display: 'Nesne kaldır(R)',
+        local: 'Kaldır',
+        global: 'Remove'
+      },
+      rename: {
+        display: 'Yeniden adlandır(N)',
+        local: 'Yeniden adlandır',
+        global: 'Rename'
+      },
+      accept: {
+        display: 'Kabul(A)',
+        local: 'Kabul',
+        global: 'Accept'
+      },
+      next: {
+        display: 'Sonraki(N)',
+        local: 'Sonraki',
+        global: 'Next'
+      }
+    }
+  },
+  dashgroup: {
+    option: 'Bir seçenek girin',
+    empty: 'Tanımlı grup yok',
+    listEntry: '{name}  {description}  [{selectable}]  ({count})',
+    yes: 'Evet',
+    no: 'Hayır',
+    enterNameOrBlank: 'Grup adını girin veya adsız için Enter tuşuna basın',
+    enterGroupName: 'Grup adını girin',
+    selectableSet: 'Grup {name} seçilebilir = {value}',
+    orderOption: 'Sıralama seçeneğini girin',
+    fromPosition:
+      'Yeniden sıralanacak nesnenin konum numarasını girin (0 tabanlı)',
+    toPosition: 'Nesne için yeni konum numarasını girin (0 tabanlı)',
+    keywords: {
+      list: {
+        display: '?(?)',
+        local: '?',
+        global: '?'
+      },
+      create: {
+        display: 'Oluştur(C)',
+        local: 'Oluştur',
+        global: 'Create'
+      },
+      add: {
+        display: 'Ekle(A)',
+        local: 'Ekle',
+        global: 'Add'
+      },
+      remove: {
+        display: 'Kaldır(R)',
+        local: 'Kaldır',
+        global: 'Remove'
+      },
+      explode: {
+        display: 'Patlat(X)',
+        local: 'Patlat',
+        global: 'Explode'
+      },
+      rename: {
+        display: 'Yeniden adlandır(N)',
+        local: 'Yeniden adlandır',
+        global: 'Rename'
+      },
+      selectable: {
+        display: 'Seçilebilir(S)',
+        local: 'Seçilebilir',
+        global: 'Selectable'
+      },
+      order: {
+        display: 'Sıra(O)',
+        local: 'Sıra',
+        global: 'Order'
+      },
+      reverse: {
+        display: 'Ters(R)',
+        local: 'Ters',
+        global: 'Reverse'
+      },
+      position: {
+        display: 'Konum(P)',
+        local: 'Konum',
+        global: 'Position'
+      }
+    }
+  },
+  ipdf: {
+    pageNumber: 'Sayfa numarasını girin (1-{count})',
+    insertionPoint:
+      'Ekleme noktasını belirtin (ölçek {scale}, mod {mode}) veya',
+    modePrompt: 'İçe aktarma yöntemini seçin',
+    modeRecover: 'çizimi kurtar',
+    modeVisual: 'PDF görünümünü koru',
+    scaleFactor: 'Ölçek faktörünü girin',
+    keywords: {
+      scale: {
+        display: 'Ölçek(S)',
+        local: 'Ölçek',
+        global: 'Scale'
+      },
+      mode: {
+        display: 'Mod(M)',
+        local: 'Mod',
+        global: 'Mode'
+      },
+      recover: {
+        display: 'Kurtar(R)',
+        local: 'Kurtar',
+        global: 'Recover'
+      },
+      visual: {
+        display: 'Görünüm(V)',
+        local: 'Görünüm',
+        global: 'Visual'
+      }
+    }
+  },
+  pdfdim: {
+    noDimensions:
+      'Seçimde ölçü bulunamadı (oklar veya işaretler, ölçü çizgileri ve değer metinleri gerekir).',
+    convertAll:
+      '{count} ölçü bulundu (çizim ölçeği 1:{scale}). Dönüştürülsün mü?',
+    convertOne: 'Ölçü {index}/{count} "{text}": dönüştürülsün mü?',
+    summary:
+      '{count} ölçü dönüştürüldü; PDF_DIM stili {scale} doğrusal ölçek faktörünü kullanır.'
+  },
+  bsearch: {
+    unsupported:
+      'Seçili nesnelerin hiçbiri eşleştirilemiyor (çizgi, yay, daire, çoklu çizgi, elips, spline, metin, çok satırlı metin ve blok referansları desteklenir).',
+    skipped: 'Seçili {count} nesne eşleştirilemiyor ve yok sayılıyor.',
+    found:
+      '{count} eşleşen örnek bulundu, {included} tanesi dönüştürülecek. Seçin',
+    noMatches: 'Başka örnek bulunamadı.',
+    reviewOne: 'Örnek {index}/{count} ({state})',
+    included: 'dahil',
+    excluded: 'hariç',
+    options:
+      'Döndürme {rotation}, ayna {mirror}, ölçek {scale}, aynı katman {layer}, mevcut bloklar {blocks}, metin farkları {text}. Değiştir',
+    on: 'açık',
+    off: 'kapalı',
+    target: 'Şuna dönüştür',
+    name: 'Yeni blok adını girin',
+    nameExists: '"{name}" adlı bir blok zaten var.',
+    nameInvalid: '"{name}" geçerli bir blok adı değil.',
+    basePoint: 'Ekleme noktasını belirtin',
+    attributeTag: '"{text}" metni için öznitelik etiketini girin',
+    existingName: 'Mevcut blok adını girin',
+    blockNotFound: '"{name}" bloğu bulunamadı.',
+    rotation: 'Bloğun döndürme açısını belirtin',
+    scale: 'Bloğun ölçek faktörünü belirtin',
+    scope:
+      'Bulunan {count} örnek de dönüştürülsün mü, yoksa yalnızca kaynak nesneler mi?',
+    summary: '"{name}" bloğuna dönüştürüldü: {count} referans.',
+    keywords: {
+      convert: {
+        display: 'Dönüştür(C)',
+        local: 'Dönüştür',
+        global: 'Convert'
+      },
+      review: {
+        display: 'İncele(R)',
+        local: 'İncele',
+        global: 'Review'
+      },
+      options: {
+        display: 'Seçenekler(O)',
+        local: 'Seçenekler',
+        global: 'Options'
+      },
+      exit: {
+        display: 'Çıkış(X)',
+        local: 'Çıkış',
+        global: 'eXit'
+      },
+      include: {
+        display: 'Dahil et(I)',
+        local: 'Dahil et',
+        global: 'Include'
+      },
+      exclude: {
+        display: 'Hariç tut(E)',
+        local: 'Hariç tut',
+        global: 'Exclude'
+      },
+      next: {
+        display: 'Sonraki(N)',
+        local: 'Sonraki',
+        global: 'Next'
+      },
+      previous: {
+        display: 'Önceki(P)',
+        local: 'Önceki',
+        global: 'Previous'
+      },
+      done: {
+        display: 'Bitti(D)',
+        local: 'Bitti',
+        global: 'Done'
+      },
+      rotation: {
+        display: 'Döndürme(R)',
+        local: 'Döndürme',
+        global: 'Rotation'
+      },
+      mirror: {
+        display: 'Ayna(M)',
+        local: 'Ayna',
+        global: 'Mirror'
+      },
+      scale: {
+        display: 'Ölçek(S)',
+        local: 'Ölçek',
+        global: 'Scale'
+      },
+      layer: {
+        display: 'Katman(L)',
+        local: 'Katman',
+        global: 'Layer'
+      },
+      blocks: {
+        display: 'Bloklar(B)',
+        local: 'Bloklar',
+        global: 'Blocks'
+      },
+      text: {
+        display: 'Metin(T)',
+        local: 'Metin',
+        global: 'Text'
+      },
+      new: {
+        display: 'Yeni(N)',
+        local: 'Yeni',
+        global: 'New'
+      },
+      existing: {
+        display: 'Mevcut(E)',
+        local: 'Mevcut',
+        global: 'Existing'
+      },
+      instances: {
+        display: 'Örnekler(I)',
+        local: 'Örnekler',
+        global: 'Instances'
+      },
+      source: {
+        display: 'Kaynak(S)',
+        local: 'Kaynak',
+        global: 'Source'
+      }
+    }
+  },
+  pdfblock: {
+    keywords: {
+      yes: {
+        display: 'Evet(Y)',
+        local: 'Evet',
+        global: 'Yes'
+      },
+      no: {
+        display: 'Hayır(N)',
+        local: 'Hayır',
+        global: 'No'
+      },
+      review: {
+        display: 'İncele(R)',
+        local: 'İncele',
+        global: 'Review'
+      },
+      all: {
+        display: 'Tümü(A)',
+        local: 'Tümü',
+        global: 'All'
+      },
+      exit: {
+        display: 'Çıkış(X)',
+        local: 'Çıkış',
+        global: 'eXit'
+      }
+    }
+  },
+  pdftext: {
+    enterText:
+      'Metin satırı {index}/{count}: vurgulanan metni girin (boş bırakmak atlar, Esc durdurur)',
+    enterTextWithSuggestion:
+      'Metin satırı {index}/{count}: vurgulanan metni girin',
+    noCandidates: 'Seçimde metne benzer çizgi bulunamadı.',
+    summary:
+      '{converted} metin satırı dönüştürüldü, {automatic} tanesi otomatik tanındı; {skipped} atlandı.'
+  },
+  pdfscale: {
+    firstPoint: 'Bilinen mesafenin ilk noktasını belirtin',
+    secondPoint: 'İkinci noktayı belirtin',
+    realLength: 'Gerçek uzunluğu girin (ölçülen {measured})',
+    realLengthFromDimensions:
+      'Gerçek uzunluğu girin (ölçülen {measured}; ölçü metinleri 1:{scale} gösteriyor)',
+    zeroDistance: 'İki nokta aynı.',
+    applied: '{count} nesne {factor} faktörüyle ölçeklendi.'
   }
 }

@@ -24,7 +24,7 @@ title: 스크립트 API
 
 ### 금지된 브라우저 API
 
-다음 내용은 스크립트 검증 단계에서 즉시 거부되며, `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` 오류를 발생시킵니다:
+다음 내용은 스크립트 검증 단계에서 즉시 거부되며, `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` 오류를 발생시킵니다. `{ window: count }` 같은 객체 속성 키는 허용되고, `window.foo` 같은 자유 식별자는 거부됩니다.
 
 - 페이지와 DOM: `window`, `document`, `globalThis`
 - 네트워크와 통신: `fetch`, `XMLHttpRequest`, `WebSocket`, `importScripts`
@@ -59,7 +59,15 @@ cad.log('레이어 총수:', info.layers.length)
 
 ## cad.entities
 
-데이터베이스의 모든 엔티티를 반환합니다. 모형 공간, 모든 도면 공간, 모든 블록 정의, 그리고 블록 참조의 속성이 포함됩니다. 속성의 `ownerId`는 블록 참조이고, 그 외 엔티티의 `ownerId`는 소속 블록 테이블 레코드입니다.
+`where` / `count` / `inBox`는 **모형 공간과 도면 공간만** 스캔합니다(블록 정의는 `inBlock(id)`). 블록 참조 속성의 `ownerId`는 참조 자체이고, 그 외는 소속 블록 테이블 레코드입니다. 블록 참조 `type`은 `BlockReference`입니다.
+
+### `cad.entities.count(predicate)`
+
+스냅샷 없이 일치 개수를 셉니다. 집계는 이것을 쓰세요(`where(pred).length`는 일치마다 스냅샷).
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
@@ -80,9 +88,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+한 블록 정의(또는 모형/도면 공간)에 직접 들어 있는 엔티티를 스냅샷합니다.
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-WCS 사각형 영역 내에 있는 모든 엔티티 스냅샷을 반환합니다.
+WCS 사각형과 교차하는 레이아웃 공간 스냅샷을 반환합니다(모형/도면만).
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -159,7 +176,7 @@ ByLayer / ByBlock 색상에는 RGB가 없습니다. 실제 색상이 필요하�
 
 ## cad.blocks
 
-DXF BLOCKS 섹션에 해당하는 모든 블록 정의입니다. `*Model_Space`와 `*Paper_Space`도 포함됩니다.
+DXF BLOCKS에 해당하는 **메타데이터만**입니다(`*Model_Space` / `*Paper_Space` 포함). 엔티티 배열은 없습니다 — `cad.entities.inBlock(id)`를 쓰세요.
 
 | 필드                            | 설명                                              |
 | ------------------------------- | ------------------------------------------------- |
@@ -169,7 +186,8 @@ DXF BLOCKS 섹션에 해당하는 모든 블록 정의입니다. `*Model_Space`�
 | `isModelSpace` / `isPaperSpace` | 모형 공간 / 도면 공간                             |
 | `flags`                         | BLOCK 그룹 코드 70                                |
 | `pathName` / `isXref`           | 외부 참조 경로와 여부                             |
-| `entities`                      | 그 블록에 직접 들어 있는 엔티티 스냅샷            |
+| `entityCount`                   | 엔티티 수(스냅샷 없음)                                 |
+| `typeCounts`                    | 유형별 개수(스냅샷 없음)                               |
 
 ## cad.selection
 
@@ -235,14 +253,20 @@ cad.selection.clear()
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
 도면 범위의 PNG 스크린샷을 대기열에 넣습니다. 캡처는 스크립트 본문이 끝난 뒤에 실행됩니다. 반환값은 `{ queued: true, index }` 입니다. Agent 채팅에서는 이미지가 도구 결과에 첨부되어 모델로 전달됩니다(JSON data URL로는 반환되지 않음).
+
+`cad.selection.replace(ids)` 이후 `selection: true`를 전달하면 현재 선택만 캡처합니다.
+
+`layers`(도면층 이름 또는 이름 배열, 대소문자 구분 없음)를 전달하면 모델 공간에서 해당 도면층의 객체만 렌더링하고, 도면 전체가 아니라 그 도면층들을 합친 범위로 프레이밍하므로 큰 여백이 생기지 않습니다. 도면층 켜기/끄기 상태는 무시됩니다. 존재하지 않는 도면층 이름은 오류를 발생시키며, `layers`는 `selection`과 함께 쓸 수 없습니다.
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // optional: cad.view.capturePreview({ longSide: 512 })
+// optional: cad.view.capturePreview({ selection: true })
+// optional: cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -342,6 +366,15 @@ cad.edit.transaction('일괄 수정', tx => {
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | 새 엔티티 ID |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | 새 엔티티 ID |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | 새 엔티티 ID |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | 점 `{x,y}`                       | 새 엔티티 ID |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | `rotationDeg` 생략 시 배치로 수평/수직 | 새 엔티티 ID |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | 중심+반지름 또는 현 점               | 새 엔티티 ID |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | 중심+반지름 또는 중심+현 점          | 새 엔티티 ID |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3점 각도                         | 새 엔티티 ID |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | 호 길이                          | 새 엔티티 ID |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | 좌표 치수                        | 새 엔티티 ID |
+
+치수는 `drawDim*`로 만드세요. 선·화살표·문자로 치수를 흉내 내지 마세요. 기본값은 도면 `$DIMSTYLE`이며, 재정의할 때는 `cad.tables.dimStyleTable`의 `styleName`을 넘깁니다.
 
 ### 편집 메서드
 

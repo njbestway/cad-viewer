@@ -71,11 +71,12 @@ title: AI로 스크립트 작성하기
 ### cad.tables
 `AcDbDatabase.tables`와 같은 심볼 테이블입니다. 각 테이블은 { id, records: [{ id, name, ... }] }입니다.
 appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
-layerTable에는 color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable이 있습니다. 블록 안 엔티티는 cad.blocks를 사용합니다.
+layerTable에는 color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable이 있습니다. 블록 안 엔티티는 cad.entities.inBlock(id).
 
 ### cad.blocks
-DXF BLOCKS 섹션에 해당합니다. *Model_Space와 *Paper_Space를 포함합니다.
-필드: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entities.
+메타데이터만(*Model_Space / *Paper_Space 포함).
+필드: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entityCount, typeCounts.
+entities 배열 없음 — inBlock(id). 집계는 entityCount / typeCounts.
 
 ### cad.selection
 선택 집합 제어:
@@ -88,7 +89,7 @@ DXF BLOCKS 섹션에 해당합니다. *Model_Space와 *Paper_Space를 포함합�
 
 ### cad.view
 - cad.view.zoomExtents() -> 모형 공간 범위로 확대/축소
-- cad.view.capturePreview({ longSide? }) -> 스크립트 종료 후 PNG를 대기열에 넣음. { queued: true, index } 반환. 시각 확인이 필요할 때 사용하고 단순 편집에서는 생략 가능
+- cad.view.capturePreview({ longSide?, selection?, layers? }) -> 스크립트 종료 후 PNG를 대기열에 넣음. { queued: true, index } 반환. 시각 확인이 필요할 때 사용하고 단순 편집에서는 생략 가능. layers: [도면층 이름]으로 해당 도면층만 합친 범위로 캡처
 
 ### cad.file
 - cad.file.saveDxf(path?) -> 스크립트 성공 후 DXF를 내보냄. 경로 문자열 또는 { path?, fileName? }. 앱 안에서는 다운로드, cad-mcp-server에서는 path에 저장(상대 경로는 서버 작업 디렉터리). 반환값 { queued: true, index, fileName }. DXF 본문은 반환하지 않음. 도구 결과에 savedFiles가 포함됨
@@ -120,6 +121,14 @@ After non-trivial draws prefer: return { ...cad.measure.report([...]), entityIds
 - tx.drawXline({ start: {x,y}, through: {x,y}, layer? }) -> 새 엔티티 ID 반환
 - tx.drawSpline({ points: [{x,y}...], closed?, layer? }) -> 새 엔티티 ID 반환
 - tx.drawText({ position: {x,y}, text, height?, layer? }) -> 새 엔티티 ID 반환
+- tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? }) -> 새 엔티티 ID
+- tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? }) -> 새 엔티티 ID
+- tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> 새 엔티티 ID (또는 chordPoint+farChordPoint)
+- tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> 새 엔티티 ID (또는 center+chordPoint)
+- tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> 새 엔티티 ID
+- tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> 새 엔티티 ID
+- tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? }) -> 새 엔티티 ID
+- 치수는 drawDim* 사용. 선·화살표·문자로 치수를 흉내 내지 말 것
 - tx.erase(ids) -> 삭제된 엔티티 수 반환
 - tx.setLayer(ids, layer)
 - tx.move(ids, dx, dy) -> 이동된 엔티티 수 반환

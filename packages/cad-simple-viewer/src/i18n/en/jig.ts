@@ -890,6 +890,159 @@ export default {
     invalidSelection: 'Selected object cannot be offset.',
     offsetFailed: 'Unable to create an offset curve for the specified side.'
   },
+  leader: {
+    startPoint: 'Specify leader start point',
+    nextPoint: 'Specify next point',
+    nextPointOrOptions:
+      'Specify next point or [Annotation/Format/Undo]',
+    formatPrompt: 'Enter leader format option [Spline/STraight/Arrow/None]',
+    annotationText: 'Enter first line of annotation text or <options>',
+    nextAnnotationLine: 'Enter next line of annotation text',
+    annotationOptions:
+      'Enter an annotation option [Tolerance/Copy/Block/None/Mtext]',
+    selectAnnotation: 'Select an annotation object to copy',
+    rejectAnnotation: 'Object cannot be used as a leader annotation.',
+    toleranceUnavailable:
+      'Geometric Tolerance dialog is not available in this build.',
+    keywords: {
+      annotation: {
+        display: 'Annotation(A)',
+        local: 'Annotation',
+        global: 'Annotation'
+      },
+      format: {
+        display: 'Format(F)',
+        local: 'Format',
+        global: 'Format'
+      },
+      undo: { display: 'Undo(U)', local: 'Undo', global: 'Undo' },
+      spline: {
+        display: 'Spline(S)',
+        local: 'Spline',
+        global: 'Spline'
+      },
+      straight: {
+        display: 'STraight(T)',
+        local: 'STraight',
+        global: 'STraight'
+      },
+      arrow: { display: 'Arrow(A)', local: 'Arrow', global: 'Arrow' },
+      none: { display: 'None(N)', local: 'None', global: 'None' },
+      tolerance: {
+        display: 'Tolerance',
+        local: 'Tolerance',
+        global: 'Tolerance'
+      },
+      copy: { display: 'Copy(C)', local: 'Copy', global: 'Copy' },
+      block: { display: 'Block(B)', local: 'Block', global: 'Block' },
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' }
+    }
+  },
+  mleader: {
+    arrowheadOrOptions:
+      'Specify leader arrowhead location or [leader Landing first/Content first/Options]',
+    landingLocation: 'Specify leader landing location',
+    landingFirstPoint: 'Specify leader landing location',
+    arrowheadLocation: 'Specify leader arrowhead location',
+    contentLocation: 'Specify content location',
+    nextPoint: 'Specify next point',
+    optionsPrompt:
+      'Enter an option [Leader type/landing/Content type/Maxpoints/First angle/Second angle/eXit options]',
+    leaderTypePrompt: 'Select a leader type [Straight/sPline/None]',
+    landingPrompt: 'Use landing [Yes/No]',
+    landingLength: 'Specify landing distance',
+    contentTypePrompt: 'Select a content type [Block/Mtext/None]',
+    maxPoints: 'Enter the maximum points for leader line',
+    firstAngle: 'Enter first angle constraint',
+    secondAngle: 'Enter second angle constraint',
+    keywords: {
+      landingFirst: {
+        display: 'Landing first(L)',
+        local: 'Landing first',
+        global: 'Landing first'
+      },
+      contentFirst: {
+        display: 'Content first(C)',
+        local: 'Content first',
+        global: 'Content first'
+      },
+      options: {
+        display: 'Options(O)',
+        local: 'Options',
+        global: 'Options'
+      },
+      leaderType: {
+        display: 'Leader type(T)',
+        local: 'Leader type',
+        global: 'Leader type'
+      },
+      landing: {
+        display: 'lAnding(A)',
+        local: 'lAnding',
+        global: 'lAnding'
+      },
+      contentType: {
+        display: 'Content type(C)',
+        local: 'Content type',
+        global: 'Content type'
+      },
+      maxpoints: {
+        display: 'Maxpoints(M)',
+        local: 'Maxpoints',
+        global: 'Maxpoints'
+      },
+      firstAngle: {
+        display: 'First angle(F)',
+        local: 'First angle',
+        global: 'First angle'
+      },
+      secondAngle: {
+        display: 'Second angle(S)',
+        local: 'Second angle',
+        global: 'Second angle'
+      },
+      exitOptions: {
+        display: 'eXit options(X)',
+        local: 'eXit options',
+        global: 'eXit options'
+      },
+      straight: {
+        display: 'Straight(S)',
+        local: 'Straight',
+        global: 'Straight'
+      },
+      spline: {
+        display: 'sPline(P)',
+        local: 'sPline',
+        global: 'sPline'
+      },
+      noneLeader: {
+        display: 'None(N)',
+        local: 'None',
+        global: 'None'
+      },
+      yes: { display: 'Yes(Y)', local: 'Yes', global: 'Yes' },
+      no: { display: 'No(N)', local: 'No', global: 'No' },
+      block: { display: 'Block(B)', local: 'Block', global: 'Block' },
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      none: { display: 'None(N)', local: 'None', global: 'None' }
+    }
+  },
+  mleaderedit: {
+    selectMLeader: 'Select a multileader',
+    rejectMLeader: 'Must select a multileader.',
+    arrowheadOrRemove:
+      'Specify leader arrowhead location or [Remove leaders]',
+    selectLeaderToRemove: 'Specify a leader to remove or press Enter to finish',
+    cannotRemoveLast: 'Cannot remove the last leader from this multileader.',
+    keywords: {
+      remove: {
+        display: 'Remove leaders(R)',
+        local: 'Remove',
+        global: 'Remove'
+      }
+    }
+  },
   mtext: {
     point: 'Specify mtext insertion point'
   },
@@ -1324,6 +1477,10 @@ export default {
   sysvar: {
     prompt: 'Please input new value'
   },
+  view: {
+    enterName: 'Enter view name to restore',
+    notFound: 'View "{name}" was not found.'
+  },
   zoom: {
     mainPrompt: 'Specify corner of window or',
     firstCorner: 'Specify first corner',
@@ -1493,5 +1650,460 @@ export default {
         global: 'Monochrome'
       }
     }
+  },
+  ucs: {
+    originOrOptions: 'Specify origin of UCS or',
+    pointOnXAxis: 'Specify point on X-axis or',
+    pointOnXyPlane: 'Specify point on XY plane or',
+    rotationAngle: 'Specify rotation angle about {axis} axis',
+    zAxisOrigin: 'Specify new origin point',
+    pointOnZAxis: 'Specify point on positive portion of Z-axis',
+    selectObject: 'Select object to align UCS',
+    namedOption: 'Enter an option',
+    enterName: 'Enter name of UCS to restore or [?]',
+    saveName: 'Enter name to save current UCS',
+    deleteName: 'Enter UCS name(s) to delete',
+    noPrevious: 'No previous UCS in this session.',
+    noNamed: 'No named UCS definitions.',
+    notFound: 'UCS "{name}" not found.',
+    invalidName: 'Invalid UCS name.',
+    invalidObject: 'Cannot align UCS to the selected object.',
+    keywords: {
+      named: {
+        display: 'NAmed(A)',
+        local: 'Named',
+        global: 'Named'
+      },
+      object: {
+        display: 'OBject(B)',
+        local: 'Object',
+        global: 'Object'
+      },
+      previous: {
+        display: 'Previous(P)',
+        local: 'Previous',
+        global: 'Previous'
+      },
+      view: {
+        display: 'View(V)',
+        local: 'View',
+        global: 'View'
+      },
+      world: {
+        display: 'World(W)',
+        local: 'World',
+        global: 'World'
+      },
+      x: {
+        display: 'X',
+        local: 'X',
+        global: 'X'
+      },
+      y: {
+        display: 'Y',
+        local: 'Y',
+        global: 'Y'
+      },
+      z: {
+        display: 'Z',
+        local: 'Z',
+        global: 'Z'
+      },
+      zAxis: {
+        display: 'ZAxis(N)',
+        local: 'ZAxis',
+        global: 'ZAxis'
+      },
+      apply: {
+        display: 'Apply(L)',
+        local: 'Apply',
+        global: 'Apply'
+      },
+      restore: {
+        display: 'Restore(R)',
+        local: 'Restore',
+        global: 'Restore'
+      },
+      save: {
+        display: 'Save(S)',
+        local: 'Save',
+        global: 'Save'
+      },
+      delete: {
+        display: 'Delete(D)',
+        local: 'Delete',
+        global: 'Delete'
+      },
+      list: {
+        display: '?(?)',
+        local: '?',
+        global: '?'
+      }
+    }
+  },
+  group: {
+    selectOrOption: 'Select objects or',
+    createOrOption: 'Create group or',
+    selectObjects: 'Select objects for group',
+    enterName: 'Enter group name',
+    enterDescription: 'Enter group description',
+    invalidName: 'Invalid group name',
+    nameExists: 'Group name already exists',
+    created: 'Group {name} created',
+    keywords: {
+      name: {
+        display: 'Name(N)',
+        local: 'Name',
+        global: 'Name'
+      },
+      description: {
+        display: 'Description(D)',
+        local: 'Description',
+        global: 'Description'
+      }
+    }
+  },
+  ungroup: {
+    selectOrOption: 'Select group or',
+    selectGroup: 'Select group',
+    enterName: 'Enter group name',
+    notFound: 'Group not found',
+    notInGroup: 'Object is not a member of a group',
+    multiGroup: 'Object is a member of more than one group [{name}]',
+    exploded: 'Group {name} exploded',
+    explodedCount: 'Exploded {count} group(s)',
+    keywords: {
+      name: {
+        display: 'Name(N)',
+        local: 'Name',
+        global: 'Name'
+      },
+      all: {
+        display: 'All(A)',
+        local: 'All',
+        global: 'All'
+      },
+      accept: {
+        display: 'Accept(A)',
+        local: 'Accept',
+        global: 'Accept'
+      },
+      next: {
+        display: 'Next(N)',
+        local: 'Next',
+        global: 'Next'
+      }
+    }
+  },
+  groupedit: {
+    selectGroup: 'Select a group',
+    enterName: 'Enter group name',
+    notFound: 'Group not found',
+    multiGroup: 'Object is a member of more than one group [{name}]',
+    action: 'Enter an option for group {name}',
+    selectToAdd: 'Select objects to add to group',
+    selectToRemove: 'Select objects to remove from group',
+    newName: 'Enter new group name',
+    keywords: {
+      add: {
+        display: 'Add objects(A)',
+        local: 'Add',
+        global: 'Add'
+      },
+      remove: {
+        display: 'Remove objects(R)',
+        local: 'Remove',
+        global: 'Remove'
+      },
+      rename: {
+        display: 'REName(N)',
+        local: 'Rename',
+        global: 'Rename'
+      },
+      accept: {
+        display: 'Accept(A)',
+        local: 'Accept',
+        global: 'Accept'
+      },
+      next: {
+        display: 'Next(N)',
+        local: 'Next',
+        global: 'Next'
+      }
+    }
+  },
+  dashgroup: {
+    option: 'Enter an option',
+    empty: 'No groups defined',
+    listEntry:
+      '{name}  {description}  [{selectable}]  ({count})',
+    yes: 'Yes',
+    no: 'No',
+    enterNameOrBlank: 'Enter group name or press Enter for unnamed',
+    enterGroupName: 'Enter group name',
+    selectableSet: 'Group {name} selectable = {value}',
+    orderOption: 'Enter order option',
+    fromPosition: 'Enter position number of object to reorder (0-based)',
+    toPosition: 'Enter new position number for object (0-based)',
+    keywords: {
+      list: {
+        display: '?(?)',
+        local: '?',
+        global: '?'
+      },
+      create: {
+        display: 'Create(C)',
+        local: 'Create',
+        global: 'Create'
+      },
+      add: {
+        display: 'Add(A)',
+        local: 'Add',
+        global: 'Add'
+      },
+      remove: {
+        display: 'Remove(R)',
+        local: 'Remove',
+        global: 'Remove'
+      },
+      explode: {
+        display: 'eXplode(X)',
+        local: 'Explode',
+        global: 'Explode'
+      },
+      rename: {
+        display: 'REName(N)',
+        local: 'Rename',
+        global: 'Rename'
+      },
+      selectable: {
+        display: 'Selectable(S)',
+        local: 'Selectable',
+        global: 'Selectable'
+      },
+      order: {
+        display: 'Order(O)',
+        local: 'Order',
+        global: 'Order'
+      },
+      reverse: {
+        display: 'Reverse(R)',
+        local: 'Reverse',
+        global: 'Reverse'
+      },
+      position: {
+        display: 'Position(P)',
+        local: 'Position',
+        global: 'Position'
+      }
+    }
+  },
+  ipdf: {
+    pageNumber: 'Enter page number (1-{count})',
+    insertionPoint:
+      'Specify insertion point (scale {scale}, mode {mode}) or',
+    modePrompt: 'Select import mode',
+    modeRecover: 'recover drawing',
+    modeVisual: 'keep PDF appearance',
+    scaleFactor: 'Enter scale factor',
+    keywords: {
+      scale: {
+        display: 'Scale(S)',
+        local: 'Scale',
+        global: 'Scale'
+      },
+      mode: {
+        display: 'Mode(M)',
+        local: 'Mode',
+        global: 'Mode'
+      },
+      recover: {
+        display: 'Recover(R)',
+        local: 'Recover',
+        global: 'Recover'
+      },
+      visual: {
+        display: 'Visual(V)',
+        local: 'Visual',
+        global: 'Visual'
+      }
+    }
+  },
+  pdfdim: {
+    noDimensions:
+      'No dimensions found in the selection (arrowheads or ticks, dimension lines and value texts are needed).',
+    convertAll:
+      'Found {count} dimensions (drawing scale 1:{scale}). Convert them?',
+    convertOne: 'Dimension {index}/{count} "{text}": convert?',
+    summary:
+      'Converted {count} dimension(s); style PDF_DIM uses a linear scale factor of {scale}.'
+  },
+  bsearch: {
+    unsupported: 'None of the selected objects can be matched (lines, arcs, circles, polylines, ellipses, splines, text, mtext and block references are supported).',
+    skipped: '{count} selected object(s) cannot be matched and are ignored.',
+    found: 'Found {count} matching instance(s), {included} to convert. Choose',
+    noMatches: 'No other instances found.',
+    reviewOne: 'Instance {index}/{count} ({state})',
+    included: 'included',
+    excluded: 'excluded',
+    options: 'Rotation {rotation}, mirror {mirror}, scale {scale}, same layer {layer}, existing blocks {blocks}, text variations {text}. Toggle',
+    on: 'on',
+    off: 'off',
+    target: 'Convert to',
+    name: 'Enter new block name',
+    nameExists: 'A block named "{name}" already exists.',
+    nameInvalid: '"{name}" is not a valid block name.',
+    basePoint: 'Specify insertion point',
+    attributeTag: 'Enter attribute tag for the text "{text}"',
+    existingName: 'Enter existing block name',
+    blockNotFound: 'Block "{name}" not found.',
+    rotation: 'Specify rotation angle of the block',
+    scale: 'Specify scale factor of the block',
+    scope: 'Convert the {count} found instance(s) as well, or only the source objects?',
+    summary: 'Converted into block "{name}": {count} reference(s).',
+    keywords: {
+      convert: {
+        display: 'Convert(C)',
+        local: 'Convert',
+        global: 'Convert'
+      },
+      review: {
+        display: 'Review(R)',
+        local: 'Review',
+        global: 'Review'
+      },
+      options: {
+        display: 'Options(O)',
+        local: 'Options',
+        global: 'Options'
+      },
+      exit: {
+        display: 'eXit(X)',
+        local: 'eXit',
+        global: 'eXit'
+      },
+      include: {
+        display: 'Include(I)',
+        local: 'Include',
+        global: 'Include'
+      },
+      exclude: {
+        display: 'Exclude(E)',
+        local: 'Exclude',
+        global: 'Exclude'
+      },
+      next: {
+        display: 'Next(N)',
+        local: 'Next',
+        global: 'Next'
+      },
+      previous: {
+        display: 'Previous(P)',
+        local: 'Previous',
+        global: 'Previous'
+      },
+      done: {
+        display: 'Done(D)',
+        local: 'Done',
+        global: 'Done'
+      },
+      rotation: {
+        display: 'Rotation(R)',
+        local: 'Rotation',
+        global: 'Rotation'
+      },
+      mirror: {
+        display: 'Mirror(M)',
+        local: 'Mirror',
+        global: 'Mirror'
+      },
+      scale: {
+        display: 'Scale(S)',
+        local: 'Scale',
+        global: 'Scale'
+      },
+      layer: {
+        display: 'Layer(L)',
+        local: 'Layer',
+        global: 'Layer'
+      },
+      blocks: {
+        display: 'Blocks(B)',
+        local: 'Blocks',
+        global: 'Blocks'
+      },
+      text: {
+        display: 'Text(T)',
+        local: 'Text',
+        global: 'Text'
+      },
+      new: {
+        display: 'New(N)',
+        local: 'New',
+        global: 'New'
+      },
+      existing: {
+        display: 'Existing(E)',
+        local: 'Existing',
+        global: 'Existing'
+      },
+      instances: {
+        display: 'Instances(I)',
+        local: 'Instances',
+        global: 'Instances'
+      },
+      source: {
+        display: 'Source(S)',
+        local: 'Source',
+        global: 'Source'
+      }
+    }
+  },
+  pdfblock: {
+    keywords: {
+      yes: {
+        display: 'Yes(Y)',
+        local: 'Yes',
+        global: 'Yes'
+      },
+      no: {
+        display: 'No(N)',
+        local: 'No',
+        global: 'No'
+      },
+      review: {
+        display: 'Review(R)',
+        local: 'Review',
+        global: 'Review'
+      },
+      all: {
+        display: 'All(A)',
+        local: 'All',
+        global: 'All'
+      },
+      exit: {
+        display: 'eXit(X)',
+        local: 'eXit',
+        global: 'eXit'
+      }
+    }
+  },
+  pdftext: {
+    enterText:
+      'Text line {index}/{count}: enter the highlighted text (leave empty to skip, Esc to stop)',
+    enterTextWithSuggestion:
+      'Text line {index}/{count}: enter the highlighted text',
+    noCandidates: 'No text-like strokes found in the selection.',
+    summary:
+      'Converted {converted} text line(s), {automatic} recognized automatically; skipped {skipped}.'
+  },
+  pdfscale: {
+    firstPoint: 'Specify first point of a known distance',
+    secondPoint: 'Specify second point',
+    realLength: 'Enter the real length (measured {measured})',
+    realLengthFromDimensions:
+      'Enter the real length (measured {measured}; dimension texts suggest 1:{scale})',
+    zeroDistance: 'The two points are identical.',
+    applied: 'Scaled {count} objects by a factor of {factor}.'
   }
 }

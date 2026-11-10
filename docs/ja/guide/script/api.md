@@ -24,7 +24,7 @@ title: スクリプト API
 
 ### 禁止されているブラウザー API
 
-以下の内容はスクリプトの検証段階で直接拒否され、`forbidden_identifier` / `forbidden_syntax` / `forbidden_member` エラーが発生します：
+以下の内容はスクリプトの検証段階で直接拒否され、`forbidden_identifier` / `forbidden_syntax` / `forbidden_member` エラーが発生します。`{ window: count }` のようなオブジェクトのプロパティ名は許可されますが、`window.foo` のような自由識別子は拒否されます。
 
 - ページと DOM：`window`、`document`、`globalThis`
 - ネットワークと通信：`fetch`、`XMLHttpRequest`、`WebSocket`、`importScripts`
@@ -59,7 +59,15 @@ cad.log('图层总数:', info.layers.length)
 
 ## cad.entities
 
-データベース内のすべてのエンティティを返します。モデル空間、各ペーパー空間、各ブロック定義、およびブロック参照に付く属性が含まれます。属性の `ownerId` はブロック参照、それ以外の `ownerId` は所属するブロック表レコードです。
+`where` / `count` / `inBox` は**モデル空間とペーパー空間のみ**を走査します（ブロック定義内は `inBlock(id)`）。ブロック参照の属性の `ownerId` は参照自身、それ以外は所属ブロック表レコードです。ブロック参照の `type` は `BlockReference` です。
+
+### `cad.entities.count(predicate)`
+
+スナップショットを作らずに一致数を数えます。集計はこちらを優先（`where(pred).length` は一致ごとにスナップショットします）。
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
@@ -80,9 +88,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+1 つのブロック定義（またはモデル／ペーパー空間）内の図形をスナップショットします。
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-WCS 矩形ボックス内にあるすべてのエンティティスナップショットを返します。
+WCS 矩形と交差するレイアウト空間のスナップショットを返します（モデル／ペーパーのみ）。
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -159,7 +176,7 @@ ByLayer / ByBlock の色には RGB がありません。実際の色が必要な
 
 ## cad.blocks
 
-DXF の BLOCKS セクションに相当する、すべてのブロック定義です。`*Model_Space` と `*Paper_Space` も含みます。
+DXF の BLOCKS に相当する**メタデータのみ**（`*Model_Space` / `*Paper_Space` 含む）。図形配列は埋め込みません — `cad.entities.inBlock(id)` を使います。
 
 | フィールド                      | 説明                                               |
 | ------------------------------- | -------------------------------------------------- |
@@ -169,7 +186,8 @@ DXF の BLOCKS セクションに相当する、すべてのブロック定義�
 | `isModelSpace` / `isPaperSpace` | モデル空間 / ペーパー空間                          |
 | `flags`                         | BLOCK グループコード 70                            |
 | `pathName` / `isXref`           | 外部参照のパスとフラグ                             |
-| `entities`                      | そのブロックに直接入っている図形のスナップショット |
+| `entityCount`                   | 図形数（スナップショットなし）                     |
+| `typeCounts`                    | 型ごとの件数（スナップショットなし）               |
 
 ## cad.selection
 
@@ -235,14 +253,20 @@ cad.selection.clear()
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
 図面範囲の PNG スクリーンショットをキューします。キャプチャはスクリプト本体の終了後に実行されます。戻り値は `{ queued: true, index }` です。Agent チャットでは、画像はツール結果に添付されてモデルへ送られます（JSON の data URL としては返りません）。
+
+`cad.selection.replace(ids)` の後に `selection: true` を渡すと、現在の選択だけをキャプチャします。
+
+`layers`（画層名、または画層名の配列。大文字小文字は区別しません）を渡すと、モデル空間のそれらの画層上の図形だけを描画し、図面全体ではなくそれらの画層を合わせた範囲でフレーミングするため、大きな余白が出ません。画層のオン/オフ状態は無視されます。存在しない画層名はエラーになります。`layers` と `selection` は併用できません。
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // optional: cad.view.capturePreview({ longSide: 512 })
+// optional: cad.view.capturePreview({ selection: true })
+// optional: cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -342,6 +366,15 @@ cad.edit.transaction('批量修改', tx => {
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | 新しいエンティティ ID |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | 新しいエンティティ ID |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | 新しいエンティティ ID |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | 点 `{x,y}`                       | 新しいエンティティ ID |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | `rotationDeg` 省略時は配置から水平/垂直 | 新しいエンティティ ID |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | 中心+半径 または弦点                 | 新しいエンティティ ID |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | 中心+半径 または中心+弦点            | 新しいエンティティ ID |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3 点角度                         | 新しいエンティティ ID |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | 弧長                             | 新しいエンティティ ID |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | 座標寸法                         | 新しいエンティティ ID |
+
+寸法は `drawDim*` で作成してください。線・矢印・文字で寸法を模倣しないでください。既定は図面の `$DIMSTYLE` で、上書きする場合は `cad.tables.dimStyleTable` の `styleName` を渡します。
 
 ### 編集メソッド
 

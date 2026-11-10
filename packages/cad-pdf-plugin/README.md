@@ -9,7 +9,11 @@ PDF **export** and **import** plugin for [`@mlightcad/cad-simple-viewer`](../cad
 |---------|-------------|
 | `-cpdf` | Export via **command-line prompts** (no dialog; AutoCAD-style `-` prefix) |
 | `cpdf` | Same as `-cpdf` when no UI command is registered. In [`cad-editor`](../cad-editor), `cpdf` opens an **export options dialog** instead |
-| `ipdf` | Import vector geometry from a PDF file into model space |
+| `ipdf` | Import vector geometry from a PDF file into model space, recovering circles, arcs, ellipses and splines |
+| `pdfscale` | Calibrate imported PDF geometry: pick two points of a known distance and type its real length |
+| `pdftext` | Convert exploded text (SHX line text, outlined fonts) back into `AcDbText`, semi-automatically |
+| `pdfblock` | Turn repeated geometry back into a block: select one instance, every rotated / mirrored copy is found and replaced |
+| `pdfdim` | Turn exploded dimensions (arrows or ticks, lines, extension lines, texts) back into linear, radius and diameter dimensions |
 
 The plugin is designed for **lazy loading** so PDF libraries (`pdf-lib` via `@mlightcad/pdf-renderer`, `pdfjs-dist`) are only downloaded when a user runs `-cpdf` / `cpdf` or `ipdf`.
 
@@ -19,7 +23,11 @@ The plugin is designed for **lazy loading** so PDF libraries (`pdf-lib` via `@ml
 - **Busy indicator** — export shows the same conversion spinner as `chtml` so the browser stays responsive
 - **Export options** — model-space framing (`Extents` / `Display`), optional paper-space layouts, text mode (`Text` / `Vector`) and colour mode (`Color` / `Monochrome` — black content on white paper)
 - **Shared core (1.8.0+)** — export logic lives in [`@mlightcad/cad-pdf-core`](../cad-pdf-core), which the headless [`@mlightcad/cad-pdf-exporter`](../cad-pdf-exporter) also uses so Node can export PDF without a browser ([upgrade guide](../../docs/development/upgrade-guide.md))
-- **PDF import** — parses vector paths from the first page of a PDF (lines, polylines, Bézier curves) and appends CAD entities
+- **PDF import** — parses vector paths from a chosen PDF page and appends CAD entities. Bézier chains are rebuilt as true `AcDbCircle` / `AcDbArc` / `AcDbEllipse`, mixed line–arc outlines as bulged `AcDbPolyline`, free-form curves as exact `AcDbSpline`, and arcs a producer already flattened into short lines are refitted. Stroke widths become line weights, dashed strokes get matching `PDF_DASH_*` linetypes, PDF fonts become `PDF_<family>` text styles, filled areas become solid hatches in paint order (`fillHatches`), and exact duplicate outlines are dropped
+- **Scale calibration** — `pdfscale` rescales imported geometry from one known distance, since printed PDFs are rarely 1:1. When the selection holds exploded dimensions, the scale their texts imply pre-fills the real length
+- **Block recovery** — `ipdf` turns Form XObjects painted two or more times with identical content into a block definition with one reference per paint (rotation, mirroring and scale come from each paint's form matrix). `pdfblock` handles PDFs that draw repeated symbols inline: select one instance, pick a base point and name, and every copy under rotation and mirroring (optionally scaling) is highlighted for confirmation and replaced by a block reference
+- **Dimension recovery** — `pdfdim` recognizes linear (any angle, inside or outside arrows, architectural ticks, chained), radius, diameter and angular dimensions in a selected area. It infers the drawing scale from the texts and builds a `PDF_DIM` style whose text height, arrow size and DIMLFAC match the PDF, so a 1:100 drawing keeps its real values
+- **Text recovery** — real PDF text runs that continue one line are merged into one `AcDbText`. `pdftext` turns exploded text strokes back into text: it clusters strokes into lines (position, height, rotation), asks for each line's text, and learns every confirmed glyph shape, so lines whose glyphs are all known convert without asking. With an OCR recognizer registered in `AcApTextRecognitionService` (the CAD Agent plugin registers one that uses the configured vision model), each prompt is pre-filled with a suggestion
 - **Plugin API** — implements `AcApPlugin`; register once with `registerLazyPdfPlugin`
 - **Framework-agnostic** — no Vue/React dependency; works anywhere `cad-simple-viewer` runs
 
@@ -132,7 +140,28 @@ await new AcApPdfConvertor().convert(
 // Import from bytes
 const buffer: ArrayBuffer = /* PDF file */
 await new AcApPdfImportConvertor().convert(context, buffer, 1) // page 1
+
+// ...or with full options
+await new AcApPdfImportConvertor().convert(context, buffer, {
+  pageNumber: 2,
+  insertionPoint: { x: 1000, y: 0 },
+  scale: 100, // drawing printed at 1:100
+  mode: 'recover', // default; 'visual' keeps the PDF look (see below)
+  recognizeCurves: true, // recover mode default; false = flatten curves
+  curveRecognition: { tolerance: 0.01, splines: true },
+  lineWeights: true,
+  removeDuplicates: true,
+  dashLinetypes: true, // PDF_DASH_* linetypes for dashed strokes
+  textStyles: true, // PDF_<family> text styles
+  fillHatches: true, // false: filled areas import as outlines only
+  fitTextWidth: true, // stretch/squeeze text to its PDF width
+  images: true // raster images become AcDbRasterImage (PDF_IMAGE_n.png)
+})
 ```
+
+`mode` picks the defaults of the reconstruction options. `'recover'` turns on `recognizeCurves`, `removeDuplicates`, `mergeTextRuns`, `formBlocks` and `textStyles` to rebuild the source drawing. `'visual'` turns them off, so every path becomes a line or flattened polyline and every text run its own `AcDbText`, keeping the page exactly as painted (the behaviour before curve recovery). Line weights and dash linetypes stay on in both modes, and any option passed explicitly overrides the mode.
+
+The pure recognition step is also exported: `recognizePdfCurves(segments)` turns the exact segments of one `PdfImportedSubpath` into `PdfRecognizedShape`s, and `buildPdfImportShapes(content, options)` runs it over a whole page with placement and de-duplication.
 
 ## How it works
 
@@ -143,13 +172,50 @@ await new AcApPdfImportConvertor().convert(context, buffer, 1) // page 1
 3. Call `@mlightcad/cad-pdf-core` `acexPdfExportDatabase` (built on `@mlightcad/pdf-renderer`). With layouts enabled, model space and every paper space become one PDF page each. Monochrome paints linework and text black on white paper (solid fills become grey).
 4. Download the resulting PDF bytes.
 
+### Block recovery (`pdfblock`)
+
+1. Select one instance. Lines, arcs, circles, polylines, ellipses, splines and text take part; other entity types are left alone.
+2. Pick the base point. The `Scale` keyword toggles matching scaled copies; it is off by default.
+3. Enter the block name. A free `PDF_BLOCK_n` name is pre-filled.
+4. `recognition/pdfShapeMatching.ts` takes two anchor shapes: the largest one, and the one farthest from it. Each candidate pair of anchors fixes a similarity transform, and a copy counts only if every template shape lands on a free shape of the same kind, size and point set.
+5. All copies are highlighted. Choose `Yes` (replace all), `No` (only the selection becomes a block) or `Review` (Yes / No / All / Exit per copy).
+
+### Dimension recovery (`pdfdim`)
+
+1. Select the area; lines, closed triangles, circles, arcs and texts take part.
+2. `recognition/pdfDimensionPattern.ts` finds the parts:
+   - **Arrowheads**: slender closed triangles. The tip is the sharpest corner, and the direction runs from the base midpoint to the tip.
+   - **Ticks**: short oblique lines at the ends of a longer line.
+   - **Linear dimensions**: two terminators on a common axis pointing apart or together, plus a numeric text beside them. Pairs are taken shortest first, so chained dimensions stay separate. Perpendicular lines through the tips are extension lines and give the definition points; chained dimensions may share them.
+   - **Radius and diameter**: an arrow whose tip touches a circle and points along its radius, plus an `R…` or `Ø…` text.
+   - **Angular**: an arc with an arrow at each end pointing along it, a value text near its middle, and radial extension lines. These become `AcDb3PointAngularDimension`; angles are compared without DIMLFAC, and a `°` counts as a plain number.
+3. The most common text / measured-length ratio among linear dimensions is the drawing scale. It is snapped to 1, 2, 2.5 or 5 × 10ⁿ when within 1 %.
+4. Everything found is highlighted. Choose `Yes`, `No` or `Review`.
+5. The `PDF_DIM` style is created or updated. It starts from the current style, then takes the measured text height, arrow size and extension, and DIMLFAC = scale; ticks set `_ArchTick`.
+6. Each accepted dimension becomes `AcDbRotatedDimension`, `AcDbRadialDimension` or `AcDbDiametricDimension`. Texts that are not plain numbers, or that disagree with measurement × scale, are kept as text overrides. The source shapes are erased.
+
+### Text recovery (`pdftext`)
+
+1. Select the strokes; a window around the text is enough. Strokes much larger than the text (frames, table lines) are ignored.
+2. Strokes within a word gap form phrases. Each phrase gets its baseline direction from the minimum-height oriented bounding box, then splits into rows and lines (`recognition/pdfGlyphClustering.ts`). The cap height and baseline ignore descenders.
+3. Lines whose glyphs are all in the session's glyph dictionary (`recognition/pdfGlyphDictionary.ts`) are converted immediately. For the others, the strokes are highlighted and the prompt shows `<suggestion>` when the dictionary or OCR has one. Enter accepts the suggestion or skips; Esc stops and keeps what was converted.
+4. Typed text whose character count matches the glyph boxes teaches the dictionary: each glyph's normalized, quantized stroke geometry maps to its character. The 5000 most recently confirmed shapes are kept in `localStorage`, so later sessions and other drawings with the same font benefit.
+
 ### Import (`ipdf`)
 
 1. Show a native file picker (`.pdf`).
-2. Use `pdfjs-dist` to read operator lists from the selected page.
-3. Convert path operators (move, line, cubic Bézier, close) into `AcDbLine` / `AcDbPolyline` entities in model space.
+2. Prompt for the page (multi-page files only), then the insertion point, with `Scale` and `Mode` options. `Mode` asks for `Recover` (rebuild the drawing, default) or `Visual` (keep the PDF look); the choice is remembered for the next `ipdf`. Enter accepts the origin.
+3. Use `pdfjs-dist` to read operator lists from the selected page.
+4. Keep every path as exact segments (lines and cubic Béziers; quadratics are degree-elevated) in model-space millimeters, and `showText` runs as `AcDbText`.
+5. In `Recover` mode, recognize CAD curves per subpath (`recognition/pdfCurveRecognition.ts`): a cubic whose samples and end tangents match one circle becomes an arc; consecutive arcs on the same circle merge, and a closed 360° chain becomes a circle. Chains that fit a conic become an ellipse. Runs of at least six short, evenly turning lines (turn ≤ 15°, so octagons stay polygons) are refitted as arcs. Lines plus arcs give a bulged polyline; pure free-form chains give an exact spline (triple interior knots). Default tolerance: max(0.01 mm, 0.2 % of the radius).
+6. In `Recover` mode, group top-level Form XObject paints whose geometry is identical in form space (`recognition/pdfFormBlocks.ts`; PDF.js inlines forms without naming them). Each group of two or more becomes a `PDF_FORM_n` block, and each paint becomes a reference whose transform comes from its form matrix. Paints with shear stay as plain geometry. Turn this off with `formBlocks: false`.
+7. Map PDF optional content groups to CAD layers when present.
+8. Remap paper-contrast ink to ACI 7 (AutoCAD foreground): black ink on white PDF paper, or white ink on dark PDF paper. ACI 7 follows the CAD canvas background.
 
-Import is **vector-only**; raster/scanned PDF pages produce no entities. Only the requested page is processed (default: page 1).
+9. Fit each text to its PDF advance width: the text is measured in the font the viewer will draw it with (`AcApFontUtil.measureTextWidth`, which mirrors the TEXT renderer's style font → big font → default font lookup) and its width factor is set to `pdfWidth / measuredWidth`. Turn this off with `fitTextWidth: false`.
+10. Turn image paints (`paintImageXObject`, inline images) into `AcDbRasterImage` entities (`pdfImportImages.ts`). Each image is redrawn with its full placement (rotation, mirroring, skew) into an upright PNG covering its bounding box, so the entity needs no rotation. Dark ink on transparency (QR codes, stamps) is laid on white, as on the PDF page. The PNG lives in memory on the entity; the `PDF_IMAGE_n.png` definition is a name only, because DWG/DXF reference images as external files. Turn this off with `images: false`. Image masks and clipping paths are not applied.
+
+Only the requested page is processed (default: page 1). Form XObject `/Matrix` is applied so nested content keeps its placement.
 
 ## Main exports
 
@@ -161,9 +227,20 @@ Import is **vector-only**; raster/scanned PDF pages produce no entities. Only th
 | `AcApPdfPlugin` | `AcApPlugin` implementation |
 | `AcApConvertToPdfCmd` | `-cpdf` / fallback `cpdf` command class |
 | `AcApImportPdfCmd` | `ipdf` command class |
+| `AcApPdfScaleCmd` | `pdfscale` command class |
+| `AcApPdfTextCmd` | `pdftext` command class |
+| `AcApPdfBlockCmd` | `pdfblock` command class |
+| `AcApPdfDimCmd` | `pdfdim` command class |
+| `recognizePdfDimensions`, `suggestPdfDimensionScale`, `pdfArrowFromPolygon`, `parsePdfDimensionValue` | Dimension recognition |
+| `pdfEntitiesToDimInput`, `acapPdfEnsureDimStyle`, `acapPdfCreateDimensions`, `acapPdfNiceScale` | Dimension conversion against a database |
+| `findPdfShapeMatches`, `buildPdfFormBlocks`, `pdfEntityToFeature` | Block recovery building blocks |
+| `clusterPdfTextStrokes`, `PdfGlyphDictionary`, `mergePdfTextRuns`, `pdfEntityToStroke` | Text recovery building blocks |
+| `AcApPdfImportOptions`, `resolveAcApPdfImportOptions` | Import options (mode, page, placement, scale, curve recognition) |
+| `recognizePdfCurves`, `buildPdfImportShapes`, `PdfRecognizedShape` | Curve recognition and page-level shape building |
 | `AcApPdfConvertor` | CAD → PDF export utility |
 | `AcApPdfExportOptions`, `AcApPdfColorMode`, `resolveAcApPdfExportOptions` | Export option types and defaults (aliases of `@mlightcad/cad-pdf-core`) |
 | `AcApPdfImportConvertor` | PDF → CAD entities import utility |
+| `extractPdfImportSubpaths`, `PDF_IMPORT_FOREGROUND_COLOR`, `PdfImportExtractOptions`, contrast helpers | Programmatic vector import / ACI 7 remapping |
 
 ## Project layout
 
@@ -173,6 +250,17 @@ Import is **vector-only**; raster/scanned PDF pages produce no entities. Only th
 | `src/AcApPdfPlugin.ts` | Plugin lifecycle (`onLoad` / `onUnload`) |
 | `src/AcApConvertToPdfCmd.ts` | `-cpdf` command (command-line prompts) |
 | `src/AcApImportPdfCmd.ts` | `ipdf` command |
+| `src/AcApPdfScaleCmd.ts` | `pdfscale` command |
+| `src/AcApPdfTextCmd.ts` | `pdftext` command |
+| `src/AcApPdfBlockCmd.ts` | `pdfblock` command |
+| `src/AcApPdfDimCmd.ts` | `pdfdim` command |
+| `src/pdfDimensionConvert.ts` | Dimension entities and the `PDF_DIM` style |
+| `src/acapPdfPrompts.ts` | Shared Yes / No / Review prompt |
+| `src/pdfEntityFeatures.ts` | Describes entities for instance matching |
+| `src/pdfEntityStrokes.ts` | Samples curve entities into strokes |
+| `src/AcApPdfImportOptions.ts` | Import option types and defaults |
+| `src/pdfImportShapes.ts` | Page-level recognition, placement and de-duplication |
+| `src/recognition/` | Pure geometry: curve recognition and fitting helpers |
 | `src/AcApPdfConvertor.ts` | Browser export: view box, fonts, download (rendering via `cad-pdf-core`) |
 | `src/AcApPdfExportOptions.ts` | Export option types and defaults |
 | `src/AcApPdfImportConvertor.ts` | Import pipeline (pdf.js operator parsing) |

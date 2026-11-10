@@ -7,6 +7,10 @@ import {
   AcGePoint3d
 } from '@mlightcad/data-model'
 
+import type {
+  CadCapturePreviewOptions,
+  CaptureDrawingPreviewResult
+} from '../src/preview/types'
 import { executeCadScript } from '../src/script/executeCadScript'
 import {
   CAD_MCP_DXF_OUTBOX_KEY,
@@ -90,6 +94,118 @@ describe('executeCadScript', () => {
     expect(result.success).toBe(true)
     expect(result.data).toEqual([2])
     expect(extents).not.toHaveBeenCalled()
+  })
+
+  test('counts without snapshotting unmatched geometry', async () => {
+    const { session, db } = createFixture()
+    const line = [...db.tables.blockTable.modelSpace.newIterator()].find(
+      entity => entity.type === 'Line'
+    )
+    if (!line) throw new Error('fixture line missing')
+    const extents = jest.spyOn(line, 'geometricExtents', 'get')
+
+    const result = await executeCadScript(
+      {
+        code: `
+          return {
+            circles: cad.entities.count(e => e.type === 'Circle'),
+            lines: cad.entities.count(e => e.type === 'Line')
+          }
+        `,
+        intent: 'count types'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({ circles: 3, lines: 1 })
+    expect(extents).not.toHaveBeenCalled()
+  })
+
+  test('cad.blocks exposes per-block typeCounts without snapshots', async () => {
+    const { session, db } = createFixture()
+    const line = [...db.tables.blockTable.modelSpace.newIterator()].find(
+      entity => entity.type === 'Line'
+    )
+    if (!line) throw new Error('fixture line missing')
+    const extents = jest.spyOn(line, 'geometricExtents', 'get')
+
+    const block = new AcDbBlockTableRecord({ name: 'Widget' })
+    db.tables.blockTable.add(block)
+    block.appendEntity(new AcDbCircle(new AcGePoint3d(5, 5, 0), 3))
+
+    const result = await executeCadScript(
+      {
+        code: `
+          const model = cad.blocks.find(b => b.isModelSpace)
+          const widget = cad.blocks.find(b => b.name === 'Widget')
+          return {
+            model: { entityCount: model.entityCount, typeCounts: model.typeCounts },
+            widget: { entityCount: widget.entityCount, typeCounts: widget.typeCounts }
+          }
+        `,
+        intent: 'block stats'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({
+      model: { entityCount: 4, typeCounts: { Circle: 3, Line: 1 } },
+      widget: { entityCount: 1, typeCounts: { Circle: 1 } }
+    })
+    expect(extents).not.toHaveBeenCalled()
+  })
+
+  test('stops where when too many entities would be snapshotted', async () => {
+    const { session } = createFixture()
+    const result = await executeCadScript(
+      {
+        code: 'return cad.entities.where(() => true)',
+        intent: 'too many'
+      },
+      session,
+      { limits: { maxWhereMatches: 2 } }
+    )
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/^too_many_matches/)
+  })
+
+  test('inBlock with predicate only snapshots matches', async () => {
+    const { session } = createFixture()
+    const result = await executeCadScript(
+      {
+        code: `
+          const model = cad.blocks.find(b => b.isModelSpace)
+          return cad.entities.inBlock(model.id, e => e.type === 'Line')
+            .map(e => e.type)
+        `,
+        intent: 'lines in model'
+      },
+      session
+    )
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual(['Line'])
+  })
+
+  test('refreshes cad.blocks after an edit transaction', async () => {
+    const { session } = createFixture()
+    const result = await executeCadScript(
+      {
+        code: `
+          const before = cad.blocks.find(b => b.isModelSpace).entityCount
+          cad.edit.transaction('add circle', tx => {
+            tx.drawCircle({ center: { x: 0, y: 0 }, radius: 1 })
+          })
+          const after = cad.blocks.find(b => b.isModelSpace).entityCount
+          return { before, after }
+        `,
+        intent: 'blocks cache'
+      },
+      session
+    )
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({ before: 4, after: 5 })
   })
 
   test('serializes the host without failing on toJSON', async () => {
@@ -285,10 +401,157 @@ describe('executeCadScript', () => {
 
     expect(result.success).toBe(true)
     expect(result.data).toEqual({ queued: true, index: 0 })
-    expect(capturePreview).toHaveBeenCalledWith(512)
+    expect(capturePreview).toHaveBeenCalledWith({ longSide: 512 })
     expect(result.images).toEqual([
       { mediaType: 'image/png', dataUrl: 'data:image/png;base64,aaa' }
     ])
+  })
+
+  test('queues selection capturePreview with selection: true', async () => {
+    const { session, capturePreview } = createFixture()
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview({ longSide: 256, selection: true })
+          return { ok: true }
+        `,
+        intent: 'selection screenshot'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(capturePreview).toHaveBeenCalledWith({
+      longSide: 256,
+      selection: true
+    })
+    expect(result.images).toEqual([
+      { mediaType: 'image/png', dataUrl: 'data:image/png;base64,aaa' }
+    ])
+  })
+
+  test('treats a bare capturePreview number as longSide', async () => {
+    const { session, capturePreview } = createFixture()
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview(512)
+          return { ok: true }
+        `,
+        intent: 'legacy longSide'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(capturePreview).toHaveBeenCalledWith({ longSide: 512 })
+  })
+
+  test('queues layer capturePreview with drawing layer casing', async () => {
+    const { session, capturePreview } = createFixture()
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview({ longSide: 640, layers: ['walls', ' WALLS ', ''] })
+          cad.view.capturePreview({ layers: 'Walls' })
+          return { ok: true }
+        `,
+        intent: 'layer screenshot'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(capturePreview).toHaveBeenNthCalledWith(1, {
+      longSide: 640,
+      layers: ['Walls']
+    })
+    expect(capturePreview).toHaveBeenNthCalledWith(2, {
+      longSide: 1024,
+      layers: ['Walls']
+    })
+    expect(result.images).toHaveLength(2)
+  })
+
+  test('rejects unknown layers in capturePreview', async () => {
+    const { session, capturePreview } = createFixture()
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview({ layers: ['Walls', 'Nope'] })
+          return { ok: true }
+        `,
+        intent: 'unknown layer'
+      },
+      session
+    )
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('unknown layer(s): Nope')
+    expect(capturePreview).not.toHaveBeenCalled()
+  })
+
+  test('rejects capturePreview with both selection and layers', async () => {
+    const { session } = createFixture()
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview({ selection: true, layers: ['Walls'] })
+          return { ok: true }
+        `,
+        intent: 'conflicting options'
+      },
+      session
+    )
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('either selection: true or layers')
+  })
+
+  test('rejects capturePreview with an empty layers list', async () => {
+    const { session } = createFixture()
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview({ layers: [] })
+          return { ok: true }
+        `,
+        intent: 'empty layers'
+      },
+      session
+    )
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('layers must name at least one layer')
+  })
+
+  test('logs no-selection when selection capture fails', async () => {
+    const { session, capturePreview } = createFixture()
+    capturePreview.mockImplementationOnce(async () => ({
+      ok: false as const,
+      reason: 'no-selection' as const
+    }))
+
+    const result = await executeCadScript(
+      {
+        code: `
+          cad.view.capturePreview({ selection: true })
+          return { ok: true }
+        `,
+        intent: 'empty selection'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.images).toBeUndefined()
+    expect(result.log).toContain('capturePreview failed: no-selection')
   })
 
   test('skips capturePreview when fulfillPreviews is false', async () => {
@@ -486,6 +749,128 @@ describe('executeCadScript', () => {
     }
   })
 
+  test('draws dimension entities including diameter from circle geometry', async () => {
+    const { session, db } = createFixture()
+    const before = countEntities(db)
+
+    const result = await executeCadScript(
+      {
+        code: `
+          const ids = []
+          cad.edit.transaction('dims', tx => {
+            ids.push(tx.drawDimAligned({
+              xLine1Point: { x: 0, y: 0 },
+              xLine2Point: { x: 10, y: 0 },
+              dimLinePoint: { x: 5, y: 3 }
+            }))
+            ids.push(tx.drawDimLinear({
+              xLine1Point: { x: 0, y: 0 },
+              xLine2Point: { x: 0, y: 8 },
+              dimLinePoint: { x: -2, y: 4 },
+              rotationDeg: 90
+            }))
+            ids.push(tx.drawDimDiameter({
+              center: { x: 20, y: 0 },
+              radius: 2,
+              angleDeg: 30,
+              leaderLength: 1
+            }))
+            ids.push(tx.drawDimRadius({
+              center: { x: 30, y: 0 },
+              radius: 2,
+              angleDeg: 45,
+              leaderLength: 1
+            }))
+            ids.push(tx.drawDimAngular({
+              center: { x: 0, y: 0 },
+              xLine1Point: { x: 10, y: 0 },
+              xLine2Point: { x: 0, y: 10 },
+              arcPoint: { x: 5, y: 5 }
+            }))
+            ids.push(tx.drawDimArc({
+              center: { x: 40, y: 0 },
+              xLine1Point: { x: 45, y: 0 },
+              xLine2Point: { x: 40, y: 5 },
+              arcPoint: { x: 43.5, y: 3.5 }
+            }))
+            ids.push(tx.drawDimOrdinate({
+              definingPoint: { x: 12, y: 7 },
+              leaderEndPoint: { x: 18, y: 7 },
+              useXAxis: true,
+              origin: { x: 0, y: 0 }
+            }))
+          })
+          const snaps = ids.map(id => cad.entities.byId(id))
+          return {
+            types: snaps.map(s => s.type),
+            diameter: snaps[2].geometry.measurement,
+            radius: snaps[3].geometry.measurement
+          }
+        `,
+        intent: 'draw dimensions'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    expect(result.entityIds).toHaveLength(7)
+    expect(countEntities(db)).toBe(before + 7)
+    const data = result.data as {
+      types: string[]
+      diameter: number
+      radius: number
+    }
+    expect(data.types).toEqual([
+      'AlignedDimension',
+      'RotatedDimension',
+      'DiametricDimension',
+      'RadialDimension',
+      '3PointAngularDimension',
+      'ArcDimension',
+      'OrdinateDimension'
+    ])
+    expect(data.diameter).toBeCloseTo(4, 10)
+    expect(data.radius).toBeCloseTo(2, 10)
+
+    const dimBlocks = [...db.tables.blockTable.newIterator()].filter(block =>
+      block.name.startsWith('*D')
+    )
+    expect(dimBlocks).toHaveLength(7)
+  })
+
+  test('rejects radius dimension without center', async () => {
+    const { session, db } = createFixture()
+    const before = countEntities(db)
+
+    const result = await executeCadScript(
+      {
+        code: `
+          let outcome
+          cad.edit.transaction('bad radius', tx => {
+            try {
+              tx.drawDimRadius({ radius: 5, angleDeg: 0 })
+              outcome = { threw: false }
+            } catch (error) {
+              outcome = {
+                threw: true,
+                message: error instanceof Error ? error.message : String(error)
+              }
+            }
+          })
+          return outcome
+        `,
+        intent: 'invalid radius dim'
+      },
+      session
+    )
+
+    expect(result.success).toBe(true)
+    const data = result.data as { threw: boolean; message?: string }
+    expect(data.threw).toBe(true)
+    expect(data.message).toBe('invalid_radius_points')
+    expect(countEntities(db)).toBe(before)
+  })
+
   test('draws extended entity types in one transaction', async () => {
     const { session, db } = createFixture()
     const before = countEntities(db)
@@ -562,17 +947,18 @@ describe('executeCadScript', () => {
         code: `
           const widget = cad.blocks.find(block => block.name === 'Widget')
           const model = cad.blocks.find(block => block.isModelSpace)
-          const owned = cad.entities.where(entity => entity.ownerId === widget.id)
+          const owned = cad.entities.inBlock(widget.id)
           const paper = cad.entities.where(entity => {
             const owner = cad.blocks.find(block => block.id === entity.ownerId)
             return owner && owner.isPaperSpace
           })
           return {
             names: cad.blocks.map(block => block.name),
-            widgetEntities: widget.entities.map(entity => entity.type),
+            widgetEntities: owned.map(entity => entity.type),
+            widgetEntityCount: widget.entityCount,
             owned: owned.map(entity => ({ type: entity.type, ownerId: entity.ownerId })),
-            modelCount: model.entities.length,
-            allCount: cad.entities.where(() => true).length,
+            modelCount: model.entityCount,
+            layoutCount: cad.entities.count(() => true),
             layers: cad.tables.layerTable.records.map(record => record.name),
             hasPaper: cad.blocks.some(block => block.isPaperSpace),
             paperCount: paper.length
@@ -587,6 +973,7 @@ describe('executeCadScript', () => {
     expect(result.data).toEqual(
       expect.objectContaining({
         widgetEntities: ['Circle'],
+        widgetEntityCount: 1,
         owned: [{ type: 'Circle', ownerId: block.objectId }],
         modelCount: 4,
         hasPaper: true,
@@ -595,13 +982,14 @@ describe('executeCadScript', () => {
     )
     const data = result.data as {
       names: string[]
-      allCount: number
+      layoutCount: number
       layers: string[]
     }
     expect(data.names).toEqual(
       expect.arrayContaining(['*Model_Space', '*Paper_Space', 'Widget'])
     )
-    expect(data.allCount).toBe(6)
+    // where/count skip block definitions — Widget's circle is only via inBlock.
+    expect(data.layoutCount).toBe(5)
     expect(data.layers).toEqual(expect.arrayContaining(['Walls']))
   })
 })
@@ -636,10 +1024,14 @@ function createFixture(openMode: number = CadSessionOpenMode.Write) {
       return []
     }
   }
-  const capturePreview = jest.fn(async (_longSide: number) => ({
-    ok: true as const,
-    dataUrl: 'data:image/png;base64,aaa'
-  }))
+  const capturePreview = jest.fn(
+    async (
+      _options?: CadCapturePreviewOptions
+    ): Promise<CaptureDrawingPreviewResult> => ({
+      ok: true,
+      dataUrl: 'data:image/png;base64,aaa'
+    })
+  )
   const session: CadSession = {
     capturePreview,
     getDocument: () => ({

@@ -1,5 +1,10 @@
 export default {
   ACAD: {
+    bsearch: {
+      description:
+        'Akıllı Bloklar: aynı geometriyi bulur ve bloklara dönüştürür',
+      prompt: 'Aranacak nesneleri seçin'
+    },
     hatch: {
       description:
         'Şerit tabanlı bağlamsal iş akışıyla tarama dolgusu oluşturur'
@@ -45,12 +50,20 @@ export default {
       description:
         'Metin ve çok satırlı metin için metin stilleri oluşturur, değiştirir veya belirler'
     },
+    mleaderstyle: {
+      description:
+        'Çoklu önder stilleri oluşturur ve çoklu önder nesneleri için değiştirir'
+    },
     attedit: {
       description:
         'Bir blok referansının öznitelik değerlerini ve görüntü özelliklerini düzenler'
     },
     attdef: {
       description: 'Bir blok için öznitelik tanımı oluşturur'
+    },
+    classicgroup: {
+      description:
+        'Grup oluşturmak ve yönetmek için Nesne Gruplama iletişim kutusunu açar'
     }
   },
   USER: {}

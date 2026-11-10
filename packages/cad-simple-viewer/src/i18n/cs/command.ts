@@ -14,6 +14,10 @@ export default {
       description:
         'Ukládá identifikátor verze databáze výkresu (pouze pro čtení)'
     },
+    annoallvisible: {
+      description:
+        'Určuje, zda se zobrazují poznámkové objekty, které nepodporují aktuální měřítko poznámek'
+    },
     angbase: {
       description: 'Nastaví směr základního úhlu 0 vzhledem k aktuálnímu USS'
     },
@@ -33,6 +37,9 @@ export default {
     },
     bmpout: {
       description: 'Exportuje do BMP'
+    },
+    cannoscale: {
+      description: 'Nastaví název aktuálního měřítka poznámek'
     },
     cdxf: {
       description: 'Exportuje aktuální výkres do DXF'
@@ -147,6 +154,23 @@ export default {
       description: 'Odstraní vybrané objekty z výkresu',
       prompt: 'Vyberte objekty'
     },
+    group: {
+      description: 'Vytváří a spravuje uložené sady objektů nazývané skupiny'
+    },
+    '-bsearch': {
+      description:
+        'Vyhledá shodnou geometrii a převede ji na bloky (příkazový řádek)',
+      prompt: 'Vyberte objekty k vyhledání'
+    },
+    '-group': {
+      description: 'Vytváří a spravuje skupiny pomocí voleb příkazového řádku'
+    },
+    groupedit: {
+      description: 'Přidává a odebírá objekty ze skupiny nebo ji přejmenuje'
+    },
+    ungroup: {
+      description: 'Zruší asociaci objektů se skupinou'
+    },
     extmax: {
       description:
         'Ukládá pravý horní roh rozsahu výkresu v modelovém prostoru (pouze pro čtení)'
@@ -195,6 +219,23 @@ export default {
     hatch: {
       description:
         'Vyplní uzavřenou oblast nebo vybrané objekty vzorem šrafování'
+    },
+    pdfdim: {
+      description: 'Převede rozložené kóty z PDF zpět na kótovací objekty',
+      prompt: 'Vyberte oblast s kótami'
+    },
+    pdfblock: {
+      description: 'Převede opakovanou geometrii z PDF zpět na blok',
+      prompt: 'Vyberte objekty jedné instance bloku'
+    },
+    pdftext: {
+      description: 'Převede rozložené tahy textu z PDF zpět na textové objekty',
+      prompt: 'Vyberte tahy textu k převodu'
+    },
+    pdfscale: {
+      description:
+        'Kalibruje importovanou geometrii PDF podle známé vzdálenosti',
+      prompt: 'Vyberte objekty ke změně měřítka'
     },
     ipdf: {
       description: 'Importuje vektorovou geometrii ze souboru PDF'
@@ -353,6 +394,18 @@ export default {
     modelbkcolor: {
       description: 'Nastaví barvu pozadí kreslicí oblasti modelového prostoru'
     },
+    leader: {
+      description: 'Vytvoří odkaz, který spojuje poznámku s prvkem'
+    },
+    mleader: {
+      description: 'Vytvoří objekt multiodkazu'
+    },
+    mleaderedit: {
+      description: 'Přidá do multiodkazu odkazové čáry nebo je z něj odebere'
+    },
+    mleadereditremove: {
+      description: 'Odebere odkazové čáry z multiodkazu'
+    },
     mline: {
       description:
         'Vytvoří několik rovnoběžných čar jako jeden objekt multičáry'
@@ -360,6 +413,11 @@ export default {
     move: {
       description: 'Posune vybrané objekty o vektor přemístění',
       prompt: 'Vyberte objekty'
+    },
+    objectscale: {
+      description:
+        'Přidá nebo odstraní podporovaná měřítka poznámek u vybraných poznámkových objektů',
+      prompt: 'Vyberte poznámkové objekty'
     },
     offset: {
       description:
@@ -376,7 +434,8 @@ export default {
         'Řídí, zda se do konzole zaznamenávají časové profily fází otevírání souboru'
     },
     openperf: {
-      description: 'Otevře paletu výkonu otevření s časy z posledního otevření výkresu'
+      description:
+        'Otevře paletu výkonu otevření s časy z posledního otevření výkresu'
     },
     orthomode: {
       description: 'Omezí pohyb kurzoru na vodorovnou nebo svislou osu'
@@ -514,6 +573,10 @@ export default {
     switchbg: {
       description: 'Přepíná pozadí oblasti výkresu mezi bílou a černou'
     },
+    readingmode: {
+      description:
+        'Přepíná režim čtení: černé čáry na bílém plátně pro snazší kontrolu'
+    },
     unisolateobjects: {
       description: 'Znovu zobrazí všechny objekty skryté příkazem HIDEOBJECTS'
     },
@@ -531,6 +594,24 @@ export default {
     },
     zoom: {
       description: 'Zvětší na maximální rozsah všech objektů'
+    },
+    view: {
+      description:
+        'Otevře Správce pohledů pro vytváření, obnovení a odstraňování pojmenovaných pohledů'
+    },
+    newview: {
+      description:
+        'Vytvoří nový pojmenovaný pohled z aktuálního zobrazení nebo okna'
+    },
+    viewrestore: {
+      description: 'Obnoví pojmenovaný pohled podle názvu'
+    },
+    ucs: {
+      description:
+        'Nastaví počátek a orientaci aktuálního uživatelského souřadnicového systému'
+    },
+    ucsman: {
+      description: 'Spravuje pojmenované definice USS a nastavení ikony USS'
     }
   },
   USER: {}

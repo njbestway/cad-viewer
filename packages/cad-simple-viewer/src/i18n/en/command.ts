@@ -152,6 +152,23 @@ export default {
       description: 'Deletes selected entities from the drawing',
       prompt: 'Select entities'
     },
+    group: {
+      description: 'Creates and manages saved sets of objects called groups'
+    },
+    '-bsearch': {
+      description: 'Finds identical geometry and converts it into blocks (command line)',
+      prompt: 'Select objects to search for'
+    },
+    '-group': {
+      description:
+        'Creates and manages groups through command-line options'
+    },
+    groupedit: {
+      description: 'Adds and removes objects from a group, or renames a group'
+    },
+    ungroup: {
+      description: 'Disassociates objects from a group'
+    },
     extmax: {
       description:
         'Stores the upper-right corner of the model-space drawing extents (read-only)'
@@ -200,6 +217,22 @@ export default {
     hatch: {
       description:
         'Fills an enclosed area or selected objects with a hatch pattern'
+    },
+    pdfdim: {
+      description: 'Turns exploded PDF dimensions back into dimension objects',
+      prompt: 'Select the area with dimensions'
+    },
+    pdfblock: {
+      description: 'Turns repeated PDF geometry back into a block',
+      prompt: 'Select the objects of one block instance'
+    },
+    pdftext: {
+      description: 'Converts exploded PDF text strokes back into text objects',
+      prompt: 'Select text strokes to convert'
+    },
+    pdfscale: {
+      description: 'Calibrates imported PDF geometry from a known distance',
+      prompt: 'Select objects to scale'
     },
     ipdf: {
       description: 'Imports vector geometry from a PDF file'
@@ -358,6 +391,18 @@ export default {
     },
     modelbkcolor: {
       description: 'Sets the background color of the model-space drawing area'
+    },
+    leader: {
+      description: 'Creates a leader line that connects annotation to a feature'
+    },
+    mleader: {
+      description: 'Creates a multileader object'
+    },
+    mleaderedit: {
+      description: 'Adds leader lines to, or removes leader lines from, a multileader'
+    },
+    mleadereditremove: {
+      description: 'Removes leader lines from a multileader'
     },
     mline: {
       description: 'Creates multiple parallel lines as one multiline object'
@@ -547,6 +592,23 @@ export default {
     },
     zoom: {
       description: 'Zooms to display the maximum extents of all entities'
+    },
+    view: {
+      description: 'Opens the View Manager to create, restore, and delete named views'
+    },
+    newview: {
+      description:
+        'Creates a new named view from the current display or a window'
+    },
+    viewrestore: {
+      description: 'Restores a named view by name'
+    },
+    ucs: {
+      description:
+        'Sets the origin and orientation of the current user coordinate system'
+    },
+    ucsman: {
+      description: 'Manages named UCS definitions and UCS icon settings'
     }
   },
   USER: {}

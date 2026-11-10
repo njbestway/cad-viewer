@@ -24,7 +24,8 @@ Use `cad.log()` to output information instead of relying on `console.log` — th
 
 ### Blocked browser APIs
 
-The following are rejected outright during script validation, triggering `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` errors:
+The following are rejected outright during script validation, triggering `forbidden_identifier` / `forbidden_syntax` / `forbidden_member` errors.
+Object property *keys* such as `{ window: count }` are allowed; free identifiers like `window.foo` are not.
 
 - Page and DOM: `window`, `document`, `globalThis`
 - Network and communication: `fetch`, `XMLHttpRequest`, `WebSocket`, `importScripts`
@@ -59,11 +60,19 @@ cad.log('Total layers:', info.layers.length)
 
 ## cad.entities
 
-Queries every entity in the database. This is the same kind of list as a DXF ENTITIES section, except it is not limited to model space: model space, every paper space, and every block definition are included. Attributes on a block reference follow that reference, and their `ownerId` is the reference. Every other entity's `ownerId` is the block table record that owns it.
+`where` / `count` / `inBox` scan **model space and paper spaces only** (not block definitions — use `inBlock(id)` for those). Attributes on a block reference follow that reference, and their `ownerId` is the reference. Every other entity's `ownerId` is the block table record that owns it. Block references use `type === 'BlockReference'`.
+
+### `cad.entities.count(predicate)`
+
+Counts matches without building snapshots. Prefer this for tallies — `where(pred).length` still snapshots every match and can hit `script_timeout` on large drawings.
+
+```javascript
+const n = cad.entities.count(e => e.type === 'Circle')
+```
 
 ### `cad.entities.where(predicate)`
 
-Filters entity snapshots by a condition and returns an array of matching snapshots.
+Filters entity snapshots by a condition and returns an array of matching snapshots. Put filters in the predicate so only matches are snapshotted.
 
 ```javascript
 const circles = cad.entities.where(e => e.type === 'Circle')
@@ -80,9 +89,18 @@ if (entity) {
 }
 ```
 
+### `cad.entities.inBlock(blockId)`
+
+Snapshots entities stored directly in one block definition (or model/paper space). Prefer this over loading every block's entities.
+
+```javascript
+const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
+```
+
 ### `cad.entities.inBox(min, max)`
 
-Returns snapshots whose world extents intersect the given rectangle. Entities in block definitions and paper space are included.
+Returns snapshots whose world extents intersect the given rectangle (model and paper spaces only).
 
 ```javascript
 const inside = cad.entities.inBox({ x: 0, y: 0 }, { x: 100, y: 100 })
@@ -163,7 +181,7 @@ Read-only access to every symbol table, matching `AcDbDatabase.tables`. Each tab
 | Property         | Contents                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | `appIdTable`     | Registered application names                                                               |
-| `blockTable`     | Block table records. Definitions only; entities are on `cad.blocks`                        |
+| `blockTable`     | Block table records. Definitions only; load entities with `cad.entities.inBlock(id)`       |
 | `dimStyleTable`  | Dimension styles, including variables such as `dimtxt` and `dimscale`                      |
 | `linetypeTable`  | Linetypes: `numDashes`, `patternLength`, `comments`                                        |
 | `textStyleTable` | Text styles: `fileName`, `textSize`, `xScale`                                              |
@@ -183,7 +201,7 @@ A layer color is `{ red, green, blue, colorIndex, isByACI, isByLayer, isByBlock 
 
 ## cad.blocks
 
-Returns every block definition, in the same role as a DXF BLOCKS section. `*Model_Space` and each `*Paper_Space` are included.
+Returns every block definition as **metadata only** (same role as a DXF BLOCKS section). `*Model_Space` and each `*Paper_Space` are included. Entity geometry is **not** embedded — use `cad.entities.inBlock(id)` when needed. Eagerly snapshotting every block timed out on large drawings.
 
 | Field          | Type                  | Description                                                        |
 | -------------- | --------------------- | ------------------------------------------------------------------ |
@@ -196,13 +214,15 @@ Returns every block definition, in the same role as a DXF BLOCKS section. `*Mode
 | `pathName`     | `string`              | Xref path. Empty for a local block                                 |
 | `isXref`       | `boolean`             | True when the block is an external reference                       |
 | `layoutId`     | `string \| undefined` | Associated layout ID                                               |
-| `entities`     | `EntitySnapshot[]`    | Entities stored directly in the block                              |
+| `entityCount`  | `number`              | Number of entities stored in the block (no snapshots)              |
+| `typeCounts`   | `Record<string, number>` | Counts by entity type inside the block (no snapshots)           |
 
 ```javascript
 const widget = cad.blocks.find(block => block.name === 'Widget')
+const ents = widget ? cad.entities.inBlock(widget.id) : []
 return {
-  count: widget ? widget.entities.length : 0,
-  types: widget ? widget.entities.map(entity => entity.type) : []
+  count: widget ? widget.entityCount : 0,
+  types: ents.map(entity => entity.type)
 }
 ```
 
@@ -270,16 +290,25 @@ Zooms the view to the model space extents.
 cad.view.zoomExtents()
 ```
 
-### `cad.view.capturePreview({ longSide? })`
+### `cad.view.capturePreview({ longSide?, selection?, layers? })`
 
-Queues a PNG screenshot of the drawing extents. Capture runs after the script
-body finishes. Returns `{ queued: true, index }`. In the Agent chat, images are
-attached to the tool result for the model (not returned as JSON data URLs).
+Queues a PNG screenshot after the script body finishes. Returns
+`{ queued: true, index }`. Default frames model-space drawing extents. Pass
+`selection: true` (typically after `cad.selection.replace(ids)`) to extract only
+the current selection via the ENTPREVIEW batch path. Pass `layers` (a layer
+name or an array of names, case-insensitive) to render only the model-space
+geometry on those layers, framed to the combined extents of those layers rather
+than the whole drawing, so the image has no large empty margins. Layer on/off
+state is ignored; unknown layer names throw; `layers` cannot be combined with
+`selection`. In the Agent chat, images are attached to the tool result for the
+model (not returned as JSON data URLs).
 
 ```javascript
 cad.view.zoomExtents()
 cad.view.capturePreview()
 // optional: cad.view.capturePreview({ longSide: 512 })
+// selection only: cad.view.capturePreview({ selection: true })
+// layers only: cad.view.capturePreview({ layers: ['WALL', 'DOOR'] })
 ```
 
 ## cad.file
@@ -388,6 +417,15 @@ Methods available within a transaction:
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | New entity ID |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | New entity ID |
 | `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | New entity ID |
+| `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | points `{x,y}`                   | New entity ID |
+| `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | omit `rotationDeg` → H/V by placement | New entity ID |
+| `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | circle form or chord form        | New entity ID |
+| `tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, … } \| { center, chordPoint, … })`           | circle form or chord form        | New entity ID |
+| `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3-point angle                    | New entity ID |
+| `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | arc length                       | New entity ID |
+| `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | X/Y ordinate                     | New entity ID |
+
+Use `drawDim*` for true dimension entities. Do not fake dimensions with lines, arrows, and text. Style defaults to the drawing `$DIMSTYLE`; pass `styleName` from `cad.tables.dimStyleTable` to override.
 
 ### Edit Methods
 

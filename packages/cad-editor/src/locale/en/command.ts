@@ -44,12 +44,24 @@ export default {
       description:
         'Creates, modifies, or specifies text styles for text and multiline text'
     },
+    mleaderstyle: {
+      description:
+        'Creates and modifies multileader styles for multileader objects'
+    },
     attedit: {
       description:
         'Edits attribute values and display properties of a block reference'
     },
+    bsearch: {
+      description:
+        'Smart Blocks: finds identical geometry and converts it into blocks',
+      prompt: 'Select objects to search for'
+    },
     attdef: {
       description: 'Creates an attribute definition for a block'
+    },
+    classicgroup: {
+      description: 'Opens the Object Grouping dialog to create and manage groups'
     }
   },
   USER: {}

@@ -10,8 +10,29 @@ export const PDF_PLUGIN_NAME = 'PdfPlugin'
  * - `cpdf` — same as `-cpdf` when no UI dialog is registered; in cad-viewer,
  *   `cpdf` opens the export dialog and loads this plugin on confirm via `-cpdf`
  * - `ipdf` — import vector geometry from PDF
+ * - `pdfscale` — calibrate imported PDF geometry from a known distance
+ * - `pdftext` — convert exploded PDF text strokes back into text
+ * - `pdfblock` — turn repeated PDF geometry back into a block
+ * - `pdfdim` — turn exploded PDF dimensions back into dimensions
  */
-export const PDF_PLUGIN_TRIGGERS = ['-cpdf', 'cpdf', 'ipdf'] as const
+export const PDF_PLUGIN_TRIGGERS = [
+  '-cpdf',
+  'cpdf',
+  'ipdf',
+  'pdfscale',
+  'pdftext',
+  'pdfblock',
+  'pdfdim'
+] as const
+
+/** Triggers that remain when export is disabled. */
+const PDF_IMPORT_TRIGGERS = [
+  'ipdf',
+  'pdfscale',
+  'pdftext',
+  'pdfblock',
+  'pdfdim'
+] as const
 
 /**
  * Registers the PDF plugin for lazy loading.
@@ -27,7 +48,7 @@ export function registerLazyPdfPlugin(
 ): void {
   const disableExport = options.disableExport === true
   const triggers = disableExport
-    ? (['ipdf'] as const)
+    ? [...PDF_IMPORT_TRIGGERS]
     : [...PDF_PLUGIN_TRIGGERS]
 
   pluginManager.registerLazyPlugin({

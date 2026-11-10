@@ -122,13 +122,14 @@ import {
   useLocale,
   useSettings
 } from '../composable'
-import { LocaleProp } from '../locale'
+import { LocaleProp, syncViewerAcApI18n } from '../locale'
 import { resolveOpenFileErrorToastMessage } from '../util/openFileErrorMessage'
 import { MlDialogManager, MlFontFileReader } from './common'
 import { MlEntityInfo, MlToolBars } from './layout'
 import { MlNotificationCenter } from './notification'
 import { MlPaletteManager } from './palette'
 import { MlRibbonCommands } from './ribbon'
+import { MlBSearchReviewBar } from './smartBlock'
 import { MlStatusBar } from './statusBar'
 
 const emit = defineEmits<{
@@ -265,6 +266,8 @@ const { t } = useI18n()
 const { currentLocale, effectiveLocale, elementPlusLocale } = useLocale(
   props.locale
 )
+// Bridge landing-page AcApI18n → full-viewer singleton before plugins load.
+syncViewerAcApI18n()
 provideLocale(currentLocale)
 // Canvas element reference
 const containerRef = ref<HTMLDivElement>()
@@ -657,6 +660,9 @@ const closeNotificationCenter = () => {
 
           <!-- Toolbar with common CAD operations (zoom, pan, select, etc.) -->
           <ml-tool-bars v-if="editorRef" />
+
+          <!-- Review toolbar of BSEARCH (Smart Blocks: Search and Convert) -->
+          <ml-b-search-review-bar v-if="editorRef" />
 
           <!-- Layer manager palette and entity properties palette for controlling entity visibility and properties -->
           <ml-palette-manager v-if="editorRef" :editor="editor" />

@@ -6,6 +6,50 @@ title: "Upgrade cad-simple-viewer a cad-editor"
 
 Tato příručka vysvětluje, jak bezpečně upgradovat `@mlightcad/cad-simple-viewer` a `@mlightcad/cad-editor` — proč je nelze navyšovat izolovaně, které související balíčky se musí posunout společně a jaké existují dva spolehlivé způsoby, jak pro dané vydání určit správnou kompatibilní sadu verzí.
 
+::: info Chytré bloky: Vyhledat a převést (`BSEARCH`)
+Od vydání, které obsahuje tuto změnu, registruje `@mlightcad/cad-simple-viewer` příkaz **-BSEARCH** a `@mlightcad/cad-editor` přidává **BSEARCH** (alias `BCONVERT`) s panelem pro kontrolu a dialogem Převést na blok (karty Vložit a AI na pásu karet).
+
+Porovnávání tvarů se přesunulo z `@mlightcad/cad-pdf-plugin` do `@mlightcad/cad-simple-viewer`. Upravte importy:
+
+| `@mlightcad/cad-pdf-plugin` (zastaralé) | `@mlightcad/cad-simple-viewer` |
+| --- | --- |
+| `findPdfShapeMatches` | `acedFindShapeMatches` |
+| `applyPdfAffine` | `acedApplyAffine2d` |
+| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
+
+Staré názvy fungují dál jako zastaralé aliasy. Text se přesunul z `kind` do `label`. `pdfblock` nyní používá pořadí výzev `-BSEARCH` (Převést → Nový/Existující → název → bod vložení → rozsah); skripty odpovídající na staré výzvy je třeba upravit.
+:::
+
+::: info AutoCAD skupiny (`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
+Od vydání, které obsahuje tuto změnu, `@mlightcad/cad-simple-viewer` registruje **GROUP**, **-GROUP**, **UNGROUP** a **GROUPEDIT**, rozšiřuje výběr při `PICKSTYLE` `1` nebo `3` a uplatňuje úchyty `GROUPDISPLAYMODE` u volitelných skupin. `@mlightcad/cad-editor` přidává **CLASSICGROUP** (dialog Seskupování objektů) a panel Domů → Skupiny na pásu karet.
+
+Vyžaduje `@mlightcad/data-model` se systémovými proměnnými `PICKSTYLE` (0–3, výchozí `1`) a `GROUPDISPLAYMODE` (0–2, výchozí `2`). Sdílený výběr asociativní šrafy (`PICKSTYLE` 2/3) zůstává no-op, dokud `AcDbHatch` nezíská soft-pointery hranic.
+:::
+
+::: info Náhled výběru v `cad.view.capturePreview`
+Od vydání, které obsahuje tuto změnu, `CadSession.capturePreview` přijímá objekt voleb místo holého čísla `longSide`:
+
+```ts
+capturePreview?(options?: {
+  longSide?: number
+  selection?: boolean
+}): Promise<CaptureDrawingPreviewResult>
+```
+
+Ve skriptu použijte `cad.view.capturePreview({ longSide?, selection? })`. Po `cad.selection.replace(ids)` předáte `selection: true` pro vykreslení vybraných entit stejnou batch-preview cestou jako ENTPREVIEW (rámování podle scénových bounds, ne databázových `geometricExtents`) a připojení PNG k výsledku nástroje. Prázdný výběr vrací `reason: 'no-selection'`. Bezhlavový `createDatabaseSession` stále přeskočí náhledy (bez rendereru).
+:::
+
+::: info Náhled hladin v `cad.view.capturePreview`
+Od vydání, které obsahuje tuto změnu, přidává `CadCapturePreviewOptions` volbu `layers?: string | string[]` a `CaptureDrawingPreviewFailure` hodnotu `'no-layers'`:
+
+```ts
+cad.view.capturePreview({ layers: ['WALL', 'DOOR'], longSide: 1024 })
+```
+
+Vykreslí se jen geometrie modelového prostoru na těchto hladinách (INSERT přispěje jen svými částmi na těchto hladinách) a snímek se ořízne na společný rozsah hladin místo celého výkresu. Názvy hladin nerozlišují velikost písmen; neznámé názvy vyhodí chybu během běhu skriptu; `layers` nelze kombinovat se `selection: true`. `normalizeCadCapturePreviewOptions` nyní vrací `NormalizedCadCapturePreviewOptions` (`layers` jako `string[]` bez duplicit). Vlastní implementace `CadSession.capturePreview` by měly zpracovat `options.layers`, nebo vrátit `reason: 'no-layers'`. Implementace prohlížeče používá novou `AcApEntityPreviewConvertor.captureLayers(layerNames, longSide)`.
+:::
+
 ::: info Lehký vstup pro úvodní stránku otevření souboru
 Od **1.8.0** nabízí `@mlightcad/cad-simple-viewer` podcestu bez DocManageru pro úvodní stránky. Upřednostněte **`acuiCreateFileOpenSession`** (lazy `createDocManager` + automatické otevření / `attachSourcesTo`). Použijte `AcUiFileOpenLanding`, když otevíráte výkresy sami (např. Vue `MlCadViewer`):
 
@@ -77,6 +121,23 @@ Chování se nemění; mění se jen názvy symbolů. Při upgradu z 1.7.x aktua
 ```
 
 Stejné přejmenování platí i pro další pomocné funkce HTML-core (například `captureAcExSavedViewExtents` → `acexHtmlCaptureSavedViewExtents`, `buildOsnapCatalog` → `acexHtmlBuildOsnapCatalog`). API na úrovni příkazů jako `AcApHtmlConvertor` a `chtml` / `-chtml` nejsou ovlivněna. Vývojové příručky s novými názvy cílí na **1.8.0+**; na 1.7.x používejte i nadále staré symboly.
+:::
+
+::: tip Skriptový hostitel: vytváření skutečných kót (`drawDim*`)
+Od vydání po **1.8.0-preview.2** umí `cad.edit.transaction` v `@mlightcad/cad-script-core` vytvářet kótovací entity — nejen je číst ze snapshotů:
+
+- `drawDimAligned`, `drawDimLinear`, `drawDimDiameter`, `drawDimRadius`
+- `drawDimAngular`, `drawDimArc`, `drawDimOrdinate`
+
+Agenti a skripty by měli volat tato API místo napodobování kót čarami, šipkami a textem. Průměr/poloměr přijímají `center` + `radius`, takže snapshot kružnice lze předat přímo. Viz [API skriptů](../guide/script/api.md).
+:::
+
+::: tip Skriptový hostitel: statistiky po blocích na `cad.blocks`
+Od vydání s touto změnou `cad.blocks` poskytuje u každého bloku `entityCount` / `typeCounts` bez plného pole `entities`. Pro součty preferujte tato pole nebo `count(pred)`. Snímky přes `where` / `inBlock(id, pred)` — snímek celého prostoru se zastaví kolem 500 s `too_many_matches`. `where` / `count` / `inBox` procházejí jen modelový a výkresový prostor.
+:::
+
+::: info SVG File → Open
+Od verze **1.8.0** lze `.svg` otevřít jako výkres přes File → Open / `openDocument` / `openUrl`. Konverze je v novém balíčku [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter). `initializeCadViewer` v `cad-editor` jej registruje automaticky; při samotném `cad-simple-viewer` zavolejte jednou `registerSvgConverter()`. Export zůstává `csvg` v `cad-svg-plugin`.
 :::
 
 ::: info Export PDF rozdělen do sdíleného jádra (prohlížeč + Node)

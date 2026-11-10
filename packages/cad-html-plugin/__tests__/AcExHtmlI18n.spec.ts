@@ -1,9 +1,9 @@
 import {
   ACEX_HTML_LOCALE_STORAGE_KEY,
-  AcExHtmlI18n,
-  acexHtmlDetectLocale,
   acexHtmlDetectBrowserLocale,
+  acexHtmlDetectLocale,
   acexHtmlFormatMessage,
+  AcExHtmlI18n,
   acexHtmlResolveLocale
 } from '@mlightcad/cad-html-core'
 
@@ -106,7 +106,7 @@ describe('AcExHtmlI18n', () => {
     expect(acexHtmlFormatMessage('Zoom: {name}', { name: '0' })).toBe('Zoom: 0')
   })
 
-  it('cycles the locale through en -> zh -> cs -> tr -> ar -> en', () => {
+  it('cycles the locale through en -> zh -> ja -> ko -> cs -> tr -> ar -> en', () => {
     const i18n = new AcExHtmlI18n('en')
     expect(i18n.t('layers.title')).toBe('Layers')
     expect(i18n.localeBadge).toBe('EN')
@@ -114,6 +114,14 @@ describe('AcExHtmlI18n', () => {
     expect(i18n.toggleLocale()).toBe('zh')
     expect(i18n.t('layers.title')).toBe('图层')
     expect(i18n.localeBadge).toBe('中')
+
+    expect(i18n.toggleLocale()).toBe('ja')
+    expect(i18n.t('layers.title')).toBe('画層')
+    expect(i18n.localeBadge).toBe('日')
+
+    expect(i18n.toggleLocale()).toBe('ko')
+    expect(i18n.t('layers.title')).toBe('도면층')
+    expect(i18n.localeBadge).toBe('한')
 
     expect(i18n.toggleLocale()).toBe('cs')
     expect(i18n.t('layers.title')).toBe('Hladiny')

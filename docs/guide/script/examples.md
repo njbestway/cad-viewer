@@ -12,8 +12,11 @@ Count the number of each entity type in the drawing.
 
 ```javascript
 const counts = {}
-for (const entity of cad.entities.where(() => true)) {
-  counts[entity.type] = (counts[entity.type] || 0) + 1
+for (const block of cad.blocks) {
+  if (!block.isModelSpace && !block.isPaperSpace) continue
+  for (const [type, n] of Object.entries(block.typeCounts)) {
+    counts[type] = (counts[type] || 0) + n
+  }
 }
 return {
   title: cad.drawing.title,
@@ -71,6 +74,28 @@ cad.edit.transaction('Draw rectangle', tx => {
   })
 })
 return 'done'
+```
+
+## Add Diameter Dimensions to Circles
+
+Create real diametric dimension entities from each circle's center and radius.
+
+```javascript
+const dimIds = []
+cad.edit.transaction('Diameter dimensions', tx => {
+  for (const c of cad.entities.where(e => e.type === 'Circle')) {
+    const g = c.geometry
+    dimIds.push(
+      tx.drawDimDiameter({
+        center: g.center,
+        radius: g.radius,
+        angleDeg: 0,
+        leaderLength: Math.max(g.radius * 0.25, 1)
+      })
+    )
+  }
+})
+return { count: dimIds.length, dimIds }
 ```
 
 ## Move All Entities on a Layer
@@ -155,7 +180,8 @@ return cad.blocks.map(block => ({
   name: block.name,
   isModelSpace: block.isModelSpace,
   isPaperSpace: block.isPaperSpace,
-  count: block.entities.length
+  count: block.entityCount,
+  typeCounts: block.typeCounts
 }))
 ```
 

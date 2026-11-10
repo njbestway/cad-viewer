@@ -71,11 +71,12 @@ title: AI でスクリプトを作成
 ### cad.tables
 `AcDbDatabase.tables` と同じシンボルテーブルです。各テーブルは { id, records: [{ id, name, ... }] }。
 appIdTable、blockTable、dimStyleTable、linetypeTable、textStyleTable、ucsTable、viewTable、layerTable、viewportTable。
-layerTable には color、linetype、lineWeight、isOff、isFrozen、isLocked、isPlottable があります。ブロック内の図形は cad.blocks を使います。
+layerTable には color、linetype、lineWeight、isOff、isFrozen、isLocked、isPlottable があります。ブロック内の図形は cad.entities.inBlock(id)。
 
 ### cad.blocks
-DXF の BLOCKS セクションに相当します。*Model_Space と *Paper_Space を含みます。
-フィールド: id、name、origin、isModelSpace、isPaperSpace、flags、pathName、isXref、layoutId、entities。
+メタデータのみ（*Model_Space / *Paper_Space 含む）。
+フィールド: id、name、origin、isModelSpace、isPaperSpace、flags、pathName、isXref、layoutId、entityCount、typeCounts。
+entities 配列なし — inBlock(id)。集計は entityCount / typeCounts。
 
 ### cad.selection
 選択セットの制御：
@@ -88,7 +89,7 @@ DXF の BLOCKS セクションに相当します。*Model_Space と *Paper_Space
 
 ### cad.view
 - cad.view.zoomExtents() -> モデル空間の範囲にズーム
-- cad.view.capturePreview({ longSide? }) -> スクリプト終了後に PNG をキュー。戻り値は { queued: true, index }。視覚確認が必要なときに使用し、単純な編集では省略可
+- cad.view.capturePreview({ longSide?, selection?, layers? }) -> スクリプト終了後に PNG をキュー。戻り値は { queued: true, index }。視覚確認が必要なときに使用し、単純な編集では省略可。layers: [画層名] で指定画層のみを、その合計範囲でキャプチャ
 
 ### cad.file
 - cad.file.saveDxf(path?) -> スクリプト成功後に DXF を書き出す。パス文字列または { path?, fileName? }。アプリ内ではダウンロード、cad-mcp-server では path に保存（相対パスはサーバーの作業ディレクトリ）。戻り値は { queued: true, index, fileName }。DXF 本文は返さない。ツール結果に savedFiles が付く
@@ -120,6 +121,14 @@ After non-trivial draws prefer: return { ...cad.measure.report([...]), entityIds
 - tx.drawXline({ start: {x,y}, through: {x,y}, layer? }) -> 新しいエンティティ ID を返す
 - tx.drawSpline({ points: [{x,y}...], closed?, layer? }) -> 新しいエンティティ ID を返す
 - tx.drawText({ position: {x,y}, text, height?, layer? }) -> 新しいエンティティ ID を返す
+- tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? }) -> 新しいエンティティ ID
+- tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? }) -> 新しいエンティティ ID
+- tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> 新しいエンティティ ID（または chordPoint+farChordPoint）
+- tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> 新しいエンティティ ID（または center+chordPoint）
+- tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> 新しいエンティティ ID
+- tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> 新しいエンティティ ID
+- tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? }) -> 新しいエンティティ ID
+- 寸法は drawDim* を使う。線・矢印・文字で寸法を模倣しない
 - tx.erase(ids) -> 削除されたエンティティ数を返す
 - tx.setLayer(ids, layer)
 - tx.move(ids, dx, dy) -> 移動されたエンティティ数を返す

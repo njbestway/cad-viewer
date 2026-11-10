@@ -1,7 +1,9 @@
 import {
   AcCmEventManager,
+  AcDbBlockTableRecord,
   AcDbEntity,
   AcDbLayout,
+  AcDbObjectId,
   AcDbSystemVariables,
   AcDbSysVarManager
 } from '@mlightcad/data-model'
@@ -16,19 +18,6 @@ import {
 
 function asEntityList(entity: AcDbEntity | AcDbEntity[]): AcDbEntity[] {
   return Array.isArray(entity) ? entity : [entity]
-}
-
-/**
- * True when the entity is a direct member of model space or of a paper-space
- * layout, i.e. something the view draws as a top-level entity.
- *
- * Block-definition members are excluded on purpose: they are drawn as part of
- * their INSERT and never own a scene entry, so add/erase notifications for them
- * must not reach the view.
- */
-function isLayoutSpaceEntity(doc: AcApDocument, entity: AcDbEntity) {
-  const owner = doc.database.tables.blockTable.getIdAt(entity.ownerId)
-  return !!(owner && (owner.isModelSapce || owner.isPaperSapce))
 }
 
 /**
@@ -101,7 +90,7 @@ export class AcApContext {
       // (ghost dim text at every cursor sample, visible only after pan/flush).
       const pending = asEntityList(args.entity).filter(entity => {
         if (this.view.hasEntity(entity.objectId)) return false
-        return isLayoutSpaceEntity(doc, entity)
+        return this.isLayoutSpaceOwner(entity.ownerId)
       })
       if (pending.length === 0) {
         return
@@ -149,7 +138,7 @@ export class AcApContext {
         // mirrored into a second id set here: two sets would have to agree on
         // enqueue, dequeue, cancel, error and document-destroy paths forever.
         const pending = asEntityList(args.entity).filter(entity =>
-          isLayoutSpaceEntity(doc, entity)
+          this.isLayoutSpaceOwner(entity.ownerId)
         )
         if (pending.length > 0) {
           this.view.removeEntity(pending.length === 1 ? pending[0] : pending)
@@ -272,5 +261,26 @@ export class AcApContext {
       dispose()
     }
     this._disposers.length = 0
+  }
+
+  /**
+   * True when `ownerId` refers to model space or a paper-space layout BTR.
+   *
+   * Block-definition members stay excluded on purpose: they render as part of
+   * their INSERT and never own a scene entry, so add/erase events must not
+   * reach the view for them.
+   *
+   * Prefer {@link AcDbDatabase.getObjectById} over `blockTable.getIdAt`, which
+   * requires the BTR's `ownerId` to equal the BlockTable id. Some DWGs parent
+   * `*Model_Space` under an intermediate object, so `getIdAt` returns
+   * undefined even for a valid model-space BTR and would drop every model
+   * entity on open.
+   */
+  private isLayoutSpaceOwner(ownerId: AcDbObjectId): boolean {
+    const owner = this._doc.database.getObjectById(ownerId)
+    return (
+      owner instanceof AcDbBlockTableRecord &&
+      (owner.isModelSapce || owner.isPaperSapce)
+    )
   }
 }

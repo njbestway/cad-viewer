@@ -1,9 +1,26 @@
 export default {
+  bsearch: {
+    title: 'Vyhledat a převést',
+    found: 'Nalezeno {count} instancí, zahrnuto {included}',
+    position: '{index} z {count}',
+    previous: 'Předchozí instance',
+    next: 'Další instance',
+    includeCurrent: 'Zahrnout tuto instanci',
+    convert: 'Převést na blok…',
+    cancel: 'Zrušit',
+    rotation: 'Otočené',
+    mirror: 'Zrcadlené',
+    scale: 'V měřítku',
+    sameLayer: 'Stejná hladina',
+    existingBlocks: 'Existující bloky',
+    textVariations: 'Rozdílný text',
+    pickPrompt: 'Klepnutím na instanci ji zahrňte nebo vylučte, nebo'
+  },
   mainMenu: {
     new: 'Nový výkres',
     open: 'Otevřít výkres',
     drawingUnits: 'Jednotky výkresu',
-    exportMenu: 'Export',
+    exportMenu: 'Exportovat',
     export: 'Exportovat do DXF',
     exportHtml: 'Exportovat do HTML',
     exportPdf: 'Exportovat do PDF',
@@ -13,8 +30,10 @@ export default {
   },
   ribbon: {
     tab: {
+      ai: 'AI',
       home: 'Domů',
       insert: 'Vložit',
+      view: 'Pohled',
       review: 'Kontrola',
       measurement: 'Měření',
       hatchContext: 'Šrafování',
@@ -91,7 +110,7 @@ export default {
       },
       field: {
         textStyle: 'Textový styl',
-        font: 'Font',
+        font: 'Písmo',
         color: 'Barva',
         height: 'Výška',
         obliqueAngle: 'Úhel sklonu',
@@ -100,7 +119,7 @@ export default {
       },
       characterMap: {
         title: 'Mapa znaků',
-        font: 'Font(F):',
+        font: 'Písmo(F):',
         charsToCopy: 'Znaky ke zkopírování(A):',
         select: 'Vybrat(S)',
         copy: 'Kopírovat(C)',
@@ -121,7 +140,7 @@ export default {
         list: 'Odrážky a číslování',
         lineSpacing: 'Řádkování',
         paragraphAlignment: 'Zarovnání odstavce',
-        symbol: 'Symbol',
+        symbol: 'Symboly',
         close: 'Zavřít'
       },
       tooltip: {
@@ -192,13 +211,13 @@ export default {
         angle: 'Úhel  \\U+2220',
         boundary: 'Hraniční čára  \\U+E100',
         centerLine: 'Osa  \\U+2104',
-        delta: 'Delta  \\U+0394',
+        delta: 'Delta (řecké písmeno)  \\U+0394',
         electricalPhase: 'Elektrická fáze  \\U+0278',
         flowLine: 'Čára toku  \\U+E101',
         identical: 'Identické s  \\U+2261',
         notEqual: 'Nerovná se  \\U+2260',
-        ohm: 'Ohm  \\U+2126',
-        omega: 'Omega  \\U+03A9',
+        ohm: 'Ohm (jednotka)  \\U+2126',
+        omega: 'Omega (řecké písmeno)  \\U+03A9',
         propertyLine: 'Hranice pozemku  \\U+214A',
         subscriptTwo: 'Dolní index 2  \\U+2082',
         squared: 'Na druhou  \\U+00B2',
@@ -208,13 +227,20 @@ export default {
       }
     },
     group: {
+      smartBlocks: 'Chytré bloky',
+      agent: 'Agent AI',
+      pdf: 'PDF',
       draw: 'Kreslení',
       dimension: 'Kóty',
       modify: 'Úpravy',
       layer: 'Hladiny',
       properties: 'Vlastnosti',
+      groups: 'Skupiny',
       utilities: 'Nástroje',
       annotation: 'Poznámky',
+      navigate: 'Navigace',
+      namedViews: 'Pojmenované pohledy',
+      coordinates: 'Souřadnice',
       review: 'Kontrola',
       measurement: 'Měření',
       style: 'Styl',
@@ -271,6 +297,18 @@ export default {
       arc: 'Eliptický oblouk'
     },
     tooltip: {
+      searchConvert:
+        'Vyhledá všechny kopie vybraných objektů a převede je na bloky (BSEARCH).',
+      importPdf:
+        'Importuje vektorovou geometrii ze souboru PDF a obnoví kružnice, oblouky a křivky (IPDF).',
+      pdfScale:
+        'Změní měřítko importované geometrie PDF podle dvou bodů známé vzdálenosti (PDFSCALE).',
+      pdfDim:
+        'Převede rozložené kóty z PDF (šipky nebo značky, čáry, vynášecí čáry a texty) zpět na kótovací objekty (PDFDIM).',
+      pdfBlock:
+        'Převede opakovanou geometrii z PDF na blok a každou kopii nahradí referencí bloku (PDFBLOCK).',
+      pdfText:
+        'Převede rozložené tahy textu z PDF zpět na textové objekty (PDFTEXT).',
       line: 'Nakreslí jednu úsečku.',
       polyline: 'Nakreslí spojenou řadu úseček nebo oblouků jako jeden objekt.',
       spline: 'Nakreslí hladkou křivku splajn proložením nebo řídicími body.',
@@ -297,6 +335,11 @@ export default {
       dimcontinue: 'Vytvoří řetězovou kótu z předchozí.',
       dimbaseline: 'Vytvoří základnovou kótu z předchozí.',
       dimstyle: 'Otevře správce stylů kót.',
+      mleader: 'Vytvoří vícenásobnou odkazovou čáru.',
+      mleaderAdd:
+        'Přidá odkazovou čáru k existující vícenásobné odkazové čáře.',
+      mleaderRemove:
+        'Odebere odkazovou čáru z existující vícenásobné odkazové čáry.',
       move: 'Posune vybrané objekty na novou pozici.',
       rotate: 'Otočí vybrané objekty kolem základního bodu.',
       copy: 'Zkopíruje vybrané objekty na nové místo.',
@@ -305,6 +348,11 @@ export default {
       undo: 'Vrátí zpět poslední úpravu.',
       redo: 'Zopakuje poslední vrácenou úpravu.',
       properties: 'Otevře paletu Vlastnosti pro aktuální výběr.',
+      group: 'Vytvoří skupinu z vybraných objektů (GROUP).',
+      ungroup: 'Rozloží definici skupiny (UNGROUP).',
+      groupEdit: 'Přidá, odebere nebo přejmenuje členy skupiny (GROUPEDIT).',
+      groupSelect: 'Zapne nebo vypne výběr skupin (PICKSTYLE).',
+      classicGroup: 'Otevře dialog Seskupování objektů (CLASSICGROUP).',
       quickSelect:
         'Otevře Rychlý výběr pro filtrování a výběr objektů podle kritérií.',
       find: 'Otevře paletu Hledat pro hledání textu v celém výkresu nebo v aktuálním layoutu.',
@@ -325,6 +373,28 @@ export default {
         'Vytvoří definici atributu pro použití v bloku (ATTDEF).',
       agent:
         'Otevře kartu palety CAD Agent pro kreslení geometrie přirozeným jazykem.',
+      pan: 'Posune pohled na výkres beze změny zvětšení.',
+      zoom: 'Zvětší nebo zmenší zobrazení výkresu.',
+      zoomExtents: 'Zobrazí maximální rozsah všech objektů.',
+      zoomWindow: 'Zobrazí oblast zadanou oknem.',
+      zoomPrevious: 'Zobrazí předchozí pohled.',
+      zoomSaved: 'Zobrazí uložený pohled VPORT / rozvržení.',
+      zoomSmart: 'Zobrazí převládající shluk geometrie.',
+      newView:
+        'Vytvoří nový pojmenovaný pohled z aktuálního zobrazení nebo okna.',
+      viewManager:
+        'Otevře Správce pohledů pro vytváření, obnovení a odstraňování pojmenovaných pohledů.',
+      ucs: 'Nastaví počátek a orientaci aktuálního uživatelského souřadnicového systému.',
+      namedUcs: 'Spravuje pojmenované definice USS a nastavení ikony USS.',
+      ucsWorld: 'Nastaví USS na globální souřadnicový systém.',
+      ucsOrigin: 'Definuje nový počátek USS.',
+      ucsX: 'Otočí USS kolem osy X.',
+      ucsY: 'Otočí USS kolem osy Y.',
+      ucsZ: 'Otočí USS kolem osy Z.',
+      ucsZAxis: 'Definuje USS zadáním osy Z.',
+      ucsView: 'Zarovná USS s aktuálním pohledem.',
+      ucsObject: 'Zarovná USS s vybraným objektem.',
+      restoreView: 'Obnoví pojmenovaný pohled uložený ve výkresu.',
       propertyColor: 'Nastaví barvu nových nebo vybraných objektů.',
       propertyLineType: 'Nastaví typ čáry nových nebo vybraných objektů.',
       propertyLineWeight:
@@ -390,6 +460,12 @@ export default {
       }
     },
     command: {
+      searchConvert: 'Vyhledat a\npřevést',
+      importPdf: 'Importovat\nPDF',
+      pdfScale: 'Kalibrovat\nměřítko',
+      pdfDim: 'Obnovit\nkóty',
+      pdfBlock: 'Vytvořit\nblok',
+      pdfText: 'Obnovit\ntext',
       line: 'Úsečka',
       polyline: 'Křivka',
       circle: 'Kružnice',
@@ -420,6 +496,9 @@ export default {
       dimcontinue: 'Řetězová',
       dimbaseline: 'Základna',
       dimstyle: 'Styl kót',
+      mleader: 'Vícenásobná odkazová čára',
+      mleaderAdd: 'Přidat odkaz',
+      mleaderRemove: 'Odebrat odkaz',
       move: 'Posunout',
       rotate: 'Otočit',
       copy: 'Kopírovat',
@@ -428,6 +507,11 @@ export default {
       undo: 'Zpět',
       redo: 'Znovu',
       properties: 'Vlastnosti',
+      group: 'Skupina',
+      ungroup: 'Zrušit skupinu',
+      groupEdit: 'Upravit skupinu',
+      groupSelect: 'Výběr skupin Zap/Vyp',
+      classicGroup: 'Správce skupin',
       quickSelect: 'Rychlý\nvýběr',
       find: 'Hledat',
       countList: 'Počet',
@@ -437,7 +521,27 @@ export default {
       insert: 'Vložit',
       editAttributes: 'Upravit\natributy',
       defineAttribute: 'Definovat\natribut',
-      agent: 'CAD\nAgent'
+      agent: 'CAD\nagent',
+      pan: 'Posun',
+      zoom: 'Zoom',
+      zoomExtents: 'Rozsah',
+      zoomWindow: 'Okno',
+      zoomPrevious: 'Předchozí',
+      zoomSaved: 'Uložený',
+      zoomSmart: 'Chytrý',
+      newView: 'Nový\npohled',
+      viewManager: 'Správce\npohledů',
+      ucs: 'USS',
+      namedUcs: 'Pojmenované\nUSS',
+      ucsWorld: 'Globální',
+      ucsOrigin: 'Počátek',
+      ucsX: 'X',
+      ucsY: 'Y',
+      ucsZ: 'Z',
+      ucsZAxis: 'Osa Z',
+      ucsView: 'Pohled',
+      ucsObject: 'Objekt',
+      restoreView: 'Obnovit\npohled'
     }
   },
   verticalToolbar: {
@@ -550,7 +654,7 @@ export default {
       text: 'Výška textu',
       description:
         'Otevře nastavení výšky textu poznámek (přizpůsobit obrazovce nebo světová výška)',
-      fit: 'Fit',
+      fit: 'Přizpůsobit',
       wcs: 'WCS'
     },
     measurementColor: {
@@ -562,7 +666,7 @@ export default {
       text: 'Výška textu',
       description:
         'Otevře nastavení výšky textu vybraného měření, nebo měření, která přidáte příště',
-      fit: 'Fit',
+      fit: 'Přizpůsobit',
       wcs: 'WCS'
     },
     showMarkup: {
@@ -592,12 +696,17 @@ export default {
     switchBg: {
       text: 'Pozadí',
       description: 'Přepne pozadí výkresu mezi bílým a černým',
-      disabledInReadingMode:
-        'Nedostupné v režimu čtení (bílé plátno je pevné)'
+      disabledInReadingMode: 'Nedostupné v režimu čtení (bílé plátno je pevné)'
+    },
+    readingMode: {
+      text: 'Čtení',
+      description:
+        'Přepíná režim čtení: černé čáry na bílém plátně pro snazší kontrolu'
     },
     zoom: {
       text: 'Zoom',
-      description: 'Nástroje zoomu: uložený pohled, rozsah, chytrý rozsah a okno'
+      description:
+        'Nástroje zoomu: uložený pohled, rozsah, chytrý rozsah a okno'
     },
     zoomSaved: {
       text: 'Uložený',
@@ -842,7 +951,7 @@ export default {
     missingResources: {
       tab: 'Zdroje',
       title: 'Chybějící / externí zdroje',
-      fontTab: 'Font',
+      fontTab: 'Fonty',
       imageTab: 'Obrázek',
       xrefTab: 'Externí reference',
       attach: 'Připojit',
@@ -941,7 +1050,7 @@ export default {
         type: 'Typ',
         count: 'Počet',
         category: 'Kategorie',
-        font: 'Font'
+        font: 'Písmo'
       }
     },
     openFileProfile: {
@@ -967,13 +1076,13 @@ export default {
       total: 'Celkem',
       read: 'db.read',
       parse: 'PARSE',
-      entity: 'ENTITY flush',
+      entity: 'Vyprázdnění ENTITY',
       convert: 'Převod scény',
       cacheHits: 'Zásahy cache',
       cacheMisses: 'Miss cache',
-      cacheBuild: 'Miss build',
-      cacheCompact: 'Miss compact',
-      cacheHitPath: 'Hit path',
+      cacheBuild: 'Miss – sestavení',
+      cacheCompact: 'Miss – zhuštění',
+      cacheHitPath: 'Cesta zásahu',
       columns: {
         stage: 'Fáze',
         duration: 'Trvání',
@@ -981,8 +1090,8 @@ export default {
         metric: 'Metrika',
         value: 'Hodnota',
         block: 'Blok',
-        build: 'Build',
-        compact: 'Compact'
+        build: 'Sestavení',
+        compact: 'Zhuštění'
       }
     },
     blocks: {

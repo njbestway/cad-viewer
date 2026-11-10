@@ -6,6 +6,50 @@ title: "ترقية cad-simple-viewer و cad-editor"
 
 يشرح هذا الدليل كيفية ترقية `@mlightcad/cad-simple-viewer` و`@mlightcad/cad-editor` بأمان — ولماذا لا يمكن رفعهما بمعزل عن غيرهما، وأي الحزم ذات الصلة يجب أن تتحرك معًا، وطريقتان موثوقتان لتحديد مجموعة الإصدارات المتوافقة الصحيحة لأي إصدار معين.
 
+::: info الكتل الذكية: بحث وتحويل (`BSEARCH`)
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يسجّل `@mlightcad/cad-simple-viewer` الأمر **-BSEARCH** ويضيف `@mlightcad/cad-editor` الأمر **BSEARCH** (الاسم البديل `BCONVERT`) مع شريط مراجعة ومربع حوار التحويل إلى كتلة (في علامتي التبويب إدراج وAI).
+
+انتقلت مطابقة الأشكال من `@mlightcad/cad-pdf-plugin` إلى `@mlightcad/cad-simple-viewer`. انقل الاستيرادات:
+
+| `@mlightcad/cad-pdf-plugin` (مهمل) | `@mlightcad/cad-simple-viewer` |
+| --- | --- |
+| `findPdfShapeMatches` | `acedFindShapeMatches` |
+| `applyPdfAffine` | `acedApplyAffine2d` |
+| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
+
+تبقى الأسماء القديمة متاحة كأسماء بديلة مهملة. انتقل نص الكتابة من `kind` إلى `label`. يتبع `pdfblock` الآن ترتيب مطالبات `-BSEARCH` (تحويل ← جديد/موجود ← الاسم ← نقطة الإدراج ← النطاق)، لذا يجب تعديل النصوص البرمجية التي تجيب على المطالبات القديمة.
+:::
+
+::: info مجموعات AutoCAD (`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يسجّل `@mlightcad/cad-simple-viewer` أوامر **GROUP** و**-GROUP** و**UNGROUP** و**GROUPEDIT**، ويوسّع التحديد عندما يكون `PICKSTYLE` بقيمة `1` أو `3`، ويطبّق مقابض `GROUPDISPLAYMODE` للمجموعات القابلة للتحديد. يضيف `@mlightcad/cad-editor` أمر **CLASSICGROUP** (مربع حوار تجميع الكائنات) ولوحة الشريط الرئيسية → المجموعات.
+
+يتطلب `@mlightcad/data-model` الذي يسجّل `PICKSTYLE` (0–3، الافتراضي `1`) و`GROUPDISPLAYMODE` (0–2، الافتراضي `2`). يبقى التحديد المشترك للتهشير الارتباطي (`PICKSTYLE` 2/3) بدون تنفيذ حتى تتوفر مؤشرات حدود ناعمة على `AcDbHatch`.
+:::
+
+::: info معاينة التحديد في `cad.view.capturePreview`
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يقبل `CadSession.capturePreview` كائن خيارات بدل رقم `longSide` منفرد:
+
+```ts
+capturePreview?(options?: {
+  longSide?: number
+  selection?: boolean
+}): Promise<CaptureDrawingPreviewResult>
+```
+
+في السكربت استخدم `cad.view.capturePreview({ longSide?, selection? })`. بعد `cad.selection.replace(ids)` مرّر `selection: true` لاستخراج الكيانات المحددة عبر مسار معاينة الدفعات نفسه المستخدم في ENTPREVIEW (حدود المشهد، وليس `geometricExtents` في قاعدة البيانات) وإرفاق PNG بنتيجة الأداة. التحديد الفارغ يعيد `reason: 'no-selection'`. ما زال `createDatabaseSession` بدون عارض يتخطى المعاينات.
+:::
+
+::: info معاينة الطبقات في `cad.view.capturePreview`
+ابتداءً من الإصدار الذي يتضمن هذا التغيير، يضيف `CadCapturePreviewOptions` الخيار `layers?: string | string[]`، ويضيف `CaptureDrawingPreviewFailure` القيمة `'no-layers'`:
+
+```ts
+cad.view.capturePreview({ layers: ['WALL', 'DOOR'], longSide: 1024 })
+```
+
+تُرسم عناصر فضاء النموذج الموجودة على هذه الطبقات فقط (يساهم INSERT بأجزائه الموجودة على هذه الطبقات فقط)، وتُؤطَّر الصورة على النطاق المجمّع للطبقات بدلًا من الرسم كله. أسماء الطبقات غير حساسة لحالة الأحرف؛ الأسماء غير الموجودة ترمي خطأ أثناء تشغيل السكربت؛ ولا يمكن الجمع بين `layers` و`selection: true`. يُرجع `normalizeCadCapturePreviewOptions` الآن `NormalizedCadCapturePreviewOptions` (حيث `layers` مصفوفة `string[]` بلا تكرار). يجب على تطبيقات `CadSession.capturePreview` المخصّصة معالجة `options.layers` أو إرجاع `reason: 'no-layers'`. يستخدم تطبيق العارض الدالة الجديدة `AcApEntityPreviewConvertor.captureLayers(layerNames, longSide)`.
+:::
+
 ::: info مدخل خفيف لصفحة فتح الملفات
 بدءًا من **1.8.0**، يوفّر `@mlightcad/cad-simple-viewer` مسارًا فرعيًا خاليًا من DocManager لصفحات الهبوط. فضّل **`acuiCreateFileOpenSession`** (`createDocManager` كسول + فتح تلقائي / `attachSourcesTo`). استخدم `AcUiFileOpenLanding` عندما تفتح الرسومات بنفسك (مثل Vue `MlCadViewer`):
 
@@ -77,6 +121,23 @@ import { acuiCreateFileOpenSession } from '@mlightcad/cad-simple-viewer/file-ope
 ```
 
 ينطبق نفس التغيير على بقية مساعدات HTML-core (مثل `captureAcExSavedViewExtents` → `acexHtmlCaptureSavedViewExtents` و`buildOsnapCatalog` → `acexHtmlBuildOsnapCatalog`). واجهات مستوى الأوامر مثل `AcApHtmlConvertor` و`chtml` / `-chtml` غير متأثرة. أدلة التطوير التي تعرض الأسماء الجديدة تستهدف **1.8.0+**؛ وعلى 1.7.x استمر في استخدام الرموز القديمة.
+:::
+
+::: tip مضيف السكربت: إنشاء كيانات بُعد حقيقية (`drawDim*`)
+بدءًا من الإصدار الذي يلي **1.8.0-preview.2**، يمكن لـ `cad.edit.transaction` في `@mlightcad/cad-script-core` إنشاء كيانات أبعاد — وليس قراءتها فقط:
+
+- `drawDimAligned`، `drawDimLinear`، `drawDimDiameter`، `drawDimRadius`
+- `drawDimAngular`، `drawDimArc`، `drawDimOrdinate`
+
+يجب على الوكلاء والسكربتات استدعاء هذه الواجهات بدل تقليد الأبعاد بخطوط وأسهم ونص. القطر/نصف القطر يقبلان `center` + `radius` لتمرير لقطة الدائرة مباشرة. انظر [واجهة السكربت](../guide/script/api.md).
+:::
+
+::: tip مضيف السكربت: إحصاءات لكل كتلة على `cad.blocks`
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يعرض `cad.blocks` لكل كتلة `entityCount` / `typeCounts` دون مصفوفة `entities` كاملة. فضّل هذه الحقول أو `count(pred)` للتعداد. اللقطات عبر `where` / `inBlock(id, pred)` — لقطة مساحة كاملة تتوقف عند نحو 500 بمُعرّف `too_many_matches`. `where` / `count` / `inBox` تمسح مساحة النموذج والورق فقط.
+:::
+
+::: info SVG File → Open
+بدءًا من **1.8.0** يمكن فتح `.svg` كرسم عبر File → Open / `openDocument` / `openUrl`. التحويل في الحزمة الجديدة [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter). يسجّله `initializeCadViewer` في `cad-editor` تلقائيًا؛ ومع `cad-simple-viewer` فقط استدعِ `registerSvgConverter()` مرة عند البدء. التصدير يبقى `csvg` في `cad-svg-plugin`.
 :::
 
 ::: info تقسيم تصدير PDF إلى نواة مشتركة (المتصفح + Node)

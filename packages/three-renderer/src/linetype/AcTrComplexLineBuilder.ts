@@ -401,6 +401,19 @@ export async function asyncComplexLineTypeGlyphs(
 
 type GlyphPlacement = { x: number; y: number; z: number; rz: number }
 
+/**
+ * Recompose `matrix` from TRS after mutating position/rotation.
+ *
+ * {@link AcTrGroup} flattens empty glyph shells before shared draw and leaves
+ * `matrixAutoUpdate = false` with placement already in `matrix`. Resetting
+ * position alone then leaves a stale matrix; `collapseInverseParentTransformIntoPlacement`
+ * bakes that placement into children and the caller applies it again → 2P (#856).
+ */
+function syncGlyphTransform(glyph: THREE.Object3D): void {
+  glyph.matrixAutoUpdate = true
+  glyph.updateMatrix()
+}
+
 function snapshotGlyphPlacements(group: AcTrMText[]): GlyphPlacement[] {
   return group.map(g => ({
     x: g.position.x,
@@ -421,6 +434,10 @@ function snapshotGlyphPlacements(group: AcTrMText[]): GlyphPlacement[] {
  * `collapseInverseParentTransformIntoPlacement`) and stacks it on top of the
  * restored placement, which parks the glyph tens of millions of units away
  * from the view (missing embedded complex-linetype text).
+ *
+ * {@link syncGlyphTransform} re-enables `matrixAutoUpdate` and recomposes
+ * the matrix from the placement just written, so a repeated shared draw
+ * cannot bake a stale matrix either (#856).
  */
 function applyGlyphPlacement(
   glyph: AcTrMText | AcTrGlyphEntity,
@@ -428,9 +445,7 @@ function applyGlyphPlacement(
 ): void {
   glyph.position.set(p.x, p.y, p.z)
   glyph.rotation.set(0, 0, p.rz)
-  if (!glyph.matrixAutoUpdate) {
-    glyph.updateMatrix()
-  }
+  syncGlyphTransform(glyph)
 }
 
 /**

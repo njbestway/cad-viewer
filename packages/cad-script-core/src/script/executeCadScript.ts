@@ -104,7 +104,8 @@ export async function executeCadScript(
   }
   const host = createCadScriptHost(session, effects, {
     maxTicks: options.limits?.maxTicks ?? 100_000,
-    maxMilliseconds: options.limits?.maxMilliseconds ?? 2_000
+    maxMilliseconds: options.limits?.maxMilliseconds ?? 5_000,
+    maxWhereMatches: options.limits?.maxWhereMatches ?? 500
   })
 
   try {
@@ -179,7 +180,11 @@ async function fulfillPreviewRequests(
       typeof request.longSide === 'number' && request.longSide > 0
         ? request.longSide
         : DRAWING_PREVIEW_LONG_SIDE_PX
-    const capture = await session.capturePreview(longSide)
+    const capture = await session.capturePreview({
+      longSide,
+      ...(request.selection === true ? { selection: true } : {}),
+      ...(request.layers?.length ? { layers: [...request.layers] } : {})
+    })
     if (!capture.ok) {
       effects.log.push(`capturePreview failed: ${capture.reason}`)
       continue

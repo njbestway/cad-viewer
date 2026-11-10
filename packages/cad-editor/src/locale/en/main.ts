@@ -13,8 +13,10 @@ export default {
   },
   ribbon: {
     tab: {
+      ai: 'AI',
       home: 'Home',
       insert: 'Insert',
+      view: 'View',
       review: 'Review',
       measurement: 'Measurement',
       hatchContext: 'Hatch',
@@ -208,13 +210,20 @@ export default {
       }
     },
     group: {
+      smartBlocks: 'Smart Blocks',
+      agent: 'Agent',
+      pdf: 'PDF',
       draw: 'Draw',
       dimension: 'Dimension',
       modify: 'Modify',
       layer: 'Layer',
       properties: 'Properties',
+      groups: 'Groups',
       utilities: 'Utilities',
       annotation: 'Annotation',
+      navigate: 'Navigate',
+      namedViews: 'Named Views',
+      coordinates: 'Coordinates',
       review: 'Review',
       measurement: 'Measurement',
       style: 'Style',
@@ -271,6 +280,13 @@ export default {
       arc: 'Elliptical Arc'
     },
     tooltip: {
+      searchConvert:
+        'Find all copies of the selected objects and convert them into blocks (BSEARCH).',
+      importPdf: 'Import vector geometry from a PDF file, rebuilding circles, arcs and curves (IPDF).',
+      pdfScale: 'Rescale imported PDF geometry from two points of a known distance (PDFSCALE).',
+      pdfDim: 'Turn exploded PDF dimensions (arrows or ticks, lines, extension lines and texts) back into dimension objects (PDFDIM).',
+      pdfBlock: 'Turn repeated PDF geometry into a block and replace every copy with a block reference (PDFBLOCK).',
+      pdfText: 'Convert exploded PDF text strokes back into text objects (PDFTEXT).',
       line: 'Draw a single straight line segment.',
       polyline:
         'Draw a connected series of line or arc segments as one object.',
@@ -298,6 +314,9 @@ export default {
       dimcontinue: 'Create a continued dimension from the previous one.',
       dimbaseline: 'Create a baseline dimension from the previous one.',
       dimstyle: 'Open the Dimension Style Manager.',
+      mleader: 'Create a multileader annotation.',
+      mleaderAdd: 'Add a leader line to an existing multileader.',
+      mleaderRemove: 'Remove a leader line from an existing multileader.',
       move: 'Move selected objects to a new position.',
       rotate: 'Rotate selected objects around a base point.',
       copy: 'Copy selected objects to a new location.',
@@ -306,6 +325,12 @@ export default {
       undo: 'Undo the last editing operation.',
       redo: 'Redo the last undone editing operation.',
       properties: 'Open the Properties palette for the current selection.',
+      group: 'Create a group from selected objects (GROUP).',
+      ungroup: 'Explode a group definition (UNGROUP).',
+      groupEdit: 'Add, remove, or rename group members (GROUPEDIT).',
+      groupSelect:
+        'Toggle group selection on or off (PICKSTYLE group bit).',
+      classicGroup: 'Open the Object Grouping dialog (CLASSICGROUP).',
       quickSelect:
         'Open Quick Select to filter and select entities by criteria.',
       find: 'Open the Find palette to search text in the whole drawing or the current layout.',
@@ -326,6 +351,26 @@ export default {
         'Create an attribute definition for use in a block (ATTDEF).',
       agent:
         'Open the CAD Agent palette tab to draw geometry using natural language.',
+      pan: 'Moves the view of the drawing without changing magnification.',
+      zoom: 'Zooms the drawing display.',
+      zoomExtents: 'Zooms to display the maximum extents of all entities.',
+      zoomWindow: 'Zooms to display an area specified by a window.',
+      zoomPrevious: 'Zooms to display the previous view.',
+      zoomSaved: 'Zooms to the saved VPORT / layout view.',
+      zoomSmart: 'Zooms to the dominant geometry cluster.',
+      newView: 'Creates a new named view from the current display or a window.',
+      viewManager: 'Opens the View Manager to create, restore, and delete named views.',
+      ucs: 'Sets the origin and orientation of the current user coordinate system.',
+      namedUcs: 'Manages named UCS definitions and UCS icon settings.',
+      ucsWorld: 'Sets the UCS to the world coordinate system.',
+      ucsOrigin: 'Defines a new UCS origin.',
+      ucsX: 'Rotates the UCS about the X axis.',
+      ucsY: 'Rotates the UCS about the Y axis.',
+      ucsZ: 'Rotates the UCS about the Z axis.',
+      ucsZAxis: 'Defines a UCS by specifying the Z axis.',
+      ucsView: 'Aligns the UCS with the current view.',
+      ucsObject: 'Aligns the UCS to a selected object.',
+      restoreView: 'Restores a named view saved in the drawing.',
       propertyColor:
         'Set the color for newly created objects or selected entities.',
       propertyLineType:
@@ -396,6 +441,12 @@ export default {
       }
     },
     command: {
+      searchConvert: 'Search and\nConvert',
+      importPdf: 'Import\nPDF',
+      pdfScale: 'Calibrate\nScale',
+      pdfDim: 'Recover\nDims',
+      pdfBlock: 'Make\nBlock',
+      pdfText: 'Recover\nText',
       line: 'Line',
       polyline: 'Polyline',
       circle: 'Circle',
@@ -426,6 +477,9 @@ export default {
       dimcontinue: 'Continue',
       dimbaseline: 'Baseline',
       dimstyle: 'Dim Style',
+      mleader: 'Multileader',
+      mleaderAdd: 'Add Leader',
+      mleaderRemove: 'Remove Leader',
       move: 'Move',
       rotate: 'Rotate',
       copy: 'Copy',
@@ -434,6 +488,11 @@ export default {
       undo: 'Undo',
       redo: 'Redo',
       properties: 'Properties',
+      group: 'Group',
+      ungroup: 'Ungroup',
+      groupEdit: 'Group Edit',
+      groupSelect: 'Group Selection On/Off',
+      classicGroup: 'Group Manager',
       quickSelect: 'Quick\nSelect',
       find: 'Find',
       countList: 'Count',
@@ -443,8 +502,45 @@ export default {
       insert: 'Insert',
       editAttributes: 'Edit\nAttributes',
       defineAttribute: 'Define\nAttribute',
-      agent: 'CAD\nAgent'
+      agent: 'CAD\nAgent',
+      pan: 'Pan',
+      zoom: 'Zoom',
+      zoomExtents: 'Extents',
+      zoomWindow: 'Window',
+      zoomPrevious: 'Previous',
+      zoomSaved: 'Saved',
+      zoomSmart: 'Smart',
+      newView: 'New\nView',
+      viewManager: 'View\nManager',
+      ucs: 'UCS',
+      namedUcs: 'Named\nUCS',
+      ucsWorld: 'World',
+      ucsOrigin: 'Origin',
+      ucsX: 'X',
+      ucsY: 'Y',
+      ucsZ: 'Z',
+      ucsZAxis: 'Z Axis',
+      ucsView: 'View',
+      ucsObject: 'Object',
+      restoreView: 'Restore\nView'
     }
+  },
+  bsearch: {
+    title: 'Search and Convert',
+    found: '{count} instances found, {included} included',
+    position: '{index} of {count}',
+    previous: 'Previous instance',
+    next: 'Next instance',
+    includeCurrent: 'Include this instance',
+    convert: 'Convert to block…',
+    cancel: 'Cancel',
+    rotation: 'Rotated',
+    mirror: 'Mirrored',
+    scale: 'Scaled',
+    sameLayer: 'Same layer',
+    existingBlocks: 'Existing blocks',
+    textVariations: 'Text variations',
+    pickPrompt: 'Click an instance to include or exclude it, or'
   },
   verticalToolbar: {
     measure: {
@@ -684,7 +780,7 @@ export default {
       off: 'Turn on polar tracking'
     },
     theme: {
-      dark: 'Switch to light light',
+      dark: 'Switch to light theme',
       light: 'Switch to dark theme'
     },
     warning: {

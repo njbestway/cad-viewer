@@ -71,11 +71,12 @@ Anlık görüntüde `ownerId` vardır. Kapsam model alanı, kağıt alanı, blok
 ### cad.tables
 `AcDbDatabase.tables` ile aynı sembol tabloları. Her tablo { id, records: [{ id, name, ... }] } biçimindedir.
 appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
-layerTable color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable içerir. Blok içindeki varlıklar cad.blocks üzerindedir.
+layerTable color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable içerir. Blok içi varlıklar cad.entities.inBlock(id).
 
 ### cad.blocks
-DXF BLOCKS bölümüne karşılık gelir. *Model_Space ve *Paper_Space dahildir.
-Alanlar: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entities.
+Yalnızca meta veri (*Model_Space / *Paper_Space dahil).
+Alanlar: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entityCount, typeCounts.
+entities dizisi yok — inBlock(id). Sayımlar entityCount / typeCounts.
 
 ### cad.selection
 Seçim kümesini kontrol etme:
@@ -88,7 +89,7 @@ Seçim kümesini kontrol etme:
 
 ### cad.view
 - cad.view.zoomExtents() -> Görünümü model alanı sınırlarına sığdırır
-- cad.view.capturePreview({ longSide? }) -> Komut dosyası bittikten sonra PNG kuyruğa alır; { queued: true, index } döner. Görsel kontrol için kullanın; basit düzenlemelerde atlanabilir
+- cad.view.capturePreview({ longSide?, selection?, layers? }) -> Komut dosyası bittikten sonra PNG kuyruğa alır; { queued: true, index } döner. Görsel kontrol için kullanın; basit düzenlemelerde atlanabilir. layers: [adlar] yalnızca bu katmanları birleşik sınırlarıyla yakalar
 
 ### cad.file
 - cad.file.saveDxf(path?) -> Betik başarılı olduktan sonra DXF dışa aktarır. Yol dizesi veya { path?, fileName? }. Uygulama içi ajan indirir; cad-mcp-server path konumuna yazar (göreli yollar sunucu çalışma dizinine göredir). { queued: true, index, fileName } döner. DXF metni dönmez. Araç sonucunda savedFiles vardır
@@ -120,6 +121,14 @@ After non-trivial draws prefer: return { ...cad.measure.report([...]), entityIds
 - tx.drawXline({ start: {x,y}, through: {x,y}, layer? }) -> Yeni varlık ID'si döndürür
 - tx.drawSpline({ points: [{x,y}...], closed?, layer? }) -> Yeni varlık ID'si döndürür
 - tx.drawText({ position: {x,y}, text, height?, layer? }) -> Yeni varlık ID'si döndürür
+- tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? }) -> Yeni varlık ID'si
+- tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? }) -> Yeni varlık ID'si
+- tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> Yeni varlık ID'si (veya chordPoint+farChordPoint)
+- tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> Yeni varlık ID'si (veya center+chordPoint)
+- tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> Yeni varlık ID'si
+- tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> Yeni varlık ID'si
+- tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? }) -> Yeni varlık ID'si
+- Ölçüler için drawDim* kullanın; çizgi/ok/metinle taklit etmeyin
 - tx.erase(ids) -> Silinen varlık sayısını döndürür
 - tx.setLayer(ids, layer)
 - tx.move(ids, dx, dy) -> Taşınan varlık sayısını döndürür

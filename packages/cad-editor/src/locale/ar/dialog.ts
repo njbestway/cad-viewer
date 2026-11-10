@@ -1,43 +1,27 @@
-import enDialog from '../en/dialog'
-
 export default {
-  ...enDialog,
-
   baseDialog: {
-    ...enDialog.baseDialog,
     ok: 'موافق',
     cancel: 'إلغاء',
     apply: 'تطبيق'
   },
-
   pointStyleDlg: {
-    ...enDialog.pointStyleDlg,
     title: 'نمط النقطة',
     pointSize: 'حجم النقطة:'
   },
-
   drawingUnitsDlg: {
-    ...enDialog.drawingUnitsDlg,
-
     title: 'وحدات الرسم',
-
     lengthSection: 'الطول',
     lengthType: 'النوع:',
     lengthPrecision: 'الدقة:',
     lengthUnit: 'الوحدة:',
     lengthUnitFollowDrawing: 'اتبع الرسم',
-
     angleSection: 'الزاوية',
     angleType: 'النوع:',
     anglePrecision: 'الدقة:',
-
     clockwise: 'مع عقارب الساعة',
-
     insertionSection: 'مقياس الإدراج',
     insertionUnits: 'وحدات قياس المحتوى المدرج:',
-
     linear: {
-      ...enDialog.drawingUnitsDlg.linear,
       scientific: 'علمي',
       decimal: 'عشري',
       engineering: 'هندسي',
@@ -45,18 +29,14 @@ export default {
       fractional: 'كسري',
       windowsDesktop: 'سطح مكتب Windows'
     },
-
     angle: {
-      ...enDialog.drawingUnitsDlg.angle,
       decimalDegrees: 'درجات عشرية',
       dms: 'درجة/دقيقة/ثانية',
       gradians: 'غراديان',
       radians: 'راديان',
       surveyors: 'وحدات المساحة'
     },
-
     insUnits: {
-      ...enDialog.drawingUnitsDlg.insUnits,
       _0: 'بدون وحدة',
       _1: 'بوصة',
       _2: 'قدم',
@@ -84,21 +64,16 @@ export default {
       _24: 'ميل مساحي أمريكي'
     }
   },
-
   colorPickerDlg: {
-    ...enDialog.colorPickerDlg,
     title: 'اختيار اللون',
     aciTabTitle: 'فهرس الألوان',
     rgbTabTitle: 'لون حقيقي'
   },
-
   exportHtmlDlg: {
-    ...enDialog.exportHtmlDlg,
     title: 'تصدير إلى HTML',
     tabData: 'البيانات',
     tabDisplay: 'العرض',
     tabSecurity: 'الأمان',
-
     exportFormat: 'تنسيق التصدير',
     exportFormatSingle: 'HTML مستقل',
     exportFormatSingleHint: 'ملف .html واحد يمكن فتحه دون اتصال',
@@ -107,7 +82,6 @@ export default {
       'يُنزّل zip؛ بعد فك الضغط والاستضافة يمكن التحميل التدريجي. كلمة المرور والصلاحية لـ HTML المستقل فقط',
     securitySingleOnlyHint:
       'كلمة المرور والصلاحية متاحتان فقط لتصدير HTML المستقل.',
-
     packageSection: 'أجزاء الحزمة',
     chunkSizeMiB: 'حجم الجزء (ميبيبايت)',
     chunkSizeMiBHint:
@@ -115,20 +89,15 @@ export default {
     compressChunks: 'ضغط الأجزاء',
     compressChunksHint:
       'ضغط gzip لكل جزء قبل الأرشفة. أوقف الخيار لكتابة ACEC/ACEO خام',
-
     layersSection: 'الطبقات',
     exportInvisibleLayers: 'تصدير الطبقات غير المرئية',
     exportInvisibleLayersHint:
       'تضمين العناصر الموجودة على الطبقات المتوقفة أو المجمدة في الملف المُصدّر',
-
     layoutsSection: 'المخططات',
     exportLayouts: 'تصدير المخططات',
-    exportLayoutsHint:
-      'تضمين مخططات مساحة الورق في الملف المُصدّر',
-
+    exportLayoutsHint: 'تضمين مخططات مساحة الورق في الملف المُصدّر',
     yes: 'نعم',
     no: 'لا',
-
     background: 'الخلفية',
     backgroundBlack: 'أسود',
     backgroundBlackHint: 'لوحة سوداء مع رسم فاتح',
@@ -136,25 +105,17 @@ export default {
     backgroundWhiteHint: 'لوحة بيضاء مع رسم داكن',
     backgroundSpace: 'حسب المساحة',
     backgroundSpaceHint: 'أسود في مساحة النموذج، أبيض في مساحة الورق',
-
     initialView: 'العرض الأولي',
     initialViewExtents: 'حدود الرسم',
-    initialViewExtentsHint:
-      'تكبير العرض إلى حدود الرسم عند فتح ملف HTML',
-
+    initialViewExtentsHint: 'تكبير العرض إلى حدود الرسم عند فتح ملف HTML',
     initialViewCurrent: 'العرض الحالي',
-    initialViewCurrentHint:
-      'الحفاظ على مركز العرض ومستوى التكبير الحالي',
-
+    initialViewCurrentHint: 'الحفاظ على مركز العرض ومستوى التكبير الحالي',
     viewerMode: 'وضع العارض',
     viewerModeView: 'عرض',
-    viewerModeViewHint:
-      'التحريك والتكبير والتحكم في الطبقات فقط',
-
+    viewerModeViewHint: 'التحريك والتكبير والتحكم في الطبقات فقط',
     viewerModeMeasure: 'قياس ومراجعة',
     viewerModeMeasureHint:
       'أدوات العرض بالإضافة إلى القياسات وتعليقات المراجعة',
-
     expirySection: 'مدة الصلاحية',
     expiry1Day: 'يوم واحد',
     expiry7Days: '7 أيام',
@@ -164,8 +125,7 @@ export default {
     expiryCustomPlaceholder: 'اختر تاريخ ووقت الانتهاء',
     expiryCustomRequired: 'يرجى اختيار تاريخ ووقت انتهاء مخصص.',
     expiryCustomPast: 'يجب أن يكون وقت الانتهاء المخصص في المستقبل.',
-    expiryHint:
-      'بعد انتهاء مدة الصلاحية، لن يمكن فتح ملف HTML المُصدَّر.',
+    expiryHint: 'بعد انتهاء مدة الصلاحية، لن يمكن فتح ملف HTML المُصدَّر.',
     passwordSection: 'كلمة المرور',
     passwordPlaceholder: 'اتركه فارغًا لعدم تعيين كلمة مرور',
     passwordHint:
@@ -175,9 +135,7 @@ export default {
     copyPasswordSuccess: 'تم نسخ كلمة المرور إلى الحافظة.',
     copyPasswordFailed: 'تعذر نسخ كلمة المرور إلى الحافظة.'
   },
-
   exportPdfDlg: {
-    ...enDialog.exportPdfDlg,
     title: 'تصدير إلى PDF',
     modelSpaceSection: 'مساحة النموذج',
     modelSpaceDisplay: 'العرض',
@@ -190,9 +148,11 @@ export default {
     textModeSection: 'النص',
     textMode: 'عرض النص',
     textModeText: 'كائنات نصية',
-    textModeTextHint: 'يبقي النص قابلاً للتحديد/البحث ويصغر الملف (نص SHX يبقى متجهًا)',
+    textModeTextHint:
+      'يبقي النص قابلاً للتحديد/البحث ويصغر الملف (نص SHX يبقى متجهًا)',
     textModeVector: 'مخططات متجهة',
-    textModeVectorHint: 'يحوّل النص إلى خطوط وتعبئة مطابقة للشاشة، لكن الملف أكبر',
+    textModeVectorHint:
+      'يحوّل النص إلى خطوط وتعبئة مطابقة للشاشة، لكن الملف أكبر',
     colorModeSection: 'الألوان',
     colorModeColor: 'ملون',
     colorModeColorHint: 'يحتفظ بألوان الرسم كما تظهر على الشاشة',
@@ -202,23 +162,17 @@ export default {
     yes: 'نعم',
     no: 'لا'
   },
-
   quickSelectDlg: {
-    ...enDialog.quickSelectDlg,
-
     title: 'تحديد سريع',
     applyTo: 'تطبيق على',
     applyToEntireDrawing: 'الرسم بالكامل',
     applyToCurrentSelection: 'التحديد الحالي',
-
     objectType: 'نوع العنصر',
     allObjectTypes: 'متعدد',
     property: 'الخاصية',
     operator: 'المعامل',
     value: 'القيمة',
-
     howToApply: 'طريقة التطبيق',
-
     propObjectType: 'نوع العنصر',
     propHandle: 'المعرف (Handle)',
     handleValuePlaceholder: 'أدخل معرف العنصر (Handle)',
@@ -226,141 +180,101 @@ export default {
     propColor: 'اللون',
     propLineType: 'نوع الخط',
     propLineWeight: 'سُمك الخط',
-
     opEquals: 'يساوي',
     opNotEquals: 'لا يساوي',
     opGreaterThan: 'أكبر من',
     opGreaterThanOrEqual: 'أكبر من أو يساوي',
     opLessThan: 'أقل من',
     opLessThanOrEqual: 'أقل من أو يساوي',
-
     modeSet: 'تضمين في مجموعة تحديد جديدة',
     modeAdd: 'إضافة إلى مجموعة التحديد الحالية',
     modeRemove: 'استبعاد من مجموعة التحديد الحالية',
-
-    previewResult:
-      'العناصر المطابقة: {count} / إجمالي العناصر: {total}',
-
+    previewResult: 'العناصر المطابقة: {count} / إجمالي العناصر: {total}',
     valueRequired: 'يرجى تحديد قيمة للتصفية',
-
-    selectionResult:
-      'تم العثور على {count} عنصر وتطبيقها على التحديد'
+    selectionResult: 'تم العثور على {count} عنصر وتطبيقها على التحديد'
   },
-
   textStyleDlg: {
-    ...enDialog.textStyleDlg,
-
     title: 'نمط النص',
     currentStyle: 'نمط النص الحالي: {name}',
     styles: 'الأنماط',
-
     fontSection: 'الخط',
     fontName: 'اسم الخط:',
     fontStyle: 'نمط الخط:',
     useBigFont: 'استخدام الخط الكبير',
     bigFontName: 'الخط الكبير:',
-
     sizeSection: 'الحجم',
     textHeight: 'الارتفاع:',
-
     effectsSection: 'التأثيرات',
     upsideDown: 'مقلوب رأسيًا',
     backwards: 'معكوس',
     vertical: 'رأسي',
-
     widthFactor: 'معامل العرض:',
     obliqueAngle: 'زاوية الميل:',
-
     setCurrent: 'تعيين كحالي',
     new: 'جديد...',
     delete: 'حذف',
-
     newTitle: 'نمط نص جديد',
     newStyleName: 'اسم النمط:',
     newPrompt: 'أدخل اسم نمط النص الجديد:',
     newNameRequired: 'يرجى إدخال اسم لنمط النص.',
-
     deleteTitle: 'حذف نمط النص',
     deleteConfirm: 'حذف نمط النص "{name}"؟',
-
     invalidName: 'لا يمكن أن يحتوي اسم النمط على ;=<>`\\/,',
     duplicateName: 'يوجد نمط نص بهذا الاسم بالفعل.',
-
     created: 'تم إنشاء نمط النص "{name}".',
     deleted: 'تم حذف نمط النص "{name}".',
     setCurrentDone: 'تم تعيين نمط النص الحالي إلى "{name}".'
   },
-
   attEditDlg: {
-    ...enDialog.attEditDlg,
-
     title: 'محرر السمات المتقدم',
-
     block: 'الكتلة:',
     tag: 'الوسم:',
     selectBlock: 'اختيار كتلة',
-
     tabAttribute: 'السمة',
     tabTextOptions: 'خيارات النص',
     tabProperties: 'الخصائص',
-
     colTag: 'الوسم',
     colPrompt: 'المطالبة',
     colValue: 'القيمة',
-
     value: 'القيمة:',
     textStyle: 'نمط النص:',
     justification: 'المحاذاة:',
-
     backwards: 'معكوس',
     upsideDown: 'مقلوب رأسيًا',
-
     height: 'الارتفاع:',
     widthFactor: 'معامل العرض:',
     rotation: 'الدوران:',
     obliqueAngle: 'زاوية الميل:',
-
     annotative: 'تعليقي',
     boundaryWidth: 'عرض الحدود:',
-
     layer: 'الطبقة:',
     linetype: 'نوع الخط:',
     color: 'اللون:',
     lineweight: 'سُمك الخط:',
     plotStyle: 'نمط الطباعة:',
-
     promptSelectBlock: 'حدد كتلة تحتوي على سمات:',
     rejectSelectBlock: 'يجب أن يكون العنصر كتلة تحتوي على سمات.',
     noAttributes: 'الكتلة المحددة لا تحتوي على سمات.',
-
     justify: {
-      ...enDialog.attEditDlg.justify,
       left: 'يسار',
       center: 'وسط',
       right: 'يمين',
       align: 'محاذاة',
       middle: 'منتصف',
       fit: 'ملاءمة',
-
       topLeft: 'أعلى يسار',
       topCenter: 'أعلى وسط',
       topRight: 'أعلى يمين',
-
       middleLeft: 'منتصف يسار',
       middleCenter: 'منتصف وسط',
       middleRight: 'منتصف يمين',
-
       bottomLeft: 'أسفل يسار',
       bottomCenter: 'أسفل وسط',
       bottomRight: 'أسفل يمين'
     }
   },
-
   attDefDlg: {
-    ...enDialog.attDefDlg,
-
     title: 'تعريف السمة',
-
     modeSection: 'الوضع',
     invisible: 'غير مرئي',
     constant: 'ثابت',
@@ -368,53 +282,561 @@ export default {
     preset: 'مُسبق',
     lockPosition: 'قفل الموضع',
     multipleLines: 'أسطر متعددة',
-
     insertionSection: 'نقطة الإدراج',
     specifyOnScreen: 'تحديد على الشاشة',
-
     attributeSection: 'السمة',
     tag: 'الوسم:',
     prompt: 'المطالبة:',
     default: 'الافتراضي:',
-
     textSection: 'إعدادات النص',
     justification: 'المحاذاة:',
     textStyle: 'نمط النص:',
     annotative: 'تعليقي',
-
     height: 'ارتفاع النص:',
     rotation: 'الدوران:',
     boundaryWidth: 'عرض الحدود:',
-
     alignBelow: 'محاذاة أسفل تعريف السمة السابق',
-
     tagRequired: 'وسم السمة مطلوب.',
     noPrevious: 'لم يتم العثور على تعريف سمة سابق.',
-
     promptInsertionPoint: 'حدد نقطة البداية:',
     promptHeight: 'حدد الارتفاع:',
     promptRotation: 'حدد زاوية الدوران:',
-
     justify: {
-      ...enDialog.attDefDlg.justify,
       left: 'يسار',
       center: 'وسط',
       right: 'يمين',
       align: 'محاذاة',
       middle: 'منتصف',
       fit: 'ملاءمة',
-
       topLeft: 'أعلى يسار',
       topCenter: 'أعلى وسط',
       topRight: 'أعلى يمين',
-
       middleLeft: 'منتصف يسار',
       middleCenter: 'منتصف وسط',
       middleRight: 'منتصف يمين',
-
       bottomLeft: 'أسفل يسار',
       bottomCenter: 'أسفل وسط',
       bottomRight: 'أسفل يمين'
     }
+  },
+  dimStyleDlg: {
+    title: 'مدير أنماط الأبعاد',
+    current: 'نمط الأبعاد الحالي: {name}',
+    styles: 'الأنماط',
+    filterAll: 'جميع الأنماط',
+    filterUsed: 'الأنماط المستخدمة',
+    previewOf: 'معاينة: {name}',
+    description: 'الوصف',
+    setCurrent: 'تعيين كحالي',
+    new: 'جديد...',
+    modify: 'تعديل...',
+    override: 'تجاوز...',
+    compare: 'مقارنة...',
+    close: 'إغلاق',
+    newTitle: 'إنشاء نمط أبعاد جديد',
+    newName: 'اسم النمط الجديد',
+    startWith: 'البدء من',
+    useFor: 'الاستخدام لـ',
+    allDimensions: 'جميع الأبعاد',
+    continue: 'متابعة',
+    modifyTitle: 'تعديل نمط الأبعاد: {name}',
+    newStyleTitle: 'نمط أبعاد جديد: {name}',
+    overrideTitle: 'تجاوز النمط الحالي',
+    compareTitle: 'مقارنة أنماط الأبعاد',
+    style1: 'النمط 1',
+    style2: 'النمط 2',
+    variable: 'المتغير',
+    noDifferences: 'لا توجد اختلافات.',
+    linesTab: {
+      dimensionLines: 'خطوط الأبعاد',
+      extensionLines: 'خطوط الامتداد',
+      color: 'اللون',
+      lineweight: 'سُمك الخط',
+      extendBeyondTicks: 'الامتداد بعد علامات التحديد',
+      baselineSpacing: 'تباعد خط الأساس',
+      extendBeyondDimLines: 'الامتداد بعد خطوط الأبعاد',
+      offsetFromOrigin: 'الإزاحة من نقطة الأصل',
+      suppress: 'إخفاء',
+      dimLine1: 'خط البُعد 1',
+      dimLine2: 'خط البُعد 2',
+      extLine1: 'خط الامتداد 1',
+      extLine2: 'خط الامتداد 2'
+    },
+    symbolsTab: {
+      arrowheads: 'رؤوس الأسهم',
+      first: 'الأول',
+      second: 'الثاني',
+      leader: 'خط الإشارة',
+      leaderInherit: 'وراثة الكتلة',
+      arrowSize: 'حجم السهم',
+      tickSize: 'حجم العلامة',
+      centerMarks: 'علامات المركز',
+      centerType: 'النوع',
+      centerSize: 'الحجم',
+      centerNone: 'لا شيء',
+      centerMark: 'علامة',
+      centerLine: 'خط',
+      arrows: {
+        closedFilled: 'مغلق ممتلئ',
+        none: 'لا شيء',
+        closed: 'مغلق',
+        closedBlank: 'مغلق فارغ',
+        open: 'مفتوح',
+        dot: 'نقطة',
+        dotSmall: 'نقطة صغيرة',
+        box: 'مربع',
+        boxFilled: 'مربع ممتلئ',
+        archTick: 'علامة معمارية',
+        oblique: 'مائل',
+        origin: 'مؤشر الأصل'
+      }
+    },
+    textTab: {
+      appearance: 'مظهر النص',
+      textStyle: 'نمط النص(F):',
+      textStyleBtn: '. . .',
+      textColor: 'لون النص(C):',
+      fillColor: 'لون التعبئة(L):',
+      textHeight: 'ارتفاع النص(I):',
+      fractionHeightScale: 'مقياس ارتفاع الكسر(U):',
+      drawFrame: 'رسم إطار حول النص(E)',
+      position: 'موضع النص',
+      vertical: 'رأسي(V):',
+      horizontal: 'أفقي(Z):',
+      viewDirection: 'اتجاه العرض(D):',
+      offsetFromDimLine: 'الإزاحة من خط البُعد(O):',
+      alignment: 'محاذاة النص(A)',
+      alignHorizontal: 'أفقي',
+      alignAlong: 'محاذاة مع خط البُعد',
+      alignIso: 'معيار ISO',
+      verticalOptions: {
+        center: 'في المنتصف',
+        above: 'أعلى',
+        outside: 'خارج',
+        jis: 'JIS',
+        below: 'أسفل'
+      },
+      justifyOptions: {
+        center: 'في المنتصف',
+        first: 'عند خط الامتداد 1',
+        second: 'عند خط الامتداد 2',
+        overFirst: 'فوق خط الامتداد 1',
+        overSecond: 'فوق خط الامتداد 2'
+      },
+      directionOptions: {
+        ltr: 'من اليسار إلى اليمين',
+        rtl: 'من اليمين إلى اليسار'
+      },
+      fillOptions: {
+        none: 'لا شيء',
+        background: 'لون الخلفية'
+      }
+    },
+    tabs: {
+      lines: 'الخطوط',
+      symbols: 'الرموز والأسهم',
+      text: 'النص',
+      fit: 'الملاءمة',
+      primary: 'الوحدات الأساسية',
+      alternate: 'الوحدات البديلة',
+      tolerances: 'التفاوتات'
+    },
+    alternateTab: {
+      display: 'عرض الوحدات البديلة',
+      units: 'الوحدات البديلة',
+      unitFormat: 'تنسيق الوحدة',
+      precision: 'الدقة',
+      multiplier: 'مُضاعِف الوحدات البديلة',
+      rounding: 'تقريب المسافات إلى',
+      prefix: 'البادئة',
+      suffix: 'اللاحقة',
+      zeroSuppression: 'إخفاء الأصفار',
+      leading: 'البادئة',
+      trailing: 'اللاحقة',
+      zeroFeet: '0 قدم',
+      zeroInches: '0 بوصة',
+      subUnitFactor: 'معامل الوحدة الفرعية',
+      subUnitSuffix: 'لاحقة الوحدة الفرعية',
+      placement: 'الموضع',
+      afterPrimary: 'بعد القيمة الأساسية',
+      belowPrimary: 'أسفل القيمة الأساسية',
+      unitFormats: {
+        scientific: 'علمي',
+        decimal: 'عشري',
+        engineering: 'هندسي',
+        architecturalStacked: 'معماري (مكدس)',
+        fractionalStacked: 'كسري (مكدس)',
+        architectural: 'معماري',
+        fractional: 'كسري',
+        windowsDesktop: 'سطح مكتب Windows'
+      }
+    },
+    fitTab: {
+      fitOptions: 'خيارات الملاءمة',
+      textOrArrows: 'النص أو الأسهم (أفضل ملاءمة)',
+      arrows: 'الأسهم',
+      text: 'النص',
+      textAndArrows: 'النص والأسهم معًا',
+      textAlwaysInside: 'إبقاء النص دائمًا بين خطوط الامتداد',
+      suppressArrows: 'إخفاء الأسهم إذا لم تتسع بين خطوط الامتداد',
+      textPlacement: 'موضع النص',
+      textPlacementHint: 'عندما لا يكون النص في موضعه الافتراضي، ضعه:',
+      besideDimLine: 'بجانب خط البُعد',
+      aboveWithLeader: 'فوق خط البُعد، مع خط إشارة',
+      aboveNoLeader: 'فوق خط البُعد، بدون خط إشارة',
+      featureScale: 'مقياس عناصر الأبعاد',
+      annotative: 'توضيحي',
+      scaleToLayout: 'تغيير مقياس عناصر الأبعاد وفق التخطيط',
+      useOverallScale: 'استخدام المقياس الكلي:',
+      fineTuning: 'الضبط الدقيق',
+      placeTextManually: 'وضع النص يدويًا عند إنشاء الأبعاد',
+      drawDimLineBetween: 'رسم خط البُعد بين خطوط الامتداد'
+    },
+    primaryTab: {
+      linearDimensions: 'الأبعاد الخطية',
+      unitsFormat: 'تنسيق الوحدات (U)',
+      precision: 'الدقة (P)',
+      fractionFormat: 'تنسيق الكسر (O)',
+      decimalSeparator: 'الفاصل العشري (M)',
+      roundOff: 'التقريب (R)',
+      prefix: 'البادئة (E)',
+      suffix: 'اللاحقة (S)',
+      measurementScale: 'مقياس القياس',
+      scaleFactor: 'معامل المقياس (F)',
+      applyLayoutOnly: 'تطبيق على أبعاد التخطيط فقط',
+      zeroSuppression: 'إخفاء الأصفار',
+      leading: 'البادئة (L)',
+      trailing: 'اللاحقة (T)',
+      subUnitFactor: 'معامل الوحدات الفرعية',
+      subUnitSuffix: 'لاحقة الوحدة الفرعية',
+      zeroFeet: '0 قدم (I)',
+      zeroInches: '0 بوصة (J)',
+      angularDimensions: 'الأبعاد الزاوية',
+      angularUnitsFormat: 'تنسيق الوحدات (A)',
+      angularPrecision: 'الدقة (O)',
+      angularLeading: 'البادئة (D)',
+      angularTrailing: 'اللاحقة (N)',
+      units: {
+        scientific: 'علمي',
+        decimal: 'عشري',
+        engineering: 'هندسي',
+        architectural: 'معماري',
+        fractional: 'كسري',
+        windowsDesktop: 'سطح مكتب Windows'
+      },
+      fractions: {
+        horizontal: 'أفقي',
+        diagonal: 'قطري',
+        notStacked: 'غير مكدس'
+      },
+      separators: {
+        period: 'نقطة (.)',
+        comma: 'فاصلة (,)',
+        space: 'مسافة'
+      },
+      angularUnits: {
+        decimalDegrees: 'درجات عشرية',
+        degreesMinutesSeconds: 'درجات/دقائق/ثوانٍ',
+        gradians: 'غراد',
+        radians: 'راديان'
+      }
+    },
+    tolerancesTab: {
+      format: 'تنسيق التفاوت',
+      mode: 'الطريقة (M)',
+      modeNone: 'لا شيء',
+      modeSymmetric: 'متماثل',
+      modeDeviation: 'انحراف',
+      modeLimits: 'حدود',
+      modeBasic: 'أساسي',
+      precision: 'الدقة (P)',
+      upper: 'القيمة العليا (Y)',
+      lower: 'القيمة الدنيا (M)',
+      heightScale: 'مقياس الارتفاع (I)',
+      verticalPosition: 'الموضع الرأسي (S)',
+      verticalBottom: 'أسفل',
+      verticalMiddle: 'وسط',
+      verticalTop: 'أعلى',
+      alignment: 'محاذاة التفاوت',
+      alignDecimal: 'محاذاة الفواصل العشرية (A)',
+      alignOperational: 'محاذاة إشارات العمليات (B)',
+      zeroSuppression: 'إخفاء الأصفار',
+      leading: 'البادئة (L)',
+      trailing: 'اللاحقة (T)',
+      zeroFeet: '0 قدم (F)',
+      zeroInches: '0 بوصة (I)',
+      alternateUnitsTolerance: 'تفاوت الوحدات البديلة',
+      precisionAlt: 'الدقة (P)'
+    }
+  },
+  mleaderStyleDlg: {
+    title: 'مدير أنماط خطوط الإشارة المتعددة',
+    current: 'نمط خط الإشارة المتعدد الحالي: {name}',
+    styles: 'الأنماط',
+    list: 'القائمة:',
+    filterAll: 'جميع الأنماط',
+    filterUsed: 'الأنماط المستخدمة',
+    previewOf: 'معاينة: {name}',
+    setCurrent: 'تعيين كحالي',
+    new: 'جديد...',
+    modify: 'تعديل...',
+    delete: 'حذف',
+    close: 'إغلاق',
+    help: 'تعليمات',
+    newTitle: 'إنشاء نمط خط إشارة متعدد جديد',
+    newName: 'اسم النمط الجديد:',
+    startWith: 'البدء من:',
+    modifyTitle: 'تعديل نمط خط الإشارة المتعدد: {name}',
+    tabs: {
+      format: 'تنسيق خط الإشارة',
+      structure: 'بنية خط الإشارة',
+      content: 'المحتوى'
+    },
+    format: {
+      general: 'عام',
+      type: 'النوع:',
+      typeStraight: 'مستقيم',
+      typeSpline: 'منحنى',
+      typeNone: 'لا شيء',
+      color: 'اللون:',
+      linetype: 'نوع الخط:',
+      lineweight: 'سُمك الخط:',
+      arrowhead: 'رأس السهم',
+      symbol: 'الرمز:',
+      size: 'الحجم:',
+      leaderBreak: 'قطع خط الإشارة',
+      breakSize: 'حجم القطع:'
+    },
+    structure: {
+      constraints: 'القيود',
+      maxPoints: 'الحد الأقصى لنقاط خط الإشارة',
+      firstAngle: 'زاوية المقطع الأول',
+      secondAngle: 'زاوية المقطع الثاني',
+      landing: 'إعدادات الكتف',
+      includeLanding: 'تضمين الكتف تلقائيًا',
+      setLandingDistance: 'تعيين مسافة الكتف',
+      scale: 'المقياس',
+      annotative: 'توضيحي',
+      scaleToLayout: 'تغيير مقياس خطوط الإشارة المتعددة وفق التخطيط',
+      specifyScale: 'تحديد المقياس:'
+    },
+    content: {
+      type: 'نوع خط الإشارة المتعدد:',
+      typeMtext: 'نص متعدد الأسطر',
+      typeBlock: 'كتلة',
+      typeNone: 'لا شيء',
+      textOptions: 'خيارات النص',
+      defaultText: 'النص الافتراضي:',
+      defaultTextTitle: 'النص الافتراضي',
+      ellipsis: '...',
+      textStyle: 'نمط النص:',
+      textAngle: 'زاوية النص:',
+      angleRightReading: 'قابل للقراءة دائمًا',
+      angleHorizontal: 'إبقاء أفقيًا',
+      angleAsInserted: 'كما تم إدراجه',
+      textColor: 'لون النص:',
+      textHeight: 'ارتفاع النص:',
+      alwaysLeftJustify: 'محاذاة لليسار دائمًا',
+      frameText: 'إطار حول النص',
+      leaderConnection: 'اتصال خط الإشارة',
+      horizontalAttachment: 'إرفاق أفقي',
+      verticalAttachment: 'إرفاق رأسي',
+      leftAttachment: 'الإرفاق الأيسر:',
+      rightAttachment: 'الإرفاق الأيمن:',
+      topAttachment: 'الإرفاق العلوي:',
+      bottomAttachment: 'الإرفاق السفلي:',
+      landingGap: 'فجوة الكتف:',
+      extendLeaderToText: 'مد خط الإشارة إلى النص',
+      blockOptions: 'خيارات الكتلة',
+      sourceBlock: 'الكتلة المصدر:',
+      blockAttachment: 'الإرفاق:',
+      blockAttachCenter: 'مركز الامتدادات',
+      blockAttachInsertion: 'نقطة الإدراج',
+      blockColor: 'اللون:',
+      blockScale: 'المقياس:'
+    },
+    arrows: {
+      closedFilled: 'مغلق ممتلئ',
+      none: 'لا شيء',
+      closed: 'مغلق',
+      closedBlank: 'مغلق فارغ',
+      open: 'مفتوح',
+      dot: 'نقطة',
+      dotSmall: 'نقطة صغيرة',
+      box: 'مربع',
+      boxFilled: 'مربع ممتلئ',
+      archTick: 'علامة معمارية',
+      oblique: 'مائل',
+      origin: 'مؤشر الأصل'
+    },
+    attachments: {
+      topOfTop: 'أعلى السطر العلوي',
+      middleOfTop: 'منتصف السطر العلوي',
+      middle: 'منتصف النص',
+      middleOfBottom: 'منتصف السطر السفلي',
+      bottomOfBottom: 'أسفل السطر السفلي',
+      bottomLine: 'تسطير السطر السفلي',
+      bottomOfTopLine: 'أسفل السطر العلوي',
+      bottomOfTop: 'تسطير السطر العلوي',
+      underlineBottom: 'تسطير السطر السفلي',
+      underlineAll: 'تسطير النص بالكامل',
+      center: 'المركز',
+      linedCenter: 'خط علوي / خط سفلي'
+    }
+  },
+  viewManagerDlg: {
+    title: 'مدير العروض',
+    current: 'الحالي',
+    modelViews: 'عروض النموذج',
+    layoutViews: 'عروض التخطيط',
+    presetViews: 'العروض المعدة مسبقًا',
+    general: 'عام',
+    view: 'العرض',
+    name: 'الاسم',
+    layerSnapshot: 'لقطة الطبقات',
+    yes: 'نعم',
+    no: 'لا',
+    center: 'المركز',
+    height: 'الارتفاع',
+    width: 'العرض',
+    roll: 'زاوية الدوران',
+    setCurrent: 'تعيين كحالي',
+    new: 'جديد…',
+    updateLayers: 'تحديث الطبقات',
+    editBoundaries: 'تحرير الحدود',
+    delete: 'حذف',
+    close: 'إغلاق',
+    firstCorner: 'حدد الركن الأول',
+    secondCorner: 'حدد الركن المقابل',
+    notFound: 'لم يتم العثور على العرض "{name}".',
+    layersUpdated: 'تم تحديث لقطة الطبقات.',
+    boundariesUpdated: 'تم تحديث حدود العرض.',
+    deleted: 'تم حذف العرض "{name}".',
+    topPresetHint:
+      'العرض العلوي هو بالفعل عرض المسقط النشط في هذا العارض ثنائي الأبعاد.'
+  },
+  bconvertDlg: {
+    title: 'تحويل إلى كتلة',
+    newBlock: 'كتلة جديدة',
+    existingBlock: 'كتلة موجودة',
+    name: 'اسم الكتلة',
+    block: 'الكتلة',
+    matchingBlock: '{name} (نفس الشكل)',
+    rotation: 'الدوران (°)',
+    scale: 'المقياس',
+    autoPlacement:
+      'تحتوي هذه الكتلة على نفس الشكل؛ تتم مطابقة الدوران والمقياس تلقائيًا.',
+    insertionPoint: 'نقطة الإدراج',
+    pick: 'التقاط',
+    center: 'المركز',
+    attributes: 'السمات',
+    attributesHint: 'تختلف هذه النصوص بين النسخ وستصبح سمات.',
+    tag: 'الوسم',
+    prompt: 'المطالبة',
+    objects: 'الكائنات المراد تحويلها',
+    allInstances: 'الكائنات المحددة و{count} نسخة تم العثور عليها',
+    sourceOnly: 'الكائنات المحددة فقط',
+    error: {
+      nameEmpty: 'أدخل اسم الكتلة.',
+      nameInvalid: '"{name}" ليس اسم كتلة صالحًا.',
+      nameExists: 'توجد كتلة باسم "{name}" بالفعل.',
+      tagInvalid: 'يجب ألا تكون أوسام السمات فارغة وألا تحتوي على مسافات.',
+      tagDuplicate: 'يجب أن تكون أوسام السمات فريدة.',
+      noBlock: 'اختر كتلة موجودة.',
+      scaleInvalid: 'يجب أن يكون المقياس أكبر من صفر.'
+    }
+  },
+  newViewDlg: {
+    title: 'عرض جديد',
+    name: 'اسم العرض',
+    boundary: 'الحدود',
+    currentDisplay: 'العرض الحالي',
+    defineWindow: 'تحديد نافذة',
+    saveLayerSnapshot: 'حفظ لقطة الطبقات مع العرض',
+    nameRequired: 'أدخل اسم العرض.',
+    nameInvalid:
+      'لا يمكن أن تحتوي أسماء العروض على < > / \\ " : ; ? * | , = ` أو فواصل أسطر.',
+    nameExists: 'يوجد عرض باسم "{name}" بالفعل.',
+    writeRequired: 'يتطلب إنشاء العروض المسماة وضع الكتابة.',
+    createFailed: 'تعذر إنشاء العرض المسمى.',
+    firstCorner: 'حدد الركن الأول',
+    secondCorner: 'حدد الركن المقابل',
+    created: 'تم إنشاء العرض "{name}".'
+  },
+  ucsManagerDlg: {
+    title: 'UCS',
+    tabs: {
+      named: 'أنظمة UCS المسماة',
+      settings: 'الإعدادات'
+    },
+    currentUcs: 'UCS الحالي: {name}',
+    setCurrent: 'تعيين كحالي',
+    details: 'التفاصيل',
+    rename: 'إعادة تسمية',
+    delete: 'حذف',
+    renamePrompt: 'أدخل اسمًا جديدًا لـ UCS:',
+    renameFailed: 'تعذرت إعادة تسمية UCS.',
+    deleteFailed: 'تعذر حذف UCS.',
+    help: 'تعليمات',
+    iconSettings: 'إعدادات أيقونة UCS',
+    iconOn: 'تشغيل',
+    iconAtOrigin: 'العرض عند نقطة أصل UCS',
+    applyToAllViewports: 'تطبيق على جميع إطارات العرض النشطة',
+    allowSelectingIcon: 'السماح بتحديد أيقونة UCS',
+    ucsSettings: 'إعدادات UCS',
+    saveWithViewport: 'حفظ UCS مع إطار العرض',
+    updateViewToPlan: 'تحديث العرض إلى المسقط عند تغيير UCS'
+  },
+  ucsDetailsDlg: {
+    title: 'تفاصيل UCS',
+    name: 'الاسم',
+    origin: 'نقطة الأصل',
+    xAxis: 'المحور X',
+    yAxis: 'المحور Y',
+    zAxis: 'المحور Z',
+    relativeTo: 'نسبةً إلى'
+  },
+  classicGroupDlg: {
+    title: 'تجميع الكائنات',
+    groupName: 'اسم المجموعة',
+    selectable: 'قابلة للتحديد',
+    identification: 'تعريف المجموعة',
+    description: 'الوصف',
+    findName: 'البحث عن الاسم <',
+    highlight: 'تمييز <',
+    includeUnnamed: 'تضمين غير المسماة',
+    createGroup: 'إنشاء مجموعة',
+    new: 'جديد <',
+    unnamed: 'غير مسمى',
+    changeGroup: 'تغيير المجموعة',
+    remove: 'إزالة <',
+    add: 'إضافة <',
+    rename: 'إعادة تسمية',
+    reOrder: 'إعادة ترتيب...',
+    descriptionBtn: 'الوصف',
+    explode: 'تفجير',
+    selectableBtn: 'قابلة للتحديد',
+    yes: 'نعم',
+    no: 'لا',
+    pickObject: 'حدد كائنًا للعثور على مجموعته',
+    notInGroup: 'الكائن ليس عضوًا في مجموعة',
+    selectObjects: 'حدد كائنات للمجموعة الجديدة',
+    selectToAdd: 'حدد الكائنات لإضافتها',
+    selectToRemove: 'حدد الكائنات لإزالتها',
+    clearSelectableFirst: 'ألغِ خيار قابلة للتحديد للمجموعة قبل إزالة الكائنات',
+    invalidName: 'اسم مجموعة غير صالح',
+    nameExists: 'اسم المجموعة موجود بالفعل',
+    created: 'تم إنشاء المجموعة {name}'
+  },
+  orderGroupDlg: {
+    title: 'ترتيب المجموعة',
+    groupName: 'اسم المجموعة',
+    description: 'الوصف',
+    removeFrom: 'إزالة من الموضع (يبدأ من 0)',
+    newPosition: 'أدخل رقم الموضع الجديد للكائن',
+    numberOfObjects: 'عدد الكائنات',
+    reOrder: 'إعادة ترتيب',
+    reverseOrder: 'عكس الترتيب',
+    highlight: 'تمييز'
   }
 }

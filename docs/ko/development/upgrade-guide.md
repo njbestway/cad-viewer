@@ -6,6 +6,50 @@ title: "cad-simple-viewer 및 cad-editor 업그레이드"
 
 이 가이드는 `@mlightcad/cad-simple-viewer`와 `@mlightcad/cad-editor`를 안전하게 업그레이드하는 방법을 설명합니다. 즉, 왜 이들을 개별적으로 올릴 수 없는지, 어떤 관련 패키지가 함께 이동해야 하는지, 그리고 주어진 릴리스에 대해 올바른 호환 버전 집합을 확인하는 두 가지 신뢰할 수 있는 방법을 다룹니다.
 
+::: info 스마트 블록: 검색 및 변환(`BSEARCH`)
+이 변경이 포함된 릴리스부터 `@mlightcad/cad-simple-viewer`는 **-BSEARCH**를 등록하고, `@mlightcad/cad-editor`는 검토 도구막대와 블록으로 변환 대화상자가 있는 **BSEARCH**(별칭 `BCONVERT`)를 추가합니다(리본의 삽입 및 AI 탭).
+
+형상 일치가 `@mlightcad/cad-pdf-plugin`에서 `@mlightcad/cad-simple-viewer`로 이동했습니다. 가져오기를 옮기십시오:
+
+| `@mlightcad/cad-pdf-plugin`(사용 중단) | `@mlightcad/cad-simple-viewer` |
+| --- | --- |
+| `findPdfShapeMatches` | `acedFindShapeMatches` |
+| `applyPdfAffine` | `acedApplyAffine2d` |
+| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
+
+이전 이름은 사용 중단된 별칭으로 계속 동작합니다. 문자열은 특징의 `kind`에서 `label`로 옮겨졌습니다. `pdfblock`은 이제 `-BSEARCH` 프롬프트 순서(변환 → 새로 만들기/기존 → 이름 → 삽입점 → 범위)를 따르므로 이전 프롬프트에 응답하던 스크립트는 수정해야 합니다.
+:::
+
+::: info AutoCAD 그룹(`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
+이 변경이 포함된 릴리스부터 `@mlightcad/cad-simple-viewer`는 **GROUP**, **-GROUP**, **UNGROUP**, **GROUPEDIT**를 등록하고, `PICKSTYLE`이 `1` 또는 `3`일 때 선택을 확장하며, 선택 가능한 그룹에 `GROUPDISPLAYMODE` 그립을 적용합니다. `@mlightcad/cad-editor`는 **CLASSICGROUP**(객체 그룹화 대화상자)과 홈 → 그룹 리본 패널을 추가합니다.
+
+`PICKSTYLE`(0–3, 기본 `1`)과 `GROUPDISPLAYMODE`(0–2, 기본 `2`)가 등록된 `@mlightcad/data-model`이 필요합니다. 연관 해치 동시 선택(`PICKSTYLE` 2/3)은 `AcDbHatch`에 경계 soft-pointer가 생길 때까지 no-op입니다.
+:::
+
+::: info `cad.view.capturePreview` 선택 미리보기
+이 변경이 포함된 릴리스부터 `CadSession.capturePreview`는 단독 `longSide` 숫자 대신 옵션 객체를 받습니다.
+
+```ts
+capturePreview?(options?: {
+  longSide?: number
+  selection?: boolean
+}): Promise<CaptureDrawingPreviewResult>
+```
+
+스크립트에서는 `cad.view.capturePreview({ longSide?, selection? })`를 사용합니다. `cad.selection.replace(ids)` 이후 `selection: true`를 전달하면 ENTPREVIEW와 같은 batch 미리보기 경로로 선택 엔티티를 추출하고(장면 bounds로 프레이밍, 데이터베이스 `geometricExtents` 아님) PNG를 도구 결과에 첨부합니다. 선택이 비어 있으면 `reason: 'no-selection'`을 반환합니다. 렌더러가 없는 `createDatabaseSession`은 여전히 미리보기를 건너뜁니다.
+:::
+
+::: info `cad.view.capturePreview` 도면층 미리보기
+이 변경이 포함된 릴리스부터 `CadCapturePreviewOptions`에 `layers?: string | string[]`가, `CaptureDrawingPreviewFailure`에 `'no-layers'`가 추가됩니다.
+
+```ts
+cad.view.capturePreview({ layers: ['WALL', 'DOOR'], longSide: 1024 })
+```
+
+모델 공간에서 해당 도면층의 객체만 렌더링하며(INSERT는 해당 도면층에 있는 부분만), 도면 전체가 아니라 도면층들을 합친 범위로 프레이밍합니다. 도면층 이름은 대소문자를 구분하지 않으며, 존재하지 않는 이름은 스크립트 실행 중 오류를 발생시키고, `layers`는 `selection: true`와 함께 쓸 수 없습니다. `normalizeCadCapturePreviewOptions`는 이제 `NormalizedCadCapturePreviewOptions`(`layers`는 중복 제거된 `string[]`)를 반환합니다. 사용자 정의 `CadSession.capturePreview` 구현은 `options.layers`를 처리하거나 `reason: 'no-layers'`를 반환해야 합니다. 뷰어 구현은 새 `AcApEntityPreviewConvertor.captureLayers(layerNames, longSide)`를 사용합니다.
+:::
+
 ::: info 가벼운 파일 열기 랜딩 엔트리
 **1.8.0**부터 `@mlightcad/cad-simple-viewer`는 DocManager에 의존하지 않는 랜딩용 서브경로를 제공합니다. **`acuiCreateFileOpenSession`**(지연 `createDocManager` + 자동 열기 / `attachSourcesTo`)을 우선하십시오. 도면을 직접 여는 경우(예: Vue `MlCadViewer`)에는 `AcUiFileOpenLanding`을 사용하십시오.
 
@@ -77,6 +121,23 @@ GitHub 저장소는 여전히 [`mlightcad/cad-viewer`](https://github.com/mlight
 ```
 
 다른 HTML-core 헬퍼도 같습니다(예: `captureAcExSavedViewExtents` → `acexHtmlCaptureSavedViewExtents`, `buildOsnapCatalog` → `acexHtmlBuildOsnapCatalog`). `AcApHtmlConvertor` 및 `chtml` / `-chtml` 같은 명령 수준 API는 영향을 받지 않습니다. 개발 가이드에 나오는 새 이름은 **1.8.0+** 기준이며, 1.7.x에서는 이전 심볼을 계속 사용하세요.
+:::
+
+::: tip 스크립트 호스트: 실제 치수 엔티티 생성(`drawDim*`)
+**1.8.0-preview.2** 이후 릴리스부터 `@mlightcad/cad-script-core`의 `cad.edit.transaction`으로 치수 엔티티를 만들 수 있습니다(이전에는 스냅샷 읽기만 가능):
+
+- `drawDimAligned`, `drawDimLinear`, `drawDimDiameter`, `drawDimRadius`
+- `drawDimAngular`, `drawDimArc`, `drawDimOrdinate`
+
+Agent/스크립트는 선·화살표·문자로 치수를 흉내 내지 말고 이 API를 호출하세요. 지름/반지름은 `center` + `radius`를 받으므로 원 스냅샷을 바로 넘길 수 있습니다. 자세한 내용: [스크립트 API](../guide/script/api.md).
+:::
+
+::: tip 스크립트 호스트: 블록별 집계는 `cad.blocks`
+이 변경이 포함된 릴리스부터 `cad.blocks`는 블록별 `entityCount` / `typeCounts` 메타데이터를 제공하며 전체 `entities` 배열은 넣지 않습니다. 집계는 이 필드 또는 `count(pred)`를 쓰세요. 스냅샷은 `where` / `inBlock(id, pred)` — 공간 전체 스냅샷은 약 500개에서 `too_many_matches`로 중단됩니다. `where` / `count` / `inBox`는 모형/도면 공간만 스캔합니다.
+:::
+
+::: info SVG File → Open
+**1.8.0**부터 일반 File → Open / `openDocument` / `openUrl`로 `.svg`를 도면으로 열 수 있습니다. 변환은 새 패키지 [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter)(`@mlightcad/data-model`만 의존)에 있습니다. `cad-editor`의 `initializeCadViewer`가 자동 등록합니다. `cad-simple-viewer`만 쓰는 경우 시작 시 `registerSvgConverter()`를 한 번 호출하세요. 보내기는 계속 `cad-svg-plugin`의 `csvg`입니다.
 :::
 
 ::: info PDF 내보내기를 공유 코어로 분리(브라우저 + Node)

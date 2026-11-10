@@ -71,12 +71,12 @@ Geometry fields by type:
 Read-only symbol tables, matching AcDbDatabase.tables. Each table is { id, records: [{ id, name, ... }] }.
 - appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable
 - layerTable records include color, linetype, lineWeight, isOff, isFrozen, isLocked, isPlottable
-- blockTable records are definitions only. Use cad.blocks for the entities inside a block
+- blockTable records are definitions only. Load entities with cad.entities.inBlock(id)
 
 ### cad.blocks
-Every block definition, like a DXF BLOCKS section, including *Model_Space and *Paper_Space.
-- Fields: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entities
-- entities is an array of the same snapshots as cad.entities
+Block metadata only (like a DXF BLOCKS section), including *Model_Space and *Paper_Space.
+- Fields: id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId, entityCount, typeCounts
+- No entities array — use cad.entities.inBlock(id). Prefer block.entityCount / typeCounts for tallies
 
 ### cad.selection
 Control the selection set:
@@ -89,7 +89,7 @@ Control the selection set:
 
 ### cad.view
 - cad.view.zoomExtents() -> Zoom to model space extents
-- cad.view.capturePreview({ longSide? }) -> Queue a PNG screenshot after the script finishes; returns { queued: true, index }. Prefer for visual self-check; skip for simple edits
+- cad.view.capturePreview({ longSide?, selection?, layers? }) -> Queue a PNG screenshot after the script finishes; returns { queued: true, index }. Prefer for visual self-check; skip for simple edits. Pass layers: [names] to capture only those layers, framed to their combined extents
 
 ### cad.file
 - cad.file.saveDxf(path?) -> After a successful script, export DXF. Path string or { path?, fileName? }. In-app agent downloads the file; cad-mcp-server writes path (relative to the server cwd). Returns { queued: true, index, fileName }. The DXF text is not returned. The tool result includes savedFiles
@@ -121,6 +121,14 @@ Methods available within a transaction:
 - tx.drawXline({ start: {x,y}, through: {x,y}, layer? }) -> Returns the new entity ID
 - tx.drawSpline({ points: [{x,y}...], closed?, layer? }) -> Returns the new entity ID
 - tx.drawText({ position: {x,y}, text, height?, layer? }) -> Returns the new entity ID
+- tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? }) -> New entity ID
+- tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? }) -> New entity ID
+- tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> New entity ID (or chordPoint+farChordPoint)
+- tx.drawDimRadius({ center, radius, angleDeg?, leaderLength?, text?, styleName?, layer? }) -> New entity ID (or center+chordPoint)
+- tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> New entity ID
+- tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? }) -> New entity ID
+- tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? }) -> New entity ID
+- Prefer drawDim* for dimensions; do not fake them with lines, arrows, and text
 - tx.erase(ids) -> Returns the number of entities erased
 - tx.setLayer(ids, layer)
 - tx.move(ids, dx, dy) -> Returns the number of entities moved

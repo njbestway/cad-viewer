@@ -294,5 +294,123 @@ export const scriptExampleCopyByLocale = {
       description:
         'يحرّك الكيانات المحددة 10 وحدات إلى اليمين. حدد كيانات أولًا.'
     }
+  },
+  ja: {
+    countByType: {
+      title: '種類別にオブジェクトを数える',
+      description:
+        'すべてのオブジェクトを走査し、図面内の種類ごとの数と、図面の表題および現在の画層を返します。'
+    },
+    circlesByLayer: {
+      title: '円が最も多い画層を強調表示',
+      description:
+        '画層ごとに円を数え、円が最も多い画層上のすべてのオブジェクトを選択します。'
+    },
+    drawingOverview: {
+      title: '図面の概要',
+      description:
+        '表題、単位、現在の画層、図面範囲、および各画層の表示/フリーズ/ロックの状態を返します。'
+    },
+    textContents: {
+      title: '文字の一覧',
+      description:
+        '文字、マルチテキスト、属性の文字列を、画層とオブジェクト ID とともに収集します。'
+    },
+    selectCurrentLayer: {
+      title: '現在の画層を選択',
+      description: '図面の現在の画層上にあるすべてのオブジェクトを選択します。'
+    },
+    longestLines: {
+      title: '最も長い線分',
+      description: '各線分の長さを計測し、長い順に 10 本を選択します。'
+    },
+    extentsBox: {
+      title: '範囲の一部にあるオブジェクト',
+      description: '境界が図面範囲の左下半分にかかるオブジェクトを選択します。'
+    },
+    blockSummary: {
+      title: 'ブロック定義',
+      description:
+        '各ブロック名と、そのブロックに含まれるオブジェクトの数を一覧にします。'
+    },
+    layerTable: {
+      title: '画層テーブル',
+      description:
+        'cad.tables.layerTable を読み取り、各画層の名前と ID を返します。'
+    },
+    circleGrid: {
+      title: '円のグリッドを作図',
+      description:
+        '1 つの元に戻すグループ内で GRID 画層を作成し、4 × 3 の円のグリッドを作図して、オブジェクト範囲にズームします。'
+    },
+    stampTitle: {
+      title: '図面の表題を記入',
+      description:
+        'NOTES 画層を作成し、図面の表題を文字として原点に配置します。'
+    },
+    moveSelection: {
+      title: '選択セットを移動',
+      description:
+        '現在選択されているオブジェクトを右に 10 単位移動します。先にオブジェクトを選択してください。'
+    }
+  },
+  ko: {
+    countByType: {
+      title: '유형별 객체 수 세기',
+      description:
+        '모든 객체를 순회하여 도면에 있는 유형별 개수와 함께 도면 제목 및 현재 도면층을 반환합니다.'
+    },
+    circlesByLayer: {
+      title: '원이 가장 많은 도면층 강조',
+      description:
+        '도면층별로 원의 개수를 센 다음, 원이 가장 많은 도면층의 모든 객체를 선택합니다.'
+    },
+    drawingOverview: {
+      title: '도면 요약',
+      description:
+        '제목, 단위, 현재 도면층, 범위, 그리고 각 도면층의 켜기/동결/잠금 여부를 반환합니다.'
+    },
+    textContents: {
+      title: '문자 나열',
+      description:
+        '문자, 여러 줄 문자, 속성 문자열을 해당 도면층 및 객체 ID와 함께 수집합니다.'
+    },
+    selectCurrentLayer: {
+      title: '현재 도면층 선택',
+      description: '도면의 현재 도면층에 있는 모든 객체를 선택합니다.'
+    },
+    longestLines: {
+      title: '가장 긴 선',
+      description: '각 선의 길이를 측정하여 가장 긴 선 10개를 선택합니다.'
+    },
+    extentsBox: {
+      title: '범위 일부에 있는 객체',
+      description:
+        '경계가 도면 범위의 왼쪽 아래 절반과 겹치는 객체를 선택합니다.'
+    },
+    blockSummary: {
+      title: '블록 정의',
+      description: '각 블록 이름과 해당 블록에 포함된 객체 수를 나열합니다.'
+    },
+    layerTable: {
+      title: '도면층 테이블',
+      description:
+        'cad.tables.layerTable을 읽어 각 도면층의 이름과 ID를 반환합니다.'
+    },
+    circleGrid: {
+      title: '원 격자 그리기',
+      description:
+        '하나의 명령 취소 그룹에서 GRID 도면층을 작성하고 4 × 3 격자로 원을 그린 후 범위로 줌합니다.'
+    },
+    stampTitle: {
+      title: '도면 제목 스탬프',
+      description:
+        'NOTES 도면층을 작성하고 도면 제목을 원점에 문자로 배치합니다.'
+    },
+    moveSelection: {
+      title: '선택 항목 이동',
+      description:
+        '현재 선택된 객체를 오른쪽으로 10단위 이동합니다. 먼저 객체를 선택하십시오.'
+    }
   }
 } as const satisfies Record<AcApLocale, ScriptExampleCopyTable>

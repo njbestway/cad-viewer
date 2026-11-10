@@ -1,7 +1,7 @@
 {
   "name": "@mlightcad/cad-diff-viewer-example",
   "private": true,
-  "version": "1.8.0-preview.2",
+  "version": "1.8.0-preview.3",
   "type": "module",
   "repository": {
     "type": "git",
@@ -19,11 +19,11 @@
   "dependencies": {
     "@mlightcad/cad-diff-viewer": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.22",
-    "@mlightcad/libredwg-converter": "3.15.22",
+    "@mlightcad/data-model": "1.15.23",
+    "@mlightcad/libredwg-converter": "3.15.23",
     "@njbestway/acad-rust-converter": "0.1.0",
     "@mlightcad/mtext-parser": "1.5.7",
-    "@mlightcad/mtext-renderer": "0.13.8",
+    "@mlightcad/mtext-renderer": "0.13.9",
     "@mlightcad/three-renderer": "workspace:*",
     "three": "^0.186.1"
   }

@@ -38,11 +38,21 @@ export default {
     style: {
       description: '创建、修改或指定文字与多行文字的文字样式'
     },
+    mleaderstyle: {
+      description: '创建和修改多重引线对象的多重引线样式'
+    },
     attedit: {
       description: '编辑块参照的属性值及其显示特性'
     },
+    bsearch: {
+      description: '智能块：查找相同的几何图形并将其转换为块',
+      prompt: '选择要搜索的对象'
+    },
     attdef: {
       description: '创建用于块的属性定义'
+    },
+    classicgroup: {
+      description: '打开对象编组对话框以创建和管理编组'
     }
   },
   USER: {}

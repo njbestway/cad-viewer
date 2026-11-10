@@ -1,5 +1,10 @@
 export default {
   ACAD: {
+    bsearch: {
+      description:
+        'Chytré bloky: vyhledá shodnou geometrii a převede ji na bloky',
+      prompt: 'Vyberte objekty k vyhledání'
+    },
     hatch: {
       description: 'Vytváří šrafování pomocí kontextového pásu karet'
     },
@@ -43,12 +48,19 @@ export default {
       description:
         'Vytváří, upravuje nebo určuje textové styly pro text a víceřádkový text'
     },
+    mleaderstyle: {
+      description:
+        'Vytváří a upravuje styly multiodkazů pro objekty multiodkazů'
+    },
     attedit: {
       description:
         'Upravuje hodnoty atributů a zobrazovací vlastnosti vloženého bloku'
     },
     attdef: {
       description: 'Vytvoří definici atributu pro blok'
+    },
+    classicgroup: {
+      description: 'Otevře dialog Seskupování objektů pro vytváření a správu skupin'
     }
   },
   USER: {}

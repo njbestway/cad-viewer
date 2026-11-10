@@ -15,6 +15,8 @@ import { markRaw } from 'vue'
 import {
   AcApAttDefCmd,
   AcApAttEditCmd,
+  AcApBSearchCmd,
+  AcApClassicGroupCmd,
   AcApCountListCmd,
   AcApDimStyleCmd,
   AcApDrawingUnitsCmd,
@@ -27,11 +29,15 @@ import {
   AcApMeasurementPanelCmd,
   AcApMemCmd,
   AcApMissedDataCmd,
+  AcApMLeaderStyleCmd,
+  AcApNewViewCmd,
   AcApOpenPerfCmd,
   AcApPointStyleCmd,
   AcApPropertiesCmd,
   AcApQSelectCmd,
   AcApTextStyleCmd,
+  AcApUcsManCmd,
+  AcApViewCmd,
   AcApXrefCmd,
   hatchRibbonCommand
 } from '../command'
@@ -39,13 +45,19 @@ import {
   createMlColorIndexPickerToolbarFactory,
   MlAttDefDlg,
   MlAttEditDlg,
+  MlBConvertDlg,
+  MlClassicGroupDlg,
   MlDimStyleDlg,
   MlDrawingUnitsDlg,
   MlExportHtmlDlg,
   MlExportPdfDlg,
+  MlMLeaderStyleDlg,
+  MlNewViewDlg,
   MlPointStyleDlg,
   MlQuickSelectDlg,
-  MlTextStyleDlg
+  MlTextStyleDlg,
+  MlUcsManagerDlg,
+  MlViewManagerDlg
 } from '../component'
 import { useDialogManager } from '../composable'
 import { i18n } from '../locale'
@@ -182,6 +194,39 @@ export const registerCmds = () => {
     )
     register.addCommand(
       AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'mleaderstyle',
+      'mleaderstyle',
+      new AcApMLeaderStyleCmd(),
+      'mls'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'view',
+      'view',
+      new AcApViewCmd(),
+      'ddview'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'newview',
+      'newview',
+      new AcApNewViewCmd()
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'ucsman',
+      'ucsman',
+      new AcApUcsManCmd(),
+      'dducs'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'classicgroup',
+      'classicgroup',
+      new AcApClassicGroupCmd()
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
       'attedit',
       'attedit',
       new AcApAttEditCmd(),
@@ -193,6 +238,13 @@ export const registerCmds = () => {
       'attdef',
       new AcApAttDefCmd(),
       'ddattdef'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'bsearch',
+      'bsearch',
+      new AcApBSearchCmd(),
+      'bconvert'
     )
     isCommandRegistered = true
   }
@@ -241,6 +293,11 @@ export const registerDialogs = () => {
       props: {}
     })
     registerDialog({
+      name: 'MLeaderStyleDlg',
+      component: markRaw(MlMLeaderStyleDlg),
+      props: {}
+    })
+    registerDialog({
       name: 'AttEditDlg',
       component: markRaw(MlAttEditDlg),
       props: {}
@@ -248,6 +305,31 @@ export const registerDialogs = () => {
     registerDialog({
       name: 'AttDefDlg',
       component: markRaw(MlAttDefDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'BConvertDlg',
+      component: markRaw(MlBConvertDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'ViewManagerDlg',
+      component: markRaw(MlViewManagerDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'NewViewDlg',
+      component: markRaw(MlNewViewDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'UcsManagerDlg',
+      component: markRaw(MlUcsManagerDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'ClassicGroupDlg',
+      component: markRaw(MlClassicGroupDlg),
       props: {}
     })
     isDialogRegistered = true

@@ -4,13 +4,17 @@ import '@mlightcad/ribbon/style.css'
 import {
   ChatDotRound,
   ChatLineSquare,
+  CopyDocument,
   Delete,
   DocumentCopy,
+  EditPen,
   Hide,
   RefreshLeft,
   RefreshRight,
   Right,
+  ScaleToOriginal,
   Stamp,
+  Upload,
   View
 } from '@element-plus/icons-vue'
 import {
@@ -23,6 +27,7 @@ import {
   acapGetMeasurementFontSize,
   acapGetMeasurementTextHeightMode,
   AcApLayerService,
+  AcApNamedViewService,
   AcApOpenCmd,
   AcApQNewCmd,
   acapRunDatabaseEdit,
@@ -66,6 +71,7 @@ import {
   AcDbHatch,
   AcDbLinearUnits,
   AcDbObjectId,
+  AcDbSystemVariables,
   AcDbSysVarManager,
   AcGiLineWeight
 } from '@mlightcad/data-model'
@@ -78,7 +84,15 @@ import {
   RibbonTabModel
 } from '@mlightcad/ribbon'
 import { ElButton, ElTooltip } from 'element-plus'
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import {
+  type Component,
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+  watch
+} from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { store } from '../../app'
@@ -93,6 +107,10 @@ import {
   useUndoRedo
 } from '../../composable'
 import { markComponentConfigRaw } from '../../composable/markComponentConfigRaw'
+import {
+  bumpNamedViewsRevision,
+  namedViewsRevision
+} from '../../composable/namedViewsRevision'
 import { LocaleProp } from '../../locale'
 import {
   arcCenterStartAngle,
@@ -107,6 +125,7 @@ import {
   arcThreePoints,
   attachDwg,
   attachImage,
+  bsearch,
   circleCenterDiameter,
   circleCenterRadius,
   circleTanTanRadius,
@@ -129,6 +148,9 @@ import {
   ellipseArc,
   ellipseCenter,
   find,
+  group,
+  groupEdit,
+  groupSelect,
   hatch,
   layerCurrent,
   layerFreeze,
@@ -141,10 +163,15 @@ import {
   layerUnisolate,
   layerUnlock,
   line,
+  mleader,
+  mleaderAdd,
+  mleaderRemove,
   mline,
   move,
   mtext,
   multiPoints,
+  namedUcs,
+  newView,
   offset,
   polygon,
   polyline,
@@ -155,6 +182,17 @@ import {
   revFreeDraw,
   setting,
   splineFitPoints,
+  ucs,
+  ucsObject,
+  ucsOrigin,
+  ucsView,
+  ucsWorld,
+  ucsX,
+  ucsY,
+  ucsZ,
+  ucsZAxis,
+  ungroup,
+  viewManager,
   xline
 } from '../../svg'
 import {
@@ -172,10 +210,13 @@ import {
   measureDistance,
   measurementPanel,
   measurePoint,
+  pan as panIcon,
   revCircle,
   revCloud,
   revRect,
-  revText
+  revText,
+  zoomToBox,
+  zoomToExtent
 } from '../../svg/toolbarIcons'
 import MlBlockInsertGallery from '../common/MlBlockInsertGallery.vue'
 import MlLayerSelect from '../common/MlLayerSelect.vue'
@@ -250,6 +291,8 @@ const ribbonLineType = ref<string | undefined>('ByLayer')
 const ribbonLineWeight = ref<AcGiLineWeight | undefined>(AcGiLineWeight.ByLayer)
 const ribbonDisplayedLayerName = ref('')
 const activeRibbonTabId = ref('home')
+/** Whether PICKSTYLE group-selection bit is on (values 1 or 3). */
+const pickstyleGroupOn = ref(true)
 const {
   handleCommandWillStart: handleHatchCommandWillStart,
   handleCommandEnded: handleHatchCommandEnded,
@@ -470,6 +513,39 @@ const handleObservedEntityChange = (args: {
  *
  * @param args System variable change payload raised by the CAD runtime.
  */
+const syncPickstyleGroupOn = (database?: AcDbDatabase) => {
+  const db = database ?? getCurrentDatabase()
+  if (!db) {
+    pickstyleGroupOn.value = true
+    return
+  }
+  const raw = AcDbSysVarManager.instance().getVar(
+    AcDbSystemVariables.PICKSTYLE,
+    db
+  )
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  pickstyleGroupOn.value = Number.isFinite(value)
+    ? (Math.trunc(value) & 1) !== 0
+    : true
+}
+
+const togglePickstyleGroupSelection = () => {
+  const db = getCurrentDatabase()
+  if (!db) return
+  const raw = AcDbSysVarManager.instance().getVar(
+    AcDbSystemVariables.PICKSTYLE,
+    db
+  )
+  const current = typeof raw === 'number' ? Math.trunc(raw) : 1
+  const next = (current & 1) !== 0 ? current & ~1 : current | 1
+  AcDbSysVarManager.instance().setVar(
+    AcDbSystemVariables.PICKSTYLE,
+    next,
+    db
+  )
+  pickstyleGroupOn.value = (next & 1) !== 0
+}
+
 const handleSysVarChange = (args: RibbonSysVarChangeEvent) => {
   if (args.database !== observedDatabase) return
 
@@ -481,6 +557,9 @@ const handleSysVarChange = (args: RibbonSysVarChangeEvent) => {
       break
     case 'CLAYER':
       syncRibbonProperties(args.database)
+      break
+    case 'PICKSTYLE':
+      syncPickstyleGroupOn(args.database)
       break
     case 'LUNITS':
     case 'LUPREC':
@@ -577,7 +656,9 @@ const handleDocumentActivated = () => {
   syncMeasurementStyleControls()
   syncMeasurementUnitControls()
   syncRibbonProperties(AcApDocManager.instance?.curDocument?.database)
+  syncPickstyleGroupOn(AcApDocManager.instance?.curDocument?.database)
   syncHatchSelectionContext(AcApDocManager.instance?.curDocument?.database)
+  bumpNamedViewsRevision()
 }
 
 /**
@@ -1177,18 +1258,144 @@ const applyOpenModeTabVisibility = (
     const visible =
       tab.id === 'measurement'
         ? true
-        : tab.id === 'review'
+        : tab.id === 'review' || tab.id === 'view'
           ? openMode >= AcEdOpenMode.Review
           : openMode === AcEdOpenMode.Write
     return { ...tab, visible }
   })
 }
 
+/**
+ * AI tab: the CAD Agent (when its plugin is installed), Smart Blocks
+ * (`BSEARCH`: find repeated geometry and turn it into blocks) and the PDF to
+ * CAD conversion tools from `@mlightcad/cad-pdf-plugin`, which load lazily
+ * on first use like their command-line counterparts.
+ */
+const buildAiTab = (
+  agentPluginEnabled: boolean,
+  ribbonTooltips: Record<
+    | 'agent'
+    | 'searchConvert'
+    | 'importPdf'
+    | 'pdfScale'
+    | 'pdfText'
+    | 'pdfBlock'
+    | 'pdfDim',
+    string
+  >
+): RibbonTabModel => {
+  const largeButton = (
+    id: string,
+    label: string,
+    tooltip: string,
+    icon: string | Component
+  ) => ({
+    id,
+    type: 'button' as const,
+    label,
+    tooltip,
+    size: 'large' as const,
+    props: { icon, labelWrapLines: 2, labelWrapWidth: 'max-content' }
+  })
+  return {
+    id: 'ai',
+    title: t('main.ribbon.tab.ai'),
+    groups: [
+      ...(agentPluginEnabled
+        ? [
+            {
+              id: 'ai-agent',
+              title: t('main.ribbon.group.agent'),
+              orientation: 'row' as const,
+              collections: [
+                {
+                  id: 'ai-agent-main',
+                  layout: 'row' as const,
+                  items: [
+                    largeButton(
+                      'cmd-agent',
+                      t('main.ribbon.command.agent'),
+                      ribbonTooltips.agent,
+                      ChatDotRound
+                    )
+                  ]
+                }
+              ]
+            }
+          ]
+        : []),
+      {
+        id: 'ai-smart-blocks',
+        title: t('main.ribbon.group.smartBlocks'),
+        orientation: 'row' as const,
+        collections: [
+          {
+            id: 'ai-smart-blocks-main',
+            layout: 'row' as const,
+            items: [
+              largeButton(
+                'cmd-ai-bsearch',
+                t('main.ribbon.command.searchConvert'),
+                ribbonTooltips.searchConvert,
+                bsearch
+              )
+            ]
+          }
+        ]
+      },
+      {
+        id: 'ai-pdf',
+        title: t('main.ribbon.group.pdf'),
+        orientation: 'row' as const,
+        collections: [
+          {
+            id: 'ai-pdf-main',
+            layout: 'row' as const,
+            items: [
+              largeButton(
+                'cmd-ipdf',
+                t('main.ribbon.command.importPdf'),
+                ribbonTooltips.importPdf,
+                Upload
+              ),
+              largeButton(
+                'cmd-pdfscale',
+                t('main.ribbon.command.pdfScale'),
+                ribbonTooltips.pdfScale,
+                ScaleToOriginal
+              ),
+              largeButton(
+                'cmd-pdftext',
+                t('main.ribbon.command.pdfText'),
+                ribbonTooltips.pdfText,
+                EditPen
+              ),
+              largeButton(
+                'cmd-pdfblock',
+                t('main.ribbon.command.pdfBlock'),
+                ribbonTooltips.pdfBlock,
+                CopyDocument
+              ),
+              largeButton(
+                'cmd-pdfdim',
+                t('main.ribbon.command.pdfDim'),
+                ribbonTooltips.pdfDim,
+                dimLinear
+              )
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+
 const buildBaseTabs = (
   openMode: AcEdOpenMode,
   markupVisible: boolean,
   measurementVisible: boolean,
-  agentPluginEnabled: boolean
+  agentPluginEnabled: boolean,
+  namedViewNames: string[] = []
 ): RibbonTabModel[] => {
   const ribbonTooltips = {
     line: t('main.ribbon.tooltip.line'),
@@ -1217,6 +1424,9 @@ const buildBaseTabs = (
     dimcontinue: t('main.ribbon.tooltip.dimcontinue'),
     dimbaseline: t('main.ribbon.tooltip.dimbaseline'),
     dimstyle: t('main.ribbon.tooltip.dimstyle'),
+    mleader: t('main.ribbon.tooltip.mleader'),
+    mleaderAdd: t('main.ribbon.tooltip.mleaderAdd'),
+    mleaderRemove: t('main.ribbon.tooltip.mleaderRemove'),
     move: t('main.ribbon.tooltip.move'),
     rotate: t('main.ribbon.tooltip.rotate'),
     copy: t('main.ribbon.tooltip.copy'),
@@ -1225,8 +1435,14 @@ const buildBaseTabs = (
     undo: t('main.ribbon.tooltip.undo'),
     redo: t('main.ribbon.tooltip.redo'),
     properties: t('main.ribbon.tooltip.properties'),
+    group: t('main.ribbon.tooltip.group'),
+    ungroup: t('main.ribbon.tooltip.ungroup'),
+    groupEdit: t('main.ribbon.tooltip.groupEdit'),
+    groupSelect: t('main.ribbon.tooltip.groupSelect'),
+    classicGroup: t('main.ribbon.tooltip.classicGroup'),
     quickSelect: t('main.ribbon.tooltip.quickSelect'),
     countList: t('main.ribbon.tooltip.countList'),
+    searchConvert: t('main.ribbon.tooltip.searchConvert'),
     find: t('main.ribbon.tooltip.find'),
     drawingUnits: t('main.ribbon.tooltip.drawingUnits'),
     attachDwg: t('main.ribbon.tooltip.attachDwg'),
@@ -1235,6 +1451,31 @@ const buildBaseTabs = (
     editAttributes: t('main.ribbon.tooltip.editAttributes'),
     defineAttribute: t('main.ribbon.tooltip.defineAttribute'),
     agent: t('main.ribbon.tooltip.agent'),
+    importPdf: t('main.ribbon.tooltip.importPdf'),
+    pdfScale: t('main.ribbon.tooltip.pdfScale'),
+    pdfText: t('main.ribbon.tooltip.pdfText'),
+    pdfBlock: t('main.ribbon.tooltip.pdfBlock'),
+    pdfDim: t('main.ribbon.tooltip.pdfDim'),
+    pan: t('main.ribbon.tooltip.pan'),
+    zoom: t('main.ribbon.tooltip.zoom'),
+    zoomExtents: t('main.ribbon.tooltip.zoomExtents'),
+    zoomWindow: t('main.ribbon.tooltip.zoomWindow'),
+    zoomPrevious: t('main.ribbon.tooltip.zoomPrevious'),
+    zoomSaved: t('main.ribbon.tooltip.zoomSaved'),
+    zoomSmart: t('main.ribbon.tooltip.zoomSmart'),
+    newView: t('main.ribbon.tooltip.newView'),
+    viewManager: t('main.ribbon.tooltip.viewManager'),
+    ucs: t('main.ribbon.tooltip.ucs'),
+    namedUcs: t('main.ribbon.tooltip.namedUcs'),
+    ucsWorld: t('main.ribbon.tooltip.ucsWorld'),
+    ucsOrigin: t('main.ribbon.tooltip.ucsOrigin'),
+    ucsX: t('main.ribbon.tooltip.ucsX'),
+    ucsY: t('main.ribbon.tooltip.ucsY'),
+    ucsZ: t('main.ribbon.tooltip.ucsZ'),
+    ucsZAxis: t('main.ribbon.tooltip.ucsZAxis'),
+    ucsView: t('main.ribbon.tooltip.ucsView'),
+    ucsObject: t('main.ribbon.tooltip.ucsObject'),
+    restoreView: t('main.ribbon.tooltip.restoreView'),
     propertyColor: t('main.ribbon.tooltip.propertyColor'),
     propertyLineType: t('main.ribbon.tooltip.propertyLineType'),
     propertyLineWeight: t('main.ribbon.tooltip.propertyLineWeight')
@@ -2337,6 +2578,78 @@ const buildBaseTabs = (
           ]
         },
         {
+          id: 'home-groups',
+          title: t('main.ribbon.group.groups'),
+          orientation: 'row',
+          footerMenuItems: [
+            {
+              id: 'cmd-classicgroup',
+              type: 'button',
+              label: t('main.ribbon.command.classicGroup'),
+              tooltip: ribbonTooltips.classicGroup,
+              props: { icon: group }
+            }
+          ],
+          collections: [
+            {
+              id: 'home-groups-button',
+              layout: 'row',
+              items: [
+                {
+                  id: 'cmd-group',
+                  type: 'button',
+                  label: t('main.ribbon.command.group'),
+                  tooltip: ribbonTooltips.group,
+                  size: 'large',
+                  props: { icon: group }
+                }
+              ]
+            },
+            {
+              id: 'home-groups-main',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-ungroup',
+                  type: 'button',
+                  label: t('main.ribbon.command.ungroup'),
+                  tooltip: ribbonTooltips.ungroup,
+                  size: 'small',
+                  hideLabel: true,
+                  props: { icon: ungroup }
+                },
+                {
+                  id: 'cmd-groupedit',
+                  type: 'button',
+                  label: t('main.ribbon.command.groupEdit'),
+                  tooltip: ribbonTooltips.groupEdit,
+                  size: 'small',
+                  hideLabel: true,
+                  props: { icon: groupEdit }
+                },
+                {
+                  id: 'cmd-group-select',
+                  type: 'toggle',
+                  label: t('main.ribbon.command.groupSelect'),
+                  tooltip: ribbonTooltips.groupSelect,
+                  size: 'small',
+                  hideLabel: true,
+                  props: {
+                    modelValue: pickstyleGroupOn.value,
+                    activeIcon: groupSelect,
+                    inactiveIcon: groupSelect,
+                    activeLabel: t('main.ribbon.command.groupSelect'),
+                    inactiveLabel: t('main.ribbon.command.groupSelect'),
+                    activeValue: 'cmd-group-select',
+                    inactiveValue: 'cmd-group-select'
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
           id: 'home-annotation',
           title: t('main.ribbon.group.annotation'),
           orientation: 'row',
@@ -2358,7 +2671,7 @@ const buildBaseTabs = (
             {
               id: 'home-annotation-dimension',
               layout: 'column',
-              rows: 2,
+              rows: 3,
               items: [
                 {
                   id: 'cmd-dimension',
@@ -2423,6 +2736,37 @@ const buildBaseTabs = (
                         label: t('main.ribbon.command.dimbaseline'),
                         tooltip: ribbonTooltips.dimbaseline,
                         icon: dimBaseline
+                      }
+                    ]
+                  }
+                },
+                {
+                  id: 'cmd-mleader',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.mleader'),
+                  tooltip: ribbonTooltips.mleader,
+                  size: 'small',
+                  props: {
+                    icon: mleader,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'mleader',
+                        label: t('main.ribbon.command.mleader'),
+                        tooltip: ribbonTooltips.mleader,
+                        icon: mleader
+                      },
+                      {
+                        value: 'mleader-add',
+                        label: t('main.ribbon.command.mleaderAdd'),
+                        tooltip: ribbonTooltips.mleaderAdd,
+                        icon: mleaderAdd
+                      },
+                      {
+                        value: 'mleader-remove',
+                        label: t('main.ribbon.command.mleaderRemove'),
+                        tooltip: ribbonTooltips.mleaderRemove,
+                        icon: mleaderRemove
                       }
                     ]
                   }
@@ -2495,23 +2839,7 @@ const buildBaseTabs = (
                     labelWrapLines: 2,
                     labelWrapWidth: 'max-content'
                   }
-                },
-                ...(agentPluginEnabled
-                  ? [
-                      {
-                        id: 'cmd-agent',
-                        type: 'button' as const,
-                        label: t('main.ribbon.command.agent'),
-                        tooltip: ribbonTooltips.agent,
-                        size: 'large' as const,
-                        props: {
-                          icon: ChatDotRound,
-                          labelWrapLines: 2,
-                          labelWrapWidth: 'max-content'
-                        }
-                      }
-                    ]
-                  : [])
+                }
               ]
             }
           ]
@@ -2570,6 +2898,18 @@ const buildBaseTabs = (
                     labelWrapLines: 2,
                     labelWrapWidth: 'max-content'
                   }
+                },
+                {
+                  id: 'cmd-bsearch',
+                  type: 'button',
+                  label: t('main.ribbon.command.searchConvert'),
+                  tooltip: ribbonTooltips.searchConvert,
+                  size: 'large',
+                  props: {
+                    icon: bsearch,
+                    labelWrapLines: 2,
+                    labelWrapWidth: 'max-content'
+                  }
                 }
               ]
             }
@@ -2616,6 +2956,283 @@ const buildBaseTabs = (
     }
   ]
 
+  const canWriteViews = openMode === AcEdOpenMode.Write
+  const restoreViewOptions =
+    namedViewNames.length > 0
+      ? namedViewNames.map(name => ({
+          id: `named-view:${name}`,
+          label: name,
+          value: `named-view:${name}`
+        }))
+      : [
+          {
+            id: 'named-view-empty',
+            label: t('main.ribbon.command.restoreView'),
+            value: 'named-view-empty',
+            disabled: true
+          }
+        ]
+
+  tabs.push({
+    id: 'view',
+    title: t('main.ribbon.tab.view'),
+    groups: [
+      {
+        id: 'view-navigate',
+        title: t('main.ribbon.group.navigate'),
+        orientation: 'row',
+        collections: [
+          {
+            id: 'view-navigate-main',
+            layout: 'row',
+            items: [
+              {
+                id: 'cmd-pan',
+                type: 'button',
+                label: t('main.ribbon.command.pan'),
+                tooltip: ribbonTooltips.pan,
+                size: 'large',
+                props: {
+                  icon: panIcon,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-zoom',
+                type: 'dropdown',
+                label: t('main.ribbon.command.zoom'),
+                tooltip: ribbonTooltips.zoom,
+                size: 'large',
+                props: {
+                  icon: zoomToExtent,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content',
+                  options: [
+                    {
+                      id: 'zoom-extents',
+                      label: t('main.ribbon.command.zoomExtents'),
+                      value: 'zoom-extents',
+                      tooltip: ribbonTooltips.zoomExtents
+                    },
+                    {
+                      id: 'zoom-window',
+                      label: t('main.ribbon.command.zoomWindow'),
+                      value: 'zoom-window',
+                      tooltip: ribbonTooltips.zoomWindow
+                    },
+                    {
+                      id: 'zoom-previous',
+                      label: t('main.ribbon.command.zoomPrevious'),
+                      value: 'zoom-previous',
+                      tooltip: ribbonTooltips.zoomPrevious
+                    },
+                    {
+                      id: 'zoom-saved',
+                      label: t('main.ribbon.command.zoomSaved'),
+                      value: 'zoom-saved',
+                      tooltip: ribbonTooltips.zoomSaved
+                    },
+                    {
+                      id: 'zoom-smart',
+                      label: t('main.ribbon.command.zoomSmart'),
+                      value: 'zoom-smart',
+                      tooltip: ribbonTooltips.zoomSmart
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'view-coordinates',
+        title: t('main.ribbon.group.coordinates'),
+        orientation: 'row',
+        collections: [
+          {
+            id: 'view-coordinates-main',
+            layout: 'row',
+            items: [
+              {
+                id: 'cmd-ucs',
+                type: 'button',
+                label: t('main.ribbon.command.ucs'),
+                tooltip: ribbonTooltips.ucs,
+                size: 'large',
+                props: {
+                  icon: ucs,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucsman',
+                type: 'button',
+                label: t('main.ribbon.command.namedUcs'),
+                tooltip: ribbonTooltips.namedUcs,
+                size: 'large',
+                props: {
+                  icon: namedUcs,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-world',
+                type: 'button',
+                label: t('main.ribbon.command.ucsWorld'),
+                tooltip: ribbonTooltips.ucsWorld,
+                size: 'large',
+                props: {
+                  icon: ucsWorld,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-origin',
+                type: 'button',
+                label: t('main.ribbon.command.ucsOrigin'),
+                tooltip: ribbonTooltips.ucsOrigin,
+                size: 'large',
+                props: {
+                  icon: ucsOrigin,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-x',
+                type: 'button',
+                label: t('main.ribbon.command.ucsX'),
+                tooltip: ribbonTooltips.ucsX,
+                size: 'large',
+                props: {
+                  icon: ucsX,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-y',
+                type: 'button',
+                label: t('main.ribbon.command.ucsY'),
+                tooltip: ribbonTooltips.ucsY,
+                size: 'large',
+                props: {
+                  icon: ucsY,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-z',
+                type: 'button',
+                label: t('main.ribbon.command.ucsZ'),
+                tooltip: ribbonTooltips.ucsZ,
+                size: 'large',
+                props: {
+                  icon: ucsZ,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-zaxis',
+                type: 'button',
+                label: t('main.ribbon.command.ucsZAxis'),
+                tooltip: ribbonTooltips.ucsZAxis,
+                size: 'large',
+                props: {
+                  icon: ucsZAxis,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-view',
+                type: 'button',
+                label: t('main.ribbon.command.ucsView'),
+                tooltip: ribbonTooltips.ucsView,
+                size: 'large',
+                props: {
+                  icon: ucsView,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-object',
+                type: 'button',
+                label: t('main.ribbon.command.ucsObject'),
+                tooltip: ribbonTooltips.ucsObject,
+                size: 'large',
+                props: {
+                  icon: ucsObject,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'view-named-views',
+        title: t('main.ribbon.group.namedViews'),
+        orientation: 'row',
+        collections: [
+          {
+            id: 'view-named-views-main',
+            layout: 'row',
+            items: [
+              {
+                id: 'cmd-newview',
+                type: 'button',
+                label: t('main.ribbon.command.newView'),
+                tooltip: ribbonTooltips.newView,
+                size: 'large',
+                disabled: !canWriteViews,
+                props: {
+                  icon: newView,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-view',
+                type: 'button',
+                label: t('main.ribbon.command.viewManager'),
+                tooltip: ribbonTooltips.viewManager,
+                size: 'large',
+                props: {
+                  icon: viewManager,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-restore-view',
+                type: 'dropdown',
+                label: t('main.ribbon.command.restoreView'),
+                tooltip: ribbonTooltips.restoreView,
+                size: 'large',
+                props: {
+                  icon: zoomToBox,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content',
+                  options: restoreViewOptions
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  })
+
   tabs.push({
     id: 'review',
     title: t('main.ribbon.tab.review'),
@@ -2627,6 +3244,8 @@ const buildBaseTabs = (
     title: t('main.ribbon.tab.measurement'),
     groups: measurementGroups
   })
+
+  tabs.push(buildAiTab(agentPluginEnabled, ribbonTooltips))
 
   return markComponentConfigRaw(applyOpenModeTabVisibility(tabs, openMode))
 }
@@ -2652,6 +3271,8 @@ const ribbonData = computed(() => {
   measurementAunits.value
   measurementAuprec.value
   measurementLengthUnit.value
+  // Track PICKSTYLE group bit for the Groups panel toggle.
+  pickstyleGroupOn.value
   const commandByItemId = new Map<string, string>()
   commandByItemId.set('cmd-line', 'line')
   commandByItemId.set('cmd-polyline', 'pline')
@@ -2704,6 +3325,10 @@ const ribbonData = computed(() => {
   commandByItemId.set('dimordinate', 'dimordinate')
   commandByItemId.set('dimcontinue', 'dimcontinue')
   commandByItemId.set('dimbaseline', 'dimbaseline')
+  commandByItemId.set('cmd-mleader', 'mleader')
+  commandByItemId.set('mleader', 'mleader')
+  commandByItemId.set('mleader-add', 'mleaderedit')
+  commandByItemId.set('mleader-remove', 'mleadereditremove')
   commandByItemId.set('cmd-dimstyle', 'dimstyle')
   commandByItemId.set('cmd-move', 'move')
   commandByItemId.set('cmd-rotate', 'rotate')
@@ -2712,6 +3337,10 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-offset', 'offset')
   commandByItemId.set('cmd-layer', 'layer')
   commandByItemId.set('cmd-properties', 'properties')
+  commandByItemId.set('cmd-group', 'group')
+  commandByItemId.set('cmd-ungroup', 'ungroup')
+  commandByItemId.set('cmd-groupedit', 'groupedit')
+  commandByItemId.set('cmd-classicgroup', 'classicgroup')
   commandByItemId.set('cmd-qselect', 'qselect')
   commandByItemId.set('cmd-find', 'find')
   commandByItemId.set('cmd-countlist', 'countlist')
@@ -2720,9 +3349,16 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-imageattach', 'imageattach')
   commandByItemId.set('cmd-attedit', 'attedit')
   commandByItemId.set('cmd-attdef', 'attdef')
+  commandByItemId.set('cmd-bsearch', 'bsearch')
+  commandByItemId.set('cmd-ai-bsearch', 'bsearch')
   if (store.features.agentPlugin) {
     commandByItemId.set('cmd-agent', 'agent')
   }
+  commandByItemId.set('cmd-ipdf', 'ipdf')
+  commandByItemId.set('cmd-pdfscale', 'pdfscale')
+  commandByItemId.set('cmd-pdftext', 'pdftext')
+  commandByItemId.set('cmd-pdfblock', 'pdfblock')
+  commandByItemId.set('cmd-pdfdim', 'pdfdim')
   commandByItemId.set('cmd-tool-markup-panel', 'markuppanel')
   commandByItemId.set('cmd-tool-markup-text', 'markuptext')
   commandByItemId.set('cmd-tool-markup-cloud', 'markupcloud')
@@ -2757,12 +3393,44 @@ const ribbonData = computed(() => {
   commandByItemId.set('layer-action-thaw', 'laythw')
   commandByItemId.set('layer-action-unlock', 'layulk')
   commandByItemId.set('layer-action-restore', 'layerp')
+  commandByItemId.set('cmd-pan', 'pan')
+  commandByItemId.set('cmd-zoom', 'zoom\\nall')
+  commandByItemId.set('zoom-extents', 'zoom\\nall')
+  commandByItemId.set('zoom-window', 'zoom\\nwindow')
+  commandByItemId.set('zoom-previous', 'zoom\\nprevious')
+  commandByItemId.set('zoom-saved', 'zoom\\nsaved')
+  commandByItemId.set('zoom-smart', 'zoom\\nsmart')
+  commandByItemId.set('cmd-newview', 'newview')
+  commandByItemId.set('cmd-view', 'view')
+  commandByItemId.set('cmd-ucs', 'ucs')
+  commandByItemId.set('cmd-ucsman', 'ucsman')
+  commandByItemId.set('cmd-ucs-world', 'ucs\\nWorld')
+  commandByItemId.set('cmd-ucs-origin', 'ucs')
+  commandByItemId.set('cmd-ucs-x', 'ucs\\nX')
+  commandByItemId.set('cmd-ucs-y', 'ucs\\nY')
+  commandByItemId.set('cmd-ucs-z', 'ucs\\nZ')
+  commandByItemId.set('cmd-ucs-zaxis', 'ucs\\nZAxis')
+  commandByItemId.set('cmd-ucs-view', 'ucs\\nView')
+  commandByItemId.set('cmd-ucs-object', 'ucs\\nObject')
+
+  namedViewsRevision.value
+  let namedViewNames: string[] = []
+  try {
+    namedViewNames = AcApNamedViewService.listViews(
+      AcApDocManager.instance.curDocument.database
+    ).map(item => item.name)
+  } catch {
+    namedViewNames = []
+  }
+  // Named-view restore is handled in handleRibbonItemClick (not scripted
+  // `viewrestore\\n…`) so names with spaces stay intact.
 
   const tabs: RibbonTabModel[] = buildBaseTabs(
     openMode,
     markupVisible,
     measurementVisible,
-    store.features.agentPlugin
+    store.features.agentPlugin,
+    namedViewNames
   )
   return {
     tabs,
@@ -2870,6 +3538,10 @@ const handleRibbonItemClick = (payload: {
   if (isRibbonDisabled.value) return
   if (handleHatchItem(payload.itemId)) return
   if (handleMTextItem(payload.itemId)) return
+  if (payload.itemId === 'cmd-group-select') {
+    togglePickstyleGroupSelection()
+    return
+  }
   if (
     payload.groupId === 'home-layer' &&
     ribbonLayerOptions.value.some(item => item.value === payload.itemId)
@@ -2879,6 +3551,23 @@ const handleRibbonItemClick = (payload: {
   }
   if (payload.itemId === 'layer-action-current') {
     handleRibbonSetCurrentLayer()
+    return
+  }
+  if (payload.itemId.startsWith('named-view:')) {
+    const viewName = payload.itemId.slice('named-view:'.length)
+    if (!viewName || viewName === 'empty') return
+    const docManager = AcApDocManager.instance
+    const doc = docManager.curDocument
+    const applyLayers = doc.openMode >= AcEdOpenMode.Write
+    if (applyLayers) {
+      doc.captureLayerPreviousState()
+    }
+    AcApNamedViewService.restoreView(
+      doc.database,
+      docManager.curView,
+      viewName,
+      applyLayers
+    )
     return
   }
   const command = ribbonData.value.commandByItemId.get(payload.itemId)

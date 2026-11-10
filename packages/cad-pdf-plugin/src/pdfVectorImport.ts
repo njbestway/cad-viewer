@@ -17,6 +17,23 @@ const BEZIER_STEPS = 8
 /** 2D point in model-space millimeters. */
 export type PdfImportPoint = { x: number; y: number }
 
+/**
+ * One exact path segment in model-space millimeters.
+ *
+ * Affine maps keep Bezier curves Bezier, so control points transformed
+ * through the CTM and viewport describe the page curve exactly. Quadratic
+ * curves are degree-elevated to cubics.
+ */
+export type PdfImportSegment =
+  | { kind: 'line'; p0: PdfImportPoint; p1: PdfImportPoint }
+  | {
+      kind: 'cubic'
+      p0: PdfImportPoint
+      p1: PdfImportPoint
+      p2: PdfImportPoint
+      p3: PdfImportPoint
+    }
+
 export interface PdfImportViewport {
   height: number
   convertToViewportPoint(x: number, y: number): number[]
@@ -50,6 +67,11 @@ export interface PdfImportOps {
   fillStroke: number
   eoFillStroke: number
   endPath: number
+  /**
+   * PDF.js internal fill used for Type3 / mask path compilation. Treat like
+   * {@link PdfImportOps.fill} when present in a packed `constructPath`.
+   */
+  rawFillPath?: number
   setStrokeRGBColor: number
   setFillRGBColor: number
   beginText: number
@@ -66,6 +88,187 @@ export interface PdfImportOps {
   setTextRise: number
   setTextRenderingMode: number
   showText: number
+  /** Line width (`w`). Optional so older op tables still type-check. */
+  setLineWidth?: number
+  /** Dash pattern (`d`): args `[dashArray, phase]`. */
+  setDash?: number
+  /** Form XObject begin — args typically `[matrix, bbox]`. */
+  paintFormXObjectBegin?: number
+  paintFormXObjectEnd?: number
+  /** Image XObject paint — args `[objId, width, height]`. */
+  paintImageXObject?: number
+  /** Inline image paint — args `[imageData]`. */
+  paintInlineImageXObject?: number
+}
+
+/**
+ * Sentinel colour: CAD ACI 7 (AutoCAD “foreground” / auto-contrast).
+ *
+ * Renders white on a dark CAD canvas and black on a light one.
+ */
+export const PDF_IMPORT_FOREGROUND_COLOR = 'foreground'
+
+/**
+ * PDF page paper tone used when remapping contrast ink.
+ *
+ * - `light` — typical white paper (black ink → ACI 7)
+ * - `dark` — black / dark paper (white ink → ACI 7)
+ * - `auto` — infer from the dominant near-black vs near-white paint colours
+ */
+export type PdfImportPaperTone = 'light' | 'dark' | 'auto'
+
+/**
+ * Options for {@link extractPdfImportSubpaths}.
+ *
+ * PDF ink that matches the opposite of the page paper would vanish on the
+ * wrong CAD background if stored as fixed RGB. Contrast ink is mapped to
+ * {@link PDF_IMPORT_FOREGROUND_COLOR} (ACI 7) instead.
+ */
+export interface PdfImportExtractOptions {
+  /**
+   * Remap paper-contrast ink (black on light paper, white on dark paper) to
+   * ACI 7. Default: `true`.
+   */
+  remapContrastInk?: boolean
+  /**
+   * Assumed PDF paper tone. Default: `'auto'`.
+   */
+  paperTone?: PdfImportPaperTone
+  /**
+   * @deprecated Use {@link PdfImportExtractOptions.remapContrastInk}.
+   * When `false`, disables contrast remapping.
+   */
+  remapDarkColors?: boolean
+}
+
+/**
+ * Channel ceiling for near-black ink. All RGB components must be below this
+ * so CAD primaries (`#0000ff`, …) are not treated as paper black. High
+ * enough for the "rich black" design tools emit after CMYK conversion
+ * (e.g. `#2c2e35`), which is unreadable on a dark CAD canvas.
+ */
+const PDF_PAPER_BLACK_CHANNEL = 64
+
+/**
+ * Channel floor for near-white ink (dark-paper drawings).
+ */
+const PDF_PAPER_WHITE_CHANNEL = 208
+
+function parseCssRgb(
+  color: string | undefined
+): { r: number; g: number; b: number } | undefined {
+  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) return undefined
+  const value = Number.parseInt(color.slice(1), 16)
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255
+  }
+}
+
+/** True when every channel is near black (paper ink on white PDF). */
+export function isPdfNearBlackColor(color: string | undefined): boolean {
+  const rgb = parseCssRgb(color)
+  if (!rgb) return false
+  return (
+    rgb.r < PDF_PAPER_BLACK_CHANNEL &&
+    rgb.g < PDF_PAPER_BLACK_CHANNEL &&
+    rgb.b < PDF_PAPER_BLACK_CHANNEL
+  )
+}
+
+/** True when every channel is near white (paper ink on dark PDF). */
+export function isPdfNearWhiteColor(color: string | undefined): boolean {
+  const rgb = parseCssRgb(color)
+  if (!rgb) return false
+  return (
+    rgb.r > PDF_PAPER_WHITE_CHANNEL &&
+    rgb.g > PDF_PAPER_WHITE_CHANNEL &&
+    rgb.b > PDF_PAPER_WHITE_CHANNEL
+  )
+}
+
+/**
+ * Infers PDF paper tone from painted colours.
+ *
+ * Dark paper is rare; bias toward light so white fills on a normal CAD PDF
+ * do not leave near-black linework unmapped (and invisible on a dark canvas).
+ * Only classify as dark when near-white ink dominates and near-black is absent.
+ */
+export function detectPdfImportPaperTone(
+  colors: Iterable<string | undefined>
+): 'light' | 'dark' {
+  let nearBlack = 0
+  let nearWhite = 0
+  for (const color of colors) {
+    if (isPdfNearBlackColor(color)) nearBlack++
+    else if (isPdfNearWhiteColor(color)) nearWhite++
+  }
+  if (nearBlack === 0 && nearWhite >= 8) return 'dark'
+  return 'light'
+}
+
+/**
+ * Maps PDF contrast ink to ACI 7 (`foreground`) based on paper tone.
+ *
+ * - Light paper + near-black → {@link PDF_IMPORT_FOREGROUND_COLOR}
+ * - Dark paper + near-white → {@link PDF_IMPORT_FOREGROUND_COLOR}
+ * - Other colours kept as lowercase `#rrggbb`
+ */
+export function remapPdfImportColor(
+  color: string | undefined,
+  paperTone: 'light' | 'dark' = 'light'
+): string | undefined {
+  if (!color) return color
+  if (color === PDF_IMPORT_FOREGROUND_COLOR) return color
+  if (!parseCssRgb(color)) return color
+  if (paperTone === 'light' && isPdfNearBlackColor(color)) {
+    return PDF_IMPORT_FOREGROUND_COLOR
+  }
+  if (paperTone === 'dark' && isPdfNearWhiteColor(color)) {
+    return PDF_IMPORT_FOREGROUND_COLOR
+  }
+  return color.toLowerCase()
+}
+
+/**
+ * Applies contrast-ink remapping to an extracted page.
+ *
+ * When `paperTone` is `'auto'`, tone is detected from the raw colours first.
+ */
+export function applyPdfImportContrastColors(
+  content: PdfImportPageContent,
+  options?: Pick<
+    PdfImportExtractOptions,
+    'remapContrastInk' | 'remapDarkColors' | 'paperTone'
+  >
+): PdfImportPageContent {
+  const enabled =
+    options?.remapContrastInk !== false && options?.remapDarkColors !== false
+  if (!enabled) return content
+
+  const requested = options?.paperTone ?? 'auto'
+  const tone =
+    requested === 'auto'
+      ? detectPdfImportPaperTone([
+          ...content.subpaths.map(s => s.color),
+          ...content.texts.map(t => t.color)
+        ])
+      : requested
+
+  return {
+    subpaths: content.subpaths.map(subpath => ({
+      ...subpath,
+      color: remapPdfImportColor(subpath.color, tone),
+      ...(subpath.fillColor
+        ? { fillColor: remapPdfImportColor(subpath.fillColor, tone) }
+        : {})
+    })),
+    texts: content.texts.map(text => ({
+      ...text,
+      color: remapPdfImportColor(text.color, tone)
+    }))
+  }
 }
 
 export interface PdfImportOperatorList {
@@ -74,9 +277,44 @@ export interface PdfImportOperatorList {
 }
 
 export interface PdfImportedSubpath {
+  /** Flattened outline (curves sampled with a fixed step count). */
   points: PdfImportPoint[]
+  /**
+   * Exact segments of the same subpath. Consumers that recover arcs,
+   * circles, ellipses or splines should prefer these over {@link points}.
+   */
+  segments?: PdfImportSegment[]
+  /** True when the subpath was painted by a fill operator. */
+  filled?: boolean
+  /**
+   * True when the paint also stroked the outline (`B`, `b`, ...). Unset for
+   * plain strokes, which are always outlines.
+   */
+  stroked?: boolean
+  /** Fill colour of a filled subpath (`#rrggbb` or foreground). */
+  fillColor?: string
+  /**
+   * Subpaths painted by one operator share this number, so an even-odd fill
+   * with holes can become one hatch with several loops.
+   */
+  paintGroup?: number
+  /** Stroke width in millimeters, when the PDF set a positive width. */
+  lineWidth?: number
+  /**
+   * Stroke dash pattern in millimeters (alternating dash, gap), when the
+   * PDF stroked this subpath dashed. Always an even number of entries.
+   */
+  dashPattern?: number[]
+  /**
+   * Index into {@link PdfImportPageContent.formInstances} when the subpath
+   * was drawn inside a top-level Form XObject.
+   */
+  formInstance?: number
   layerName?: string
-  /** `#rrggbb` from the stroke or fill color that painted this path. */
+  /**
+   * Paint colour: `#rrggbb`, or {@link PDF_IMPORT_FOREGROUND_COLOR} after
+   * contrast remapping.
+   */
   color?: string
 }
 
@@ -84,19 +322,67 @@ export interface PdfImportedSubpath {
 export interface PdfImportedText {
   text: string
   position: PdfImportPoint
+  /** Advance width of the run along the baseline, in millimeters. */
+  width?: number
+  /**
+   * PDF.js font resource id (`setFont` argument). Resolve the font name
+   * through `page.commonObjs`.
+   */
+  fontId?: string
   /** CAD text height in millimeters. */
   height: number
   /** Rotation in radians, counterclockwise from +X. */
   rotation: number
   widthFactor: number
   layerName?: string
-  /** `#rrggbb` fill color, or the stroke color for stroke-only text. */
+  /**
+   * Fill (or stroke-only) colour: `#rrggbb`, or
+   * {@link PDF_IMPORT_FOREGROUND_COLOR} after contrast remapping.
+   */
   color?: string
+}
+
+/**
+ * One top-level Form XObject paint. PDF.js inlines form content and does not
+ * say which form it was, so repeated forms are recognized by comparing the
+ * geometry of instances in form-local coordinates.
+ */
+export interface PdfImportFormInstance {
+  /**
+   * Affine map from form space to model-space millimeters:
+   * `x' = a·x + c·y + e`, `y' = b·x + d·y + f`.
+   */
+  toCad: { a: number; b: number; c: number; d: number; e: number; f: number }
+}
+
+/**
+ * One raster image paint. PDF draws an image into the unit square of the
+ * current user space, so the placement is that square's affine map.
+ */
+export interface PdfImportedImage {
+  /**
+   * PDF.js object id; resolve it through `page.objs` (or `page.commonObjs`
+   * for ids starting with `g_`).
+   */
+  objId?: string
+  /** Image data of an inline image (`BI … EI`), as PDF.js passes it. */
+  inline?: unknown
+  /**
+   * Unit square → model-space millimeters: `x' = a·u + c·v + e`,
+   * `y' = b·u + d·v + f`. `(0, 0)` is the image's bottom-left corner and
+   * `(0, 1)` its top-left (first pixel row).
+   */
+  toCad: { a: number; b: number; c: number; d: number; e: number; f: number }
+  layerName?: string
 }
 
 export interface PdfImportPageContent {
   subpaths: PdfImportedSubpath[]
   texts: PdfImportedText[]
+  /** Raster image paints, in paint order. */
+  images?: PdfImportedImage[]
+  /** Top-level Form XObject paints, referenced by subpath `formInstance`. */
+  formInstances?: PdfImportFormInstance[]
 }
 
 type PdfMatrix = [number, number, number, number, number, number]
@@ -117,11 +403,15 @@ export function extractPdfImportSubpaths(
   ops: PdfImportOps,
   viewport: PdfImportViewport,
   ocgLayers: ReadonlyMap<string, { layerName: string }>,
-  fallbackLayerName?: string
+  fallbackLayerName?: string,
+  options?: PdfImportExtractOptions
 ): PdfImportPageContent {
   const { fnArray, argsArray } = opList
   const subpathResult: PdfImportedSubpath[] = []
+  const formInstances: PdfImportFormInstance[] = []
+  let currentFormInstance: number | undefined
   const textResult: PdfImportedText[] = []
+  const imageResult: PdfImportedImage[] = []
 
   // PDF.js 5.x normally packs path construction into OPS.constructPath.
   // The packed stream uses DrawOPS values from PDF.js shared/util:
@@ -134,37 +424,82 @@ export function extractPdfImportSubpaths(
 
   let subpaths: PdfImportedSubpath[] = []
   let current: PdfImportPoint[] = []
+  let currentSegments: PdfImportSegment[] = []
   let currentPathLayerName = fallbackLayerName
   let activeLayerName = fallbackLayerName
   const markedContentLayerStack: Array<string | undefined> = []
 
   let curX = 0
   let curY = 0
+  // Start of the current subpath in user space: `h` returns the current
+  // point there, so a following `l` without `m` starts from it.
+  let startX = 0
+  let startY = 0
 
   let ctm: PdfMatrix = [1, 0, 0, 1, 0, 0]
   let fillColor = '#000000'
   let strokeColor = '#000000'
+  let lineWidth = 1
+  let dashArray: number[] = []
   // Text state parameters (Tf/Tc/Tw/Tz/TL/Tr/Ts) are graphics-state fields and
   // must round-trip with q/Q. Tm/Tlm and the text cursor are not.
   let fontSize = 0
+  let fontId: string | undefined
   let textHScale = 1
   let textRise = 0
   let leading = 0
   let charSpacing = 0
   let wordSpacing = 0
   let textRenderingMode = 0
-  const graphicsStack: Array<{
+  type GraphicsStateSnapshot = {
     ctm: PdfMatrix
     fillColor: string
     strokeColor: string
+    lineWidth: number
+    dashArray: number[]
     fontSize: number
+    fontId: string | undefined
     textHScale: number
     textRise: number
     leading: number
     charSpacing: number
     wordSpacing: number
     textRenderingMode: number
-  }> = []
+  }
+  const snapshotGraphicsState = (): GraphicsStateSnapshot => ({
+    ctm: cloneMatrix(ctm),
+    fillColor,
+    strokeColor,
+    lineWidth,
+    dashArray,
+    fontSize,
+    fontId,
+    textHScale,
+    textRise,
+    leading,
+    charSpacing,
+    wordSpacing,
+    textRenderingMode
+  })
+  const restoreGraphicsState = (restored: GraphicsStateSnapshot) => {
+    ctm = restored.ctm
+    fillColor = restored.fillColor
+    strokeColor = restored.strokeColor
+    lineWidth = restored.lineWidth
+    dashArray = restored.dashArray
+    fontSize = restored.fontSize
+    fontId = restored.fontId
+    textHScale = restored.textHScale
+    textRise = restored.textRise
+    leading = restored.leading
+    charSpacing = restored.charSpacing
+    wordSpacing = restored.wordSpacing
+    textRenderingMode = restored.textRenderingMode
+  }
+  // q/Q stack — separate from Form XObject Begin/End so unbalanced save/restore
+  // inside a form cannot pop the form entry (or vice versa).
+  const graphicsStack: GraphicsStateSnapshot[] = []
+  const formStack: GraphicsStateSnapshot[] = []
 
   let textMatrix: PdfMatrix = [1, 0, 0, 1, 0, 0]
   let textLineMatrix: PdfMatrix = [1, 0, 0, 1, 0, 0]
@@ -196,28 +531,126 @@ export function extractPdfImportSubpaths(
 
   const flush = () => {
     if (current.length > 1) {
-      subpaths.push({
+      const subpath: PdfImportedSubpath = {
         points: current,
+        segments: currentSegments,
         layerName: currentPathLayerName
-      })
+      }
+      if (currentFormInstance !== undefined) {
+        subpath.formInstance = currentFormInstance
+      }
+      subpaths.push(subpath)
     }
     current = []
+    currentSegments = []
     currentPathLayerName = activeLayerName
   }
 
-  const commit = (color: string = strokeColor) => {
-    flush()
+  const samePoint = (a: PdfImportPoint, b: PdfImportPoint) =>
+    a.x === b.x && a.y === b.y
+
+  const closeOpenSubpaths = () => {
+    // PDF fill/eoFill implicitly close each open subpath; pdf.js does not
+    // always emit DrawOPS.closePath for plain fill paints.
+    if (current.length > 0) {
+      const first = current[0]
+      const last = current[current.length - 1]
+      if (!samePoint(first, last)) {
+        current.push({ ...first })
+        currentSegments.push({ kind: 'line', p0: last, p1: { ...first } })
+      }
+      flush()
+    }
     for (const subpath of subpaths) {
-      subpathResult.push({ ...subpath, color })
+      const pts = subpath.points
+      if (pts.length < 2) continue
+      const first = pts[0]
+      const last = pts[pts.length - 1]
+      if (!samePoint(first, last)) {
+        pts.push({ ...first })
+        subpath.segments?.push({ kind: 'line', p0: last, p1: { ...first } })
+      }
+    }
+  }
+
+  let paintCount = 0
+  const commit = (
+    color: string = strokeColor,
+    filled = false,
+    stroked = !filled
+  ) => {
+    flush()
+    const width = stroked ? strokeWidthMm() : 0
+    const dashes = stroked ? dashPatternMm() : undefined
+    const group = paintCount++
+    for (const subpath of subpaths) {
+      const result: PdfImportedSubpath = { ...subpath, color }
+      if (filled) {
+        result.filled = true
+        result.fillColor = fillColor
+        result.paintGroup = group
+        if (stroked) result.stroked = true
+      }
+      if (width > 0) result.lineWidth = width
+      if (dashes) result.dashPattern = dashes
+      subpathResult.push(result)
     }
     subpaths = []
   }
 
-  const paintColor = (paintOp: number) =>
-    paintOp === ops.fill || paintOp === ops.eoFill ? fillColor : strokeColor
+  // Dash lengths are in user space like the line width. PDF repeats an odd
+  // array to even length ([3] means 3 on, 3 off). All-zero arrays are solid.
+  const dashPatternMm = (): number[] | undefined => {
+    if (dashArray.length === 0 || dashArray.every(v => !(v > 0))) {
+      return undefined
+    }
+    const scale =
+      Math.sqrt(Math.abs(ctm[0] * ctm[3] - ctm[1] * ctm[2])) * PDF_PT_TO_MM
+    const even =
+      dashArray.length % 2 === 0 ? dashArray : [...dashArray, ...dashArray]
+    return even.map(v => Math.max(0, v) * scale)
+  }
+
+  // PDF line width is in user space; the CTM scales it to page points. Use
+  // the geometric mean of the axis scales, which is exact for similarity
+  // transforms and a reasonable average for skewed ones.
+  const strokeWidthMm = () => {
+    if (!(lineWidth > 0)) return 0
+    const scale = Math.sqrt(Math.abs(ctm[0] * ctm[3] - ctm[1] * ctm[2]))
+    return lineWidth * scale * PDF_PT_TO_MM
+  }
+
+  const isStrokePaint = (paintOp: number) =>
+    paintOp === ops.stroke ||
+    paintOp === ops.closeStroke ||
+    paintOp === ops.fillStroke ||
+    paintOp === ops.eoFillStroke ||
+    paintOp === ops.closeFillStroke ||
+    paintOp === ops.closeEOFillStroke
+
+  const isFillPaint = (paintOp: number) =>
+    paintOp === ops.fill ||
+    paintOp === ops.eoFill ||
+    paintOp === ops.fillStroke ||
+    paintOp === ops.eoFillStroke ||
+    paintOp === ops.closeFillStroke ||
+    paintOp === ops.closeEOFillStroke ||
+    (ops.rawFillPath !== undefined && paintOp === ops.rawFillPath)
+
+  const paintColor = (paintOp: number): string => {
+    if (
+      paintOp === ops.fill ||
+      paintOp === ops.eoFill ||
+      (ops.rawFillPath !== undefined && paintOp === ops.rawFillPath)
+    ) {
+      return fillColor
+    }
+    return strokeColor
+  }
 
   const discard = () => {
     current = []
+    currentSegments = []
     subpaths = []
     currentPathLayerName = activeLayerName
   }
@@ -238,18 +671,29 @@ export function extractPdfImportSubpaths(
   const tx = (x: number, y: number) => pagePointToCadPoint(x, y).x
   const ty = (x: number, y: number) => pagePointToCadPoint(x, y).y
 
+  const lastCadPoint = (): PdfImportPoint =>
+    current.length > 0
+      ? current[current.length - 1]
+      : pagePointToCadPoint(curX, curY)
+
   const moveTo = (x: number, y: number) => {
     flush()
     curX = x
     curY = y
+    startX = x
+    startY = y
     currentPathLayerName = activeLayerName
     current = [{ x: tx(x, y), y: ty(x, y) }]
   }
 
   const lineTo = (x: number, y: number) => {
+    const p0 = lastCadPoint()
+    if (current.length === 0) current.push(p0)
     curX = x
     curY = y
-    current.push({ x: tx(x, y), y: ty(x, y) })
+    const p1 = pagePointToCadPoint(x, y)
+    current.push(p1)
+    currentSegments.push({ kind: 'line', p0, p1 })
   }
 
   const curveTo = (
@@ -260,6 +704,8 @@ export function extractPdfImportSubpaths(
     x3: number,
     y3: number
   ) => {
+    const p0 = lastCadPoint()
+    if (current.length === 0) current.push(p0)
     const pts = cubicBezier(
       { x: curX, y: curY },
       { x: x1, y: y1 },
@@ -271,12 +717,33 @@ export function extractPdfImportSubpaths(
     for (const point of pts) {
       current.push({ x: tx(point.x, point.y), y: ty(point.x, point.y) })
     }
+    // Reuse the last sampled point as p3 so segments and points share the
+    // exact same end coordinate.
+    currentSegments.push({
+      kind: 'cubic',
+      p0,
+      p1: pagePointToCadPoint(x1, y1),
+      p2: pagePointToCadPoint(x2, y2),
+      p3: current[current.length - 1]
+    })
 
     curX = x3
     curY = y3
   }
 
   const quadraticCurveTo = (x1: number, y1: number, x2: number, y2: number) => {
+    const p0 = lastCadPoint()
+    if (current.length === 0) current.push(p0)
+    // Degree elevation: a quadratic is the cubic with controls 2/3 of the way
+    // from each end point toward the single quadratic control.
+    const c1 = pagePointToCadPoint(
+      curX + (2 / 3) * (x1 - curX),
+      curY + (2 / 3) * (y1 - curY)
+    )
+    const c2 = pagePointToCadPoint(
+      x2 + (2 / 3) * (x1 - x2),
+      y2 + (2 / 3) * (y1 - y2)
+    )
     for (let step = 1; step <= BEZIER_STEPS; step++) {
       const t = step / BEZIER_STEPS
       const mt = 1 - t
@@ -284,6 +751,13 @@ export function extractPdfImportSubpaths(
       const y = mt * mt * curY + 2 * mt * t * y1 + t * t * y2
       current.push({ x: tx(x, y), y: ty(x, y) })
     }
+    currentSegments.push({
+      kind: 'cubic',
+      p0,
+      p1: c1,
+      p2: c2,
+      p3: current[current.length - 1]
+    })
 
     curX = x2
     curY = y2
@@ -291,8 +765,15 @@ export function extractPdfImportSubpaths(
 
   const closePath = () => {
     if (current.length > 0) {
-      current.push({ ...current[0] })
+      const first = current[0]
+      const last = current[current.length - 1]
+      current.push({ ...first })
+      if (!samePoint(first, last)) {
+        currentSegments.push({ kind: 'line', p0: last, p1: { ...first } })
+      }
     }
+    curX = startX
+    curY = startY
     flush()
   }
 
@@ -338,7 +819,8 @@ export function extractPdfImportSubpaths(
           break
 
         default:
-          // Avoid consuming coordinates with an unknown DrawOPS value.
+          // Unknown DrawOPS — stop this stream so we do not desync
+          // coordinates, but keep geometry already collected for paint.
           return
       }
     }
@@ -381,6 +863,7 @@ export function extractPdfImportSubpaths(
           break
 
         case ops.curveTo3: {
+          // PDF "y": second control coincides with the end point (x3, y3).
           const x1 = take()
           const y1 = take()
           const x3 = take()
@@ -402,23 +885,38 @@ export function extractPdfImportSubpaths(
   }
 
   const finishConstructPath = (paintOp: number) => {
-    switch (paintOp) {
-      case ops.stroke:
-      case ops.closeStroke:
-      case ops.fill:
-      case ops.eoFill:
-      case ops.fillStroke:
-      case ops.eoFillStroke:
-      case ops.closeFillStroke:
-      case ops.closeEOFillStroke:
-        commit(paintColor(paintOp))
-        break
+    if (paintOp === ops.endPath) {
+      // PDF "n" ends the current path without painting it, commonly after
+      // clipping. Do not create CAD entities from those paths.
+      discard()
+      return
+    }
 
-      case ops.endPath:
-        // PDF "n" ends the current path without painting it, commonly after
-        // clipping. Do not create CAD entities from those paths.
-        discard()
-        break
+    if (
+      paintOp === ops.stroke ||
+      paintOp === ops.closeStroke ||
+      paintOp === ops.fill ||
+      paintOp === ops.eoFill ||
+      paintOp === ops.fillStroke ||
+      paintOp === ops.eoFillStroke ||
+      paintOp === ops.closeFillStroke ||
+      paintOp === ops.closeEOFillStroke ||
+      (ops.rawFillPath !== undefined && paintOp === ops.rawFillPath)
+    ) {
+      if (isFillPaint(paintOp)) {
+        closeOpenSubpaths()
+      } else if (
+        paintOp === ops.closeStroke ||
+        paintOp === ops.closeFillStroke ||
+        paintOp === ops.closeEOFillStroke
+      ) {
+        closePath()
+      }
+      commit(paintColor(paintOp), isFillPaint(paintOp), isStrokePaint(paintOp))
+    } else {
+      // Unrecognized paint op — drop the path rather than inventing a stroke
+      // at EOF via a trailing commit.
+      discard()
     }
   }
 
@@ -428,41 +926,33 @@ export function extractPdfImportSubpaths(
     const rawArgs = Array.isArray(value) ? (value as unknown[]) : []
 
     if (fn === ops.save) {
-      graphicsStack.push({
-        ctm: cloneMatrix(ctm),
-        fillColor,
-        strokeColor,
-        fontSize,
-        textHScale,
-        textRise,
-        leading,
-        charSpacing,
-        wordSpacing,
-        textRenderingMode
-      })
+      graphicsStack.push(snapshotGraphicsState())
       continue
     }
 
     if (fn === ops.restore) {
       const restored = graphicsStack.pop()
-      if (restored) {
-        ctm = restored.ctm
-        fillColor = restored.fillColor
-        strokeColor = restored.strokeColor
-        fontSize = restored.fontSize
-        textHScale = restored.textHScale
-        textRise = restored.textRise
-        leading = restored.leading
-        charSpacing = restored.charSpacing
-        wordSpacing = restored.wordSpacing
-        textRenderingMode = restored.textRenderingMode
-      }
+      if (restored) restoreGraphicsState(restored)
       continue
     }
 
     if (fn === ops.setFillRGBColor) {
       const color = readCssColor(rawArgs[0])
       if (color) fillColor = color
+      continue
+    }
+
+    if (ops.setDash !== undefined && fn === ops.setDash) {
+      const list = asNumberList(rawArgs[0])
+      dashArray = list
+        ? Array.from(list, Number).filter(v => Number.isFinite(v))
+        : []
+      continue
+    }
+
+    if (ops.setLineWidth !== undefined && fn === ops.setLineWidth) {
+      const value = Number(rawArgs[0])
+      if (Number.isFinite(value) && value >= 0) lineWidth = value
       continue
     }
 
@@ -487,6 +977,7 @@ export function extractPdfImportSubpaths(
     if (fn === ops.setFont) {
       const size = Number(rawArgs[1])
       if (Number.isFinite(size)) fontSize = size
+      if (typeof rawArgs[0] === 'string') fontId = rawArgs[0]
       continue
     }
 
@@ -584,7 +1075,8 @@ export function extractPdfImportSubpaths(
 
       const target = getPdfMarkedContentTarget(rawArgs)
       if (target.kind === 'ocg') {
-        activeLayerName = ocgLayers.get(target.id)?.layerName ?? fallbackLayerName
+        activeLayerName =
+          ocgLayers.get(target.id)?.layerName ?? fallbackLayerName
       } else if (target.kind === 'fallback') {
         activeLayerName = fallbackLayerName
       }
@@ -593,6 +1085,76 @@ export function extractPdfImportSubpaths(
 
     if (fn === ops.endMarkedContent) {
       activeLayerName = markedContentLayerStack.pop() ?? fallbackLayerName
+      continue
+    }
+
+    if (
+      (ops.paintImageXObject !== undefined && fn === ops.paintImageXObject) ||
+      (ops.paintInlineImageXObject !== undefined &&
+        fn === ops.paintInlineImageXObject)
+    ) {
+      const o = pagePointToCadPoint(0, 0)
+      const ux = pagePointToCadPoint(1, 0)
+      const uy = pagePointToCadPoint(0, 1)
+      const image: PdfImportedImage = {
+        toCad: {
+          a: ux.x - o.x,
+          b: ux.y - o.y,
+          c: uy.x - o.x,
+          d: uy.y - o.y,
+          e: o.x,
+          f: o.y
+        },
+        layerName: activeLayerName
+      }
+      if (fn === ops.paintImageXObject) {
+        if (typeof rawArgs[0] !== 'string') continue
+        image.objId = rawArgs[0]
+      } else {
+        if (!rawArgs[0]) continue
+        image.inline = rawArgs[0]
+      }
+      imageResult.push(image)
+      continue
+    }
+
+    if (
+      ops.paintFormXObjectBegin !== undefined &&
+      fn === ops.paintFormXObjectBegin
+    ) {
+      formStack.push(snapshotGraphicsState())
+      const matrix = readMatrix(rawArgs)
+      if (matrix) {
+        ctm = multiplyMatrix(ctm, matrix)
+      }
+      if (formStack.length === 1) {
+        // Sample the form-space → model-space map; both the CTM and the
+        // viewport transform are affine.
+        const o = pagePointToCadPoint(0, 0)
+        const ux = pagePointToCadPoint(1, 0)
+        const uy = pagePointToCadPoint(0, 1)
+        formInstances.push({
+          toCad: {
+            a: ux.x - o.x,
+            b: ux.y - o.y,
+            c: uy.x - o.x,
+            d: uy.y - o.y,
+            e: o.x,
+            f: o.y
+          }
+        })
+        currentFormInstance = formInstances.length - 1
+      }
+      continue
+    }
+
+    if (
+      ops.paintFormXObjectEnd !== undefined &&
+      fn === ops.paintFormXObjectEnd
+    ) {
+      const restored = formStack.pop()
+      if (restored) restoreGraphicsState(restored)
+      if (formStack.length === 0) currentFormInstance = undefined
       continue
     }
 
@@ -651,6 +1213,7 @@ export function extractPdfImportSubpaths(
       }
 
       case ops.curveTo3: {
+        // PDF "y": second control coincides with the end point.
         const args = rawArgs as number[]
         curveTo(args[0], args[1], args[2], args[3], args[2], args[3])
         break
@@ -670,15 +1233,22 @@ export function extractPdfImportSubpaths(
       case ops.closeFillStroke:
       case ops.closeEOFillStroke:
         closePath()
-        commit(paintColor(fn))
+        if (isFillPaint(fn)) {
+          closeOpenSubpaths()
+        }
+        commit(paintColor(fn), isFillPaint(fn), isStrokePaint(fn))
         break
 
       case ops.stroke:
+        commit(paintColor(fn))
+        break
+
       case ops.fill:
       case ops.eoFill:
       case ops.fillStroke:
       case ops.eoFillStroke:
-        commit(paintColor(fn))
+        closeOpenSubpaths()
+        commit(paintColor(fn), true, isStrokePaint(fn))
         break
 
       case ops.endPath:
@@ -687,13 +1257,22 @@ export function extractPdfImportSubpaths(
     }
   }
 
-  commit()
-  return { subpaths: subpathResult, texts: textResult }
+  // Drop any path that never received a paint operator.
+  discard()
+  const content = applyPdfImportContrastColors(
+    { subpaths: subpathResult, texts: textResult },
+    options
+  )
+  if (formInstances.length > 0) content.formInstances = formInstances
+  if (imageResult.length > 0) content.images = imageResult
+  return content
 
   // Hoisted so the operator loop above can call them.
   function moveTextLine(tx: number, ty: number) {
+    // Td offsets are in text space: Tlm' = [1 0 0 1 tx ty] × Tlm (row form),
+    // so the shift applies before Tlm and is scaled by the font matrix.
     const shift: PdfMatrix = [1, 0, 0, 1, tx, ty]
-    textLineMatrix = multiplyMatrix(shift, textLineMatrix)
+    textLineMatrix = multiplyMatrix(textLineMatrix, shift)
     textMatrix = cloneMatrix(textLineMatrix)
     textX = 0
     textY = 0
@@ -740,15 +1319,18 @@ export function extractPdfImportSubpaths(
       const height = Math.hypot(alongY.x - origin.x, alongY.y - origin.y)
       const unitY = fontSize > 0 ? height / fontSize : 0
       const widthFactor = unitY > 1e-9 ? Math.hypot(dx, dy) / unitY : textHScale
+      const end = textPointToCad(textX + advance * textHScale, textY + textRise)
       if (height > 1e-9) {
         textResult.push({
           text,
           position: origin,
+          width: Math.hypot(end.x - origin.x, end.y - origin.y),
           height,
           rotation: Math.atan2(dy, dx),
           widthFactor,
           layerName: activeLayerName,
-          color: (textRenderingMode & 3) === 1 ? strokeColor : fillColor
+          color: (textRenderingMode & 3) === 1 ? strokeColor : fillColor,
+          ...(fontId !== undefined ? { fontId } : {})
         })
       }
     }
@@ -780,10 +1362,16 @@ function readCssColor(value: unknown): string | undefined {
 }
 
 function readMatrix(rawArgs: unknown[]): PdfMatrix | undefined {
-  const nested =
-    rawArgs.length === 1 ? asNumberList(rawArgs[0]) : undefined
-  const source = nested && nested.length >= 6 ? nested : rawArgs
-  if (source.length < 6) return undefined
+  // Text matrix ops pass six numbers (or one Float32Array). Form XObject
+  // begin passes `[matrix, bbox]`, so prefer a nested 6-vector when present.
+  const nested = asNumberList(rawArgs[0])
+  const source =
+    nested && nested.length >= 6
+      ? nested
+      : rawArgs.length >= 6
+        ? rawArgs
+        : undefined
+  if (!source || source.length < 6) return undefined
   return [
     Number(source[0]),
     Number(source[1]),

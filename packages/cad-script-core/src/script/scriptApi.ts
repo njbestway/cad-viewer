@@ -27,7 +27,9 @@ export const CAD_SCRIPT_API_TREE = {
   },
   entities: {
     where: true,
+    count: true,
     byId: true,
+    inBlock: true,
     inBox: true
   },
   tables: {
@@ -93,6 +95,13 @@ export const CAD_EDIT_TX_METHODS = [
   'drawXline',
   'drawSpline',
   'drawText',
+  'drawDimAligned',
+  'drawDimLinear',
+  'drawDimDiameter',
+  'drawDimRadius',
+  'drawDimAngular',
+  'drawDimArc',
+  'drawDimOrdinate',
   'erase',
   'setLayer',
   'move',
@@ -114,13 +123,17 @@ modest in size; for complex / figurative drawings, use successive short calls (b
 clothes, hair, details) instead of one huge script.
 Prefer it for ALL drawing, queries, statistics, batch edits, selection highlighting, and
 reading drawing context (cad.drawing). Do not expect draw_* or get_drawing_context tools.
-The body may return JSON. Do not import modules or touch the page.
+The body may return JSON. Do not import modules or reference page globals
+(window, document, fetch, …) as free identifiers.
 
-cad.drawing -> { title, currentLayer, units, layers: [{ name, isOn, isFrozen, isLocked }], extents }
-cad.entities lists every entity in the database (model space, paper space, and block definitions, plus attributes on inserts).
-cad.entities.where(predicate) -> snapshots (every field below is always present)
+cad.drawing -> { title, currentLayer, units, layers, extents }
+cad.entities.where/count/inBox scan model + paper spaces only (not block definitions).
+Use inBlock(id) for entities inside a block definition.
+cad.entities.count(predicate) -> number (no snapshots; use for tallies)
+cad.entities.where(predicate) -> snapshots (cap ~500 matches → too_many_matches)
 cad.entities.byId(id) -> snapshot or undefined
-cad.entities.inBox(min, max) -> snapshots whose extents hit a WCS box
+cad.entities.inBlock(blockId, predicate?) -> snapshots in one block (predicate recommended)
+cad.entities.inBox(min, max) -> layout-space snapshots whose extents hit a WCS box
 Snapshot shape: {
   id, ownerId, type, layer,
   color, resolvedColor, lineType, lineWeight, linetypeScale, visibility, transparency,
@@ -130,10 +143,14 @@ color / resolvedColor: { red?, green?, blue?, hex?, colorIndex?, isByColor, isBy
 resolvedColor has ByLayer / ByBlock already applied. Use lineType / lineWeight / color to classify
 walls, axes, dimensions, and fills.
 transparency: { method, alpha, percentage?, isByAlpha, isByLayer, isByBlock }.
-Predicates in where() read these lazily; only matched entities pay the cost.
+Predicates lazy; where/inBlock snapshot matches (cap ~500). Budget ~100k ticks / 5s → script_timeout.
+NEVER snapshot a whole model space, and NEVER read e.extents inside a full where/count
+(that computes bounds for every entity). For “what’s inside a frame”, use inBox per frame.
+Block refs use type === 'BlockReference' (not Insert). Title blocks: BlockReference with
+attributes, else text keywords. Overview tallies: cad.blocks entityCount/typeCounts.
+cad.blocks -> metadata only: { id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, layoutId?, entityCount, typeCounts }. No entities array — use inBlock(id).
 cad.tables mirrors AcDbDatabase.tables: appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
 Each table is { id, records: [{ id, name, ...fields }] }.
-cad.blocks -> block definitions like a DXF BLOCKS section: { id, name, origin, isModelSpace, isPaperSpace, flags, pathName, isXref, entities }.
 ownerId on an entity snapshot is the owning block id, or the insert id for an attribute.
 cad.selection.ids -> selected entity ids
 cad.selection.entities -> snapshots of the current selection
@@ -156,11 +173,16 @@ exportFormat is 'single' (default, .html) or 'multi' (.zip). background is
 'black' | 'white' | 'space' (default). Requires a viewer host that provides
 exportHtml (in-app agent / cad-mcp-server); headless database sessions skip it
 with a log note. Returns { queued: true, index, fileName }.
-cad.view.capturePreview({ longSide? }) queues a PNG of drawing extents after the script
+cad.view.capturePreview({ longSide?, selection?, layers? }) queues a PNG after the script
 finishes. Returns { queued: true, index }. Images are attached to the tool result for the
-model (not returned as JSON). Capture frames model space (temporarily switches away from
-paper space if needed). Only for High inference / when screenshots are enabled — prefer
-cad.measure for self-check; do not use capturePreview in Simple mode.
+model (not returned as JSON). Default frames model-space drawing extents (temporarily
+switches away from paper space if needed). Pass selection: true to render only the current
+selection (batch-extracted geometry, framed to scene bounds) — use after
+cad.selection.replace(ids). Pass layers: 'A' or ['A', 'B'] (case-insensitive) to render only
+model-space geometry on those layers, framed to their combined extents (no large empty
+margins; layer on/off ignored). Unknown layer names throw; do not combine with selection. Optional visual self-check when screenshots are
+enabled (every agent mode); prefer cad.measure for numeric self-check.
+Automatic post-round vision verification is High inference only.
 cad.measure — prefer for numeric self-check (saves tokens vs hand-rolled Math):
   distance(a, b) -> number
   angleDeg(a, b) -> bearing a→b deg (-180,180]; angleDeg(a, b, c) -> interior angle at b [0,180]
@@ -180,12 +202,32 @@ return cad.measure.report([
 cad.log(...values)
 cad.edit.transaction(label, tx => { ... }) performs one undo group.
 tx draw methods: drawLine, drawCircle, drawArc, drawRectangle, drawPolyline, drawEllipse,
-drawHatch, drawPoint, drawRay, drawXline, drawSpline, drawText.
+drawHatch, drawPoint, drawRay, drawXline, drawSpline, drawText,
+drawDimAligned, drawDimLinear, drawDimDiameter, drawDimRadius, drawDimAngular,
+drawDimArc, drawDimOrdinate.
+Common draw inputs (optional layer?): drawLine({start,end}), drawCircle({center,radius}),
+drawArc({center,radius,startAngleDeg,endAngleDeg}), drawRectangle({corner1,corner2}),
+drawPolyline({points,closed?}), drawEllipse({center,majorRadius,minorRadius,rotationDeg?}),
+drawHatch({boundary,patternName?}), drawPoint({position}), drawText({position,text,height?}),
+drawSpline({points,closed?}), drawRay/drawXline({start,through}).
 tx edit methods: erase(ids), setLayer(ids, layer), move(ids, dx, dy), rotate(ids, center, angleDeg),
 createLayer(name), setCurrentLayer(name).
 tx draw methods return the new entity id. Prefer one transaction for related geometry.
+Do NOT fake dimensions with lines/arrows/text — use drawDim* so measurement stays associative.
+Dimension draw inputs (optional text?, styleName?, layer? on all):
+  drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint })
+  drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg? })
+    — omit rotationDeg to pick horizontal/vertical from dimLinePoint (AutoCAD DIMLINEAR)
+  drawDimDiameter({ center, radius, angleDeg?, leaderLength? })
+    — or { chordPoint, farChordPoint, leaderLength? }
+  drawDimRadius({ center, radius, angleDeg?, leaderLength? })
+    — or { center, chordPoint, leaderLength? }
+  drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint })
+  drawDimArc({ center, xLine1Point, xLine2Point, arcPoint })
+  drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin? })
+Omit styleName to use the drawing $DIMSTYLE; cad.tables.dimStyleTable lists names for styleName.
 Snapshots cover every data-model entity type. Extra geometry per type:
-Line { start, end, length, midPoint, direction }.
+Line { start, end, length, midPoint, direction } — no points; guard byId/geometry with ?.
 Circle { center, radius, area, circumference }; Arc adds startPoint, endPoint, midPoint, length, area.
 Ellipse { center, majorRadius, minorRadius, area, isCircular, closed }.
 Polyline / 2dPolyline { points, vertices: [{ bulge, startWidth, endWidth }], bulges, hasBulges, length, area, closed }.
@@ -193,7 +235,7 @@ Polyline / 2dPolyline { points, vertices: [{ bulge, startWidth, endWidth }], bul
 Spline also has points (grip points). Text { position, text, height, alignmentPoint, widthFactor, horizontalMode }.
 MText { position, text, plainText (control codes stripped), height, width, columns, background }.
 Attribute / AttributeDefinition add { tag, prompt?, isMTextAttribute }.
-Insert { name, effectiveName, isDynamicBlock, position, rotation, scale, blockTransform, attributes: [{ tag, text, position }], rowCount, columnCount }.
+BlockReference { name, effectiveName, isDynamicBlock, position, rotation, scale, blockTransform, attributes: [{ tag, text, position }], rowCount, columnCount }.
 Table adds { rows, columns, cells: string[][], rowHeights, columnWidths, attachmentPoint }.
 Hatch { patternName, hatchStyle, isSolidFill, area, loops: [{ closed, points, length }], gradient* fields }.
 Dimension { text, measurement, textPosition, styleName } plus definition points; measurement is computed when missing.
@@ -209,6 +251,21 @@ cad.view.zoomExtents()
 return cad.measure.report([
   cad.measure.check('r', 100, cad.measure.radius(circleId))
 ])
+
+Example: diameter-dimension every circle (use drawDimDiameter, not line+text).
+const dimIds = []
+cad.edit.transaction('diameter dims', tx => {
+  for (const c of cad.entities.where(e => e.type === 'Circle')) {
+    const g = c.geometry
+    dimIds.push(tx.drawDimDiameter({
+      center: g.center,
+      radius: g.radius,
+      angleDeg: 0,
+      leaderLength: Math.max(g.radius * 0.25, 1)
+    }))
+  }
+})
+return { dimIds, count: dimIds.length }
 
 Example: count circles per layer and highlight every entity on the busiest layer.
 const counts = {}
