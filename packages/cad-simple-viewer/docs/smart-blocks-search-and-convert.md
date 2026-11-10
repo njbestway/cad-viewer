@@ -11,6 +11,7 @@ This guide explains the algorithm end to end: how entities are described, how co
 | **`AcApSmartBlockSearch.ts`** | Builds the template, collects candidates, pairs texts, finds equivalent blocks |
 | **`AcApSmartBlockSession.ts`** | `AcApSmartBlockSearch`: UI-agnostic review state (options, include/exclude, navigation) |
 | **`AcApSmartBlockConvert.ts`** | Creates the block (with attribute definitions) and replaces the geometry |
+| **`AcApSmartBlockDetect.ts`** | Prototype: finds repeated groups without a selection (section 11) |
 
 Commands built on top:
 
@@ -74,6 +75,7 @@ interface AcEdShapeFeature<Id> {
   center: AcEdPoint2d // reference point that moves with the shape
   size: number        // characteristic length
   points: AcEdPoint2d[] // characteristic points, compared as a set
+  path?: AcEdPoint2d[]  // outline (polylines only), compared as curves
 }
 ```
 
@@ -84,7 +86,7 @@ All coordinates are WCS. Because of that, arcs and ellipses whose extrusion is f
 | Line | `line` | midpoint | length | both end points |
 | Arc | `arc` | arc center | radius | start, mid, end point |
 | Circle | `circle` | center | radius | none (no orientation) |
-| Light / 2D polyline | `polyline:<open\|closed>:<n>` | vertex centroid | path length | vertices + segment midpoints (on the arc for bulged segments, so straight and arc edges differ) |
+| Light / 2D polyline | `polyline:<open\|closed>` | centroid of the path as a curve | path length (arcs measured as arcs) | 32 points at equal path-length steps (open: both ends included, 33 points); `path` = the outline, arcs finely flattened |
 | 3D polyline | `polyline3d:<open\|closed>:<n>` | vertex centroid | path length | vertices |
 | Solid / trace | `solid` / `trace` | corner centroid | perimeter | 4 corners (set comparison hides the 1-2-4-3 corner order) |
 | Point | `point` | position | 0 | none |
@@ -98,6 +100,14 @@ All coordinates are WCS. Because of that, arcs and ellipses whose extrusion is f
 Unsupported entities (images, dimensions, tables, ...) return `undefined`. The template skips them and reports them in `unsupportedIds`, and candidates of those types are ignored.
 
 MText contents are part of the kind, so MText always has to match exactly. It cannot become a single-line attribute.
+
+Light and heavy 2D polylines are described by their **path**, not their vertices, because the same path is often stored with different vertices. A PDF round trip is the typical case. A spline or a rounded corner reaches the PDF as short segments or Bezier curves, and the PDF import rebuilds some runs of them as arcs. Whether a run qualifies depends on tiny rounding differences, so two copies of one block can come back with 8 and 12 vertices for the same curve, or 8 and 13 for the same closed outline. Other examples are an arc split in two, a straight edge with an extra vertex, and a closed outline that starts at another vertex. The feature does not depend on any of that:
+
+- Each segment is rebuilt from its WCS end points and its midpoint. For a bulged segment, the midpoint lies on the arc, so the arc is known without reading the bulge, and polylines with a flipped extrusion stay correct.
+- `center` is the centroid of the path as a curve (each piece weighted by its length; for an arc, `r·sin(α)/α` from its center toward its midpoint, with α half the sweep). `size` is the true path length. Neither depends on the vertices.
+- `points` are samples at equal path-length steps. An open path is sampled from end to end, so a reversed path gives the same set. A closed path has no end, so sampling starts at the point farthest from the centroid (a segment start, or the point of an arc facing away from the centroid). These points are only used to orient the search (section 4.3) and by detection's pair keys; they are not compared one to one.
+- `path` is the outline as a polyline, with each arc split so that no chord strays more than 10⁻⁴ of the path length from it. When both shapes have a path, they match when every outline vertex of each lies within tolerance of the other outline (a two-sided distance check, `acedShapeLandsOn`). How the outlines are split into vertices, and where a closed one starts, no longer matters. A start-point rule alone would not be enough: when a corner arc of one copy came back flattened, its farthest point is a vertex near the arc's farthest point, which moves the start by up to half a segment.
+- Vertex counts are left out of the kind, so the size (path length) and the outline decide the match.
 
 `AcApSmartBlockFeatureCache` stores each entity's layer-free feature for the lifetime of a session. Toggling options therefore does not describe the whole drawing again. The layer prefix is added when the feature is read.
 
@@ -122,7 +132,7 @@ y' = b·x + d·y + f
 
 Two template shapes fix the transform:
 
-- **Anchor 0** is the shape whose kind is **rarest** among the candidates, because each candidate of that kind is one seed to try. Among equally rare kinds the largest shape wins, and a zero-size shape is never chosen if another exists (it cannot give the scale).
+- **Anchor 0** is the **rarest** shape among the candidates, because each candidate it could match is one seed to try. Without scaling, rarity counts candidates of the same kind *and* size (from a sorted size list), since one kind, such as the lines of a layer, can hold thousands of shapes while few have the anchor's length. With scaling, it counts the kind only. Among equally rare shapes the largest wins, and a zero-size shape is never chosen if another exists (it cannot give the scale).
 - **Anchor 1** is the shape whose center is **farthest** from anchor 0, which gives the longest lever for rotation and scale.
 
 ### 4.3 Seeding
@@ -144,13 +154,19 @@ A transform is accepted only if all of the following hold:
 1. **Allowed type.** Without scaling, `|s − 1| · lever ≤ 2·tol`. Without rotation, `|θ| · lever ≤ tol`.
 2. **Every template shape lands on a free candidate.** Shapes are checked anchors first, then rarest kind first, so a wrong transform fails fast. For each shape:
    - The mapped center is looked up in that kind's grid within the tolerance.
-   - The candidate must be unclaimed, have an equal label, a size within tolerance of `size · s`, and the same number of points.
-   - Its point set must match the mapped points as a set (greedy nearest pairing, so drawing direction does not matter).
+   - The candidate must be unclaimed, and have an equal label and a size within tolerance of `size · s`.
+   - The mapped shape must land on it (`acedShapeLandsOn`). Polylines compare their outlines: every outline vertex of each must lie within tolerance of the other outline. Other shapes need the same number of points, and the point sets must match (greedy nearest pairing, so drawing direction does not matter).
 3. **The `accept` callback agrees** (`AcEdShapeMatchOptions.accept`). The Smart Blocks search uses it to require the copy's texts (see section 5). If the callback returns `false`, the matcher goes on to the next partner, point or mirror option. This matters for symmetric geometry, where several transforms map the shapes and only one puts the texts in the right place.
 
 The first accepted transform for a seed wins. Its shapes are **claimed**, so copies never share shapes. Results come back in template order.
 
-**Cost** is roughly *seeds × partners × template size* grid lookups. Seeds come from the rarest kind, and the grids are per kind, so dense drawings do not slow down unrelated lookups.
+**Cost** is roughly *seeds × partners × template size* grid lookups. Seeds come from the rarest shape, and the grids are per kind, so dense drawings do not slow down unrelated lookups.
+
+When many searches run over an unchanged drawing, two things keep them cheap:
+- **`AcApSmartBlockCandidatePool`** (`fromDatabase`) collects the visible, describable, unlocked model-space shapes once.
+- **`AcEdShapeMatchOptions.gridCache`** lets the matcher reuse its per-kind grids. Cells are rounded up to powers of two, so templates of similar size share a grid. Cached grids hold the template's own shapes too, and lookups skip them.
+
+Detection (section 11) uses both.
 
 ---
 
@@ -273,12 +289,101 @@ Finally every replaced entity is erased: the template, the included loose instan
 - **Supported entities.** Only the entity types in section 3 can be matched. Dimensions, images, tables, leaders and the like are skipped from the template, with a warning.
 - **MText.** MText must match exactly and never becomes an attribute.
 - **Ambiguous symmetric geometry without text.** For symmetric shapes (a circle made of two half-arcs) any valid transform may be chosen. The block reference's rotation or mirroring can then differ from how the copy was drawn, while the visual result is the same.
+- **Polyline outlines.** Two polylines match when each outline's vertices lie within tolerance of the other outline, so outlines that differ by less than the tolerance count as the same, whatever their vertices. 3D polylines and splines are still compared by their vertices or grip points, so differently split copies of those do not match.
 - **Greedy assignment.** Seeds are processed in candidate order and the first accepted transform claims its shapes. Overlapping copies that share shapes are resolved first come, first served.
 
 ---
 
-## 11. Tests
+## 11. Detection without a selection (`acapDetectSmartBlocks`, prototype)
+
+AutoCAD's **Detect and Convert** (`BDETECT`) sends the drawing to a cloud recognition model trained on a few architectural object types. `acapDetectSmartBlocks(db, options)` is a local, heuristic counterpart. It needs no selection and no training, finds *any* shape group that repeats, and returns groups (`AcApSmartBlockCluster`) for a UI to review. Each group's `ids` is a representative instance: pass it to `AcApSmartBlockSearch` to review and convert it with the workflow above.
+
+### 11.1 Steps
+
+```
+shapes ─▶ touching neighbors ─▶ pair keys ─▶ frequent keys (most frequent first)
+                                               │
+          ┌────────────────────────────────────┘
+          ▼
+ align occurrences ─▶ grow round by round ─▶ rate rounds locally ─▶ verify best round
+                                                                       │
+ claim ◀─ add texts ◀─ refine from verified copies (absorb fragments) ◀┘
+```
+
+1. **Neighbors.** Two shapes are neighbors when they touch: a characteristic point (or center) of one lies in the other's bounds, padded by 5 % of its radius. Points sit in a uniform grid (median shape radius), and very long shapes only look around their own points. Symbols often have parts that do not touch (a marker circle inside a door, dots beside a fixture), so shapes are also neighbors when the gap between their bounds is at most the smaller one's size. Shapes longer than ten median radii (walls, grid lines) keep touching links only, which keeps this search local. Each shape keeps its 24 nearest neighbors, and the relation is kept symmetric.
+2. **Pair keys.** Each neighbor pair `a → b` gets a frame:
+   - The axis runs from `a`'s center to `b`'s center.
+   - When the centers are within 1 % of the pair size, the direction between them is noise (PDF imports leave concentric arcs a few millionths apart). The axis then points at `a`'s farthest characteristic point instead; near-ties within 0.1 % go to the first point, so copies agree.
+
+   The key holds the two kinds, both sizes, the center distance (2 % steps of the pair length) and the second moments of both shapes' points in the frame (0.5 % steps). With mirroring, the sign of the xy moments is normalized. Without scaling, a 5 % log-scale bucket of the pair length is added. Of `ab` and `ba`, the smaller key is used.
+3. **Occurrences.** For each key with at least `minInstances` pairs, most frequent first, the free pairs that share no shape are taken (an even sample of at most 200). Each is aligned to the first one by the similarity that maps both seed shapes onto their counterparts. Symmetric pairs fit several maps (mirrored, or with the two shapes swapped), and all of them are kept.
+4. **Growth.** In each round, the shapes touching the first occurrence's newest members are candidates. A candidate joins when, in at least `max(minInstances, agreement × occurrences)` occurrences (agreement 0.8), a touching shape of the same kind lands on it: same size, and the same point set or outline (`acedShapeLandsOn`) under that occurrence's transform. The tolerance grows with the distance from the seed. Each hit narrows that occurrence's maps to those consistent with it. Shapes that differ around each copy, such as walls of other lengths, never collect enough votes. Growth stops at `maxEntities` (64).
+5. **Choosing a round.** Growth tolerates more than the exact search, and dense regular line work can grow into "tiles" that are no symbol. Every round is therefore rated with `acedFindShapeMatches` on just the shapes the other occurrences collected, which is cheap and gives a lower bound. Rounds are skipped if:
+   - too few occurrences found every member;
+   - the estimated saving is below `minSavings` (10);
+   - the template is degenerate: only lines in one direction (dash pieces, hatch strokes, grid lines) or just two lines (corners).
+
+   The round with the best local saving is then verified on the whole drawing with `acapFindSmartBlockMatches`. Copies that use claimed entities are dropped.
+6. **Refinement.** A seed pair may play different roles in one symbol. In the test drawing's columns, "small arc at the end of a long line" occurs at both the cap and the corner, so only about half of the occurrences agree and growth stops early. The verified copies come from the exact matcher, so they are consistent: the group grows again from them, using each copy's exact transform. Shapes of earlier groups may join. Those groups (fragments of the same symbol, found first) are absorbed when the merged group, re-verified, saves more than they did together.
+7. **Texts.** Free single-line texts whose center lies inside the group's bounds are added if the search with them still finds at least 80 % of the copies. With text variations they become attributes on conversion.
+8. **Claiming.** All entities of the group's instances are claimed, so groups never share entities. Groups saving fewer than `minSavings` entities are dropped. Results are sorted by saving: `instances × (entities − 1)`, the entities a conversion removes.
+
+### 11.2 Options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `minInstances` | 3 | Fewest instances (the representative included) |
+| `minEntities` | 2 | Fewest non-text shapes per instance |
+| `maxEntities` | 64 | Most shapes per instance; growth stops there |
+| `minSavings` | 10 | Smallest saving reported; also prunes seeds before the exact search |
+| `agreement` | 0.8 | Share of occurrences that must agree on a shape |
+| `neighborLimit` | 24 | Neighbors kept per shape |
+| `maxSeeds` | all | Most seed keys tried |
+| `allowRotation`, `allowMirror`, `allowScale`, `matchLayer`, `textVariations` | as in section 2 | Passed to verification |
+
+### 11.3 Results on a PDF-imported floor plan
+
+The test drawing has 46,357 entities (37k lines). Detection takes about 10 s in the browser and 30 to 50 s under Jest in Node. It finds about 200 groups that share no entity; converting them all would remove about 33k entities. Among them:
+- every **column**: 201 × 11 entities, including two half-arc corners and both end caps;
+- every **axis bubble**: 48 × 3, two half arcs plus the label, which becomes an attribute;
+- furniture and equipment symbols.
+
+A fresh `AcApSmartBlockSearch` from each of the 12 largest groups finds at least as many copies as detection reports. Where it finds more, the extra copies are inside other groups (for example a small symbol that is also part of a larger repeated unit).
+
+### 11.4 Limitations of the prototype
+
+- **Speed.** About 10 s in the browser for 46k entities, most of it exact verification. `acapDetectSmartBlocksAsync` keeps the page responsive, but a single exact search can still block it for a moment in large drawings.
+- **Size cap.** Templates stop at `maxEntities`. Large repeated units (whole furniture groups) are cut at 64 shapes, in growth order.
+- **One group per entity.** Nested repetition (a symbol that also occurs inside a larger unit) is reported once, in whichever group claims it first.
+- **Nearby parts only.** A symbol part farther from the rest than its own size (a label far from its symbol) is only grouped if other shapes link it. Texts inside the bounds are the exception.
+
+### 11.5 Running it from code
+
+- `acapDetectSmartBlocks(db, options)` runs synchronously and returns the groups.
+- `acapDetectSmartBlocksAsync(db, options, { onProgress, signal, sliceMs })` runs the same steps in slices of about 30 ms. Between slices it yields to the event loop through a `MessageChannel` message: browsers clamp `setTimeout(0)` to about a second in background tabs, which would make detection crawl. `onProgress` receives `{ fraction, groups }`, and aborting `signal` rejects the promise.
+- `acapConvertSmartBlockCluster(db, cluster, { name, basePoint?, attributes?, matchLayer? })` turns a group into a new block. By default the insertion point is the representative's center, and texts that differ between instances become attributes `TEXT1`, `TEXT2`, ... Call it inside one undo mark, and only while the group's entities are unchanged since detection.
+
+### 11.6 `BDETECT` in the editor
+
+`@mlightcad/cad-editor` adds the `BDETECT` command (Insert and AI ribbon tabs, "Detect and Convert"). `AcApBDetectCmd` extends the editor's `AcApBSearchCmd`, so reviewing a single group reuses the Search and Convert toolbar and dialog unchanged.
+
+1. The tool palette opens on a **Detection** tab (palette title: Detect and Convert). The tab exists only while the command runs, like the Count and Find tabs it sits beside. It first shows the detection progress with a **Stop** button.
+2. The tab then lists the groups, largest saving first. Each row shows:
+   - a thumbnail of the representative, captured in the background with `AcApEntityPreviewConvertor`;
+   - an editable block name (`Block1`, `Block2`, ..., never an existing name);
+   - the instance and object counts and the layers;
+   - an **Attributes** tag when texts differ between instances.
+3. Clicking a row, or an object in the drawing, highlights every instance of that group and zooms to its representative.
+4. **Review** (the eye button) opens the Search and Convert toolbar for that group; the list stays visible but inactive meanwhile. Copies that belong to other groups start excluded, so converting one group leaves the others intact. After the review, the list returns without the converted group, and groups that lost instances are updated.
+5. **Convert selected** converts every checked group into its own new block. Names are validated first: empty, invalid, already used, or used by two checked groups.
+6. **Close**, Esc, or closing the palette ends the command. The tab disappears and the palette returns to how it was: closed, or open on its previous tab. All conversions of one run undo in one step.
+
+The tab is `MlBDetectPalette` in `MlPaletteManager`, shown through `store.dialogs.bdetectTabVisible`. Its state lives in `useBDetect` (`cad-editor/src/composable/useBDetect.ts`), following the `useBSearch` pattern: the command owns the logic and the palette only sends actions. The command races a palette action against a canvas point prompt, so canvas clicks and the command line keep working while the palette is open.
+
+## 12. Tests
 
 - `__tests__/AcApSmartBlock.spec.ts`: search, layer matching, conversion, source-only, undo, text variations, place-based text pairing (axis bubbles with left-aligned labels of different lengths), equivalent blocks.
-- `__tests__/AcApSmartBlockShapes.spec.ts`: shape features and the matcher for each supported entity type and transform.
+- `__tests__/AcApSmartBlockShapes.spec.ts`: shape features and the matcher for each supported entity type and transform, including open and closed polylines that trace the same path with different vertices (split arcs, extra vertices, another start vertex, reversed).
+- `__tests__/AcApSmartBlockDetect.spec.ts`: detection of rotated and mirrored doors without their walls, several disjoint groups, labels with differing text (including near-concentric arcs), parts that do not touch, rejection of dashed line pieces, the `minInstances` / `minSavings` thresholds, async progress and abort, and converting a group into a block with attributes.
+- `packages/cad-editor-demo/e2e/tests/bdetect.spec.ts`: the `BDETECT` workflow in the editor (panel, highlight, renaming, batch conversion with attributes, single-step undo).
 - `packages/cad-editor-demo/e2e/tests/bsearch.spec.ts`: the editor workflow (review toolbar, Convert to Block dialog, attributes, undo).
