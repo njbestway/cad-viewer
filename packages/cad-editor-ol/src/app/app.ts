@@ -23,6 +23,12 @@ export const initializeCadViewer = (
 ) => {
   AcApDocManager.createInstance({
     ...options,
+    // Vue ribbon / tool palette replace the built-in simple-ui chrome.
+    // Without this the merged-in AcApSimpleUiChrome auto-loads: it draws a
+    // second docked toolbar, forces isShowRibbon=false (hiding the Vue
+    // ribbon), and re-registers layer/find/markuppanel/measurementpanel
+    // which registerCmds() already owns.
+    simpleUi: false,
     // Keep the shared event bridge; Vue panel replaces the built-in DOM UI.
     notificationCenter: {
       showDefaultUi: false,
