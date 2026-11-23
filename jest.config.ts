@@ -6,8 +6,9 @@ const config: Config = {
   testEnvironment: 'node',
   transform: {
     // Transpile-only: type-checking the `ai` / `@ai-sdk/*` graph that
-    // cad-agent-plugin pulls in exhausts the heap (see its copy-typings.mjs).
-    '^.+[\\\\/]packages[\\\\/]cad-agent-plugin[\\\\/].+\\.ts$': [
+    // cad-agent-plugin / cad-llm-plugin pull in exhausts the heap (see
+    // cad-agent-plugin's copy-typings.mjs). Same for paddleocr-js types.
+    '^.+[\\\\/]packages[\\\\/]cad-(agent|llm|paddleocr)-plugin[\\\\/].+\\.ts$': [
       'ts-jest',
       {
         tsconfig: '<rootDir>/packages/cad-agent-plugin/tsconfig.jest.json'
@@ -38,8 +39,10 @@ const config: Config = {
   transformIgnorePatterns: [
     '/node_modules/(?!.*(mtext-parser|rbush|quickselect|three/build/three))'
   ],
-  testPathIgnorePatterns: ['/e2e/', '/__tests__/helpers/'],
+  testPathIgnorePatterns: ['/e2e/', '/__tests__/helpers/', '/__tests__/simple-ui/helpers/'],
   moduleNameMapper: {
+    // Published packages use Node-ESM `.js` specifiers; map them back to `.ts`.
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^lodash-es$': 'lodash',
     '^@mlightcad/cad-pdf-core$':
       '<rootDir>/packages/cad-pdf-core/src/index.ts',
@@ -53,6 +56,11 @@ const config: Config = {
       '<rootDir>/packages/cad-html-plugin/src/index.ts',
     '^@mlightcad/cad-agent-core$':
       '<rootDir>/packages/cad-agent-core/src/index.ts',
+    '^@mlightcad/cad-llm-plugin$':
+      '<rootDir>/packages/cad-llm-plugin/src/index.ts',
+    '^@mlightcad/cad-paddleocr-plugin$':
+      '<rootDir>/packages/cad-paddleocr-plugin/src/index.ts',
+    '^@paddleocr/paddleocr-js$': '<rootDir>/test/mocks/paddleocr-js.js',
     '^@mlightcad/cad-script-core$':
       '<rootDir>/packages/cad-script-core/src/index.ts',
     '^@mlightcad/cad-script-core/script-api$':
@@ -61,8 +69,6 @@ const config: Config = {
       '<rootDir>/packages/cad-simple-viewer/src/index.ts',
     '^@mlightcad/cad-simple-viewer/icons$':
       '<rootDir>/packages/cad-simple-viewer/src/ui/icons.ts',
-    '^@mlightcad/cad-simple-viewer/find$':
-      '<rootDir>/packages/cad-simple-viewer/src/find/index.ts',
     '^three/examples/jsm/lines/LineMaterial\\.js$':
       '<rootDir>/test/mocks/three/LineMaterial.js',
     '^three/examples/jsm/lines/LineSegments2\\.js$':

@@ -5,9 +5,6 @@ export default {
     drawingUnits: '图形单位',
     exportMenu: '导出',
     export: '导出为DXF',
-    exportHtml: '导出为 HTML',
-    exportPdf: '导出为PDF',
-    exportSvg: '导出为 SVG',
     exportImage: '导出图片',
     about: '关于'
   },
@@ -208,11 +205,10 @@ export default {
     },
     group: {
       smartBlocks: '智能块',
-      agent: '智能体',
-      pdf: 'PDF',
       draw: '绘制',
       dimension: '标注',
       modify: '修改',
+      clipboard: '剪贴板',
       layer: '图层',
       properties: '属性',
       groups: '编组',
@@ -279,11 +275,6 @@ export default {
     tooltip: {
       searchConvert: '查找所选对象的所有副本并将其转换为块（BSEARCH）。',
       detectConvert: '在整个图形中查找重复对象并将其转换为块（BDETECT）。',
-      importPdf: '从 PDF 文件导入矢量图形，并还原圆、圆弧和曲线（IPDF）。',
-      pdfScale: '根据两点之间的已知距离缩放导入的 PDF 图形（PDFSCALE）。',
-      pdfDim: '将 PDF 中被打散的标注（箭头或斜线、尺寸线、尺寸界线和文字）恢复为标注对象（PDFDIM）。',
-      pdfBlock: '将 PDF 中重复出现的图形创建为块，并把每个副本替换为块参照（PDFBLOCK）。',
-      pdfText: '将 PDF 中被打散的文字笔画转换回文字对象（PDFTEXT）。',
       line: '绘制单段直线。',
       polyline: '以一个对象绘制由直线或圆弧组成的连续线段。',
       spline: '通过拟合点或控制点绘制平滑样条曲线。',
@@ -310,13 +301,22 @@ export default {
       dimcontinue: '从上一个标注创建连续标注。',
       dimbaseline: '从上一个标注创建基线标注。',
       dimstyle: '打开标注样式管理器。',
+      textStyle: '打开文字样式管理器。',
+      mleaderStyle: '打开多重引线样式管理器。',
       mleader: '创建多重引线注释。',
       mleaderAdd: '向现有多重引线添加引线。',
       mleaderRemove: '从现有多重引线移除引线。',
       move: '将选中的对象移动到新位置。',
       rotate: '围绕基点旋转选中的对象。',
-      copy: '将选中的对象复制到新位置。',
+      scale: '放大或缩小选中的对象，缩放后对象的比例保持不变。',
       erase: '从图纸中删除选中的对象。',
+      pasteClip: '将剪贴板中的对象粘贴到当前图形中（PASTECLIP）。',
+      pasteOrig: '使用原图形中的坐标粘贴剪贴板中的对象（PASTEORIG）。',
+      pasteBlock: '将剪贴板中的对象作为块粘贴到当前图形中（PASTEBLOCK）。',
+      cutClip: '删除选定对象并将其复制到剪贴板（CUTCLIP）。',
+      copyClip: '将选定对象复制到剪贴板（COPYCLIP）。',
+      copyBase: '使用指定的基点将选定对象复制到剪贴板（COPYBASE）。',
+      explode: '将复合对象分解为其部件对象。',
       offset: '按指定距离创建对象的平行副本。',
       undo: '撤销上一次编辑操作。',
       redo: '重做上一次撤销的操作。',
@@ -336,7 +336,6 @@ export default {
       insert: '打开块工具选项板以浏览并插入块定义（INSERT）。',
       editAttributes: '打开增强属性编辑器，编辑块属性值与显示特性（ATTEDIT）。',
       defineAttribute: '创建用于块的属性定义（ATTDEF）。',
-      agent: '打开 CAD Agent 工具面板，使用自然语言描述并绘制图形。',
       pan: '在不改变缩放比例的情况下平移图形显示。',
       zoom: '缩放图形显示。',
       zoomExtents: '缩放到显示所有对象的最大范围。',
@@ -406,11 +405,6 @@ export default {
     command: {
       searchConvert: '搜索并\n转换',
       detectConvert: '检测并\n转换',
-      importPdf: '导入\nPDF',
-      pdfScale: '校准\n比例',
-      pdfDim: '识别\n标注',
-      pdfBlock: '创建\n块',
-      pdfText: '识别\n文字',
       line: '直线',
       polyline: '多段线',
       circle: '圆',
@@ -441,13 +435,22 @@ export default {
       dimcontinue: '连续',
       dimbaseline: '基线',
       dimstyle: '标注样式',
+      textStyle: '文字样式',
+      mleaderStyle: '多重引线样式',
       mleader: '引线',
       mleaderAdd: '添加引线',
       mleaderRemove: '移除引线',
       move: '移动',
       rotate: '旋转',
-      copy: '复制',
+      scale: '缩放',
       erase: '删除',
+      pasteClip: '粘贴',
+      pasteOrig: '粘贴到原坐标',
+      pasteBlock: '粘贴为块',
+      cutClip: '剪切',
+      copyClip: '复制',
+      copyBase: '带基点复制',
+      explode: '分解',
       offset: '偏移',
       undo: '撤销',
       redo: '重做',
@@ -466,7 +469,6 @@ export default {
       insert: '插入',
       editAttributes: '编辑属性',
       defineAttribute: '定义属性',
-      agent: 'CAD Agent',
       pan: '平移',
       zoom: '缩放',
       zoomExtents: '范围',
@@ -490,12 +492,9 @@ export default {
     }
   },
   bsearch: {
-    title: '搜索并转换',
     found: '找到 {count} 个实例，已包含 {included} 个',
-    position: '第 {index}/{count} 个',
     previous: '上一个实例',
     next: '下一个实例',
-    includeCurrent: '包含此实例',
     convert: '转换为块…',
     cancel: '取消',
     rotation: '旋转',
@@ -504,12 +503,54 @@ export default {
     sameLayer: '相同图层',
     existingBlocks: '现有块',
     textVariations: '文字变化',
-    pickPrompt: '单击实例以包含或排除，或'
+    pickPrompt: '单击实例以包含或排除，或',
+    source: '已选择对象：{count} 个',
+    options: '搜索选项',
+    none: '未找到其他实例。请更改搜索选项，或仅转换所选对象。',
+    includeAll: '全部包含',
+    include: '包含此实例',
+    instance: '实例 {index}',
+    blockReference: '块参照',
+    rotatedBy: '旋转 {angle}°',
+    mirrored: '已镜像',
+    scaledBy: '比例 {scale}',
+    hint: '单击列表行可缩放到该实例；在图形中单击实例可包含或排除它。'
   },
   bdetect: {
     detecting: '正在搜索图形中的重复对象…',
     foundSoFar: '已找到 {count} 组',
     stop: '停止',
+    ready: '调整选项，然后单击“检测”。',
+    detect: '检测',
+    detectAgain: '重新检测',
+    options: '检测选项',
+    explain: '“{option}”的说明',
+    rotation: '旋转',
+    mirror: '镜像',
+    scale: '缩放',
+    sameLayer: '同一图层',
+    textVariations: '文字变化',
+    minInstances: '最少实例数',
+    minSavings: '最少节省数',
+    maxEntities: '最大对象数',
+    help: {
+      rotation:
+        '任意角度旋转后的副本仍算同一个对象。关闭后，只把朝向相同的副本归为一组。',
+      mirror:
+        '镜像后的副本仍算同一个对象，例如朝另一侧开启的门。关闭后，翻转过的副本不会被归入同一组。',
+      scale:
+        '等比放大或缩小的副本仍算同一个对象。关闭后，只把尺寸相同的副本归为一组。被拉长或压扁的形状不会被认作相同。',
+      sameLayer:
+        '副本中的每个图形必须与对应图形位于同一图层。从 PDF 导入的图常常按颜色分层，同一个符号会散在多个图层上，这时请关闭此项。',
+      textVariations:
+        '副本中的单行文字可以不同，例如房间号。转换时，这些不同的文字会变成块的属性。关闭后，文字必须完全相同才会被归为一组。多行文字始终必须逐字相同，也不会变成属性。',
+      minInstances:
+        '只有找到至少这么多个副本（含原来的那一个）时，才会列出这一组。最小值为 2。调高后，成对出现的对象会被忽略，只保留重复更多次的对象。',
+      minSavings:
+        '只有转换成块后至少能少掉这么多个对象时，才会保留这一组。节省数等于副本个数乘以（每个副本的对象数减 1）：一份留作块，其余每一份都换成一个块参照。例如 5 个由 3 个对象组成的副本，可节省 10 个对象。调高可隐藏收益很小的组，设为 0 则列出所有重复。',
+      maxEntities:
+        '一个副本最多可以包含的对象数。检测长大到这个数量就停止，因此零件更多的符号只会纳入一部分。调低可跳过又大又复杂的重复；要找的符号零件更多时再调高。默认值为 64。'
+    },
     groups: '{count} 组重复对象',
     none: '未找到重复对象。',
     selectAll: '全选',
@@ -685,7 +726,8 @@ export default {
     },
     zoomSaved: {
       text: '保存的视图',
-      description: '恢复 AutoCAD 保存的视图（VPORT / 布局界限），或打开时的初始视口'
+      description:
+        '恢复 AutoCAD 保存的视图（VPORT / 布局界限），或打开时的初始视口'
     },
     zoomToExtent: {
       text: '范围',
@@ -869,6 +911,10 @@ export default {
     bdetect: {
       tab: '检测',
       title: '检测并转换'
+    },
+    bsearch: {
+      tab: '搜索',
+      title: '搜索并转换'
     },
     countList: {
       tab: '计数',

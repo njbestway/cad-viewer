@@ -10,10 +10,7 @@
       :top-offset="paletteOffsets.top"
       :bottom-offset="paletteOffsets.bottom"
     >
-      <ml-overflow-tabs
-        v-model="store.dialogs.activePaletteTab"
-        :tabs="tabs"
-      >
+      <ml-overflow-tabs v-model="store.dialogs.activePaletteTab" :tabs="tabs">
         <div
           v-if="store.dialogs.activePaletteTab === 'layerManager'"
           class="ml-layer-list-wrapper"
@@ -27,9 +24,9 @@
           <ml-entity-properties
             :entity-props-list="properties"
             :entity-locked="propertyEntityLocked"
-            :database="propertyDatabase"
-            :layer-options="layerOptions"
             :editable="propertiesEditable"
+            :layer-names="propertyLayerNames"
+            :line-type-options="propertyLineTypeOptions"
             @update-property="handleUpdateProperty"
           />
         </div>
@@ -88,22 +85,24 @@
           <ml-b-detect-palette />
         </div>
         <div
-          v-else-if="
-            store.features.agentPlugin &&
-            store.dialogs.activePaletteTab === 'agent'
-          "
-          class="ml-agent-palette-wrapper"
+          v-else-if="store.dialogs.activePaletteTab === 'bsearch'"
+          class="ml-bsearch-palette-wrapper"
         >
-          <agent-chat-panel embedded />
+          <ml-b-search-palette />
         </div>
         <div
-          v-else-if="
-            store.features.scriptPlugin &&
-            store.dialogs.activePaletteTab === 'cadScript'
-          "
+          v-else-if="activePluginPalette"
+          :key="activePluginPalette.id"
           class="ml-agent-palette-wrapper"
         >
-          <ml-cad-script-panel />
+          <ml-plugin-palette :palette="activePluginPalette" />
+        </div>
+        <div
+          v-else-if="activeHostedPanel"
+          :key="activeHostedPanel.tab"
+          class="ml-hosted-panel-wrapper"
+        >
+          <ml-hosted-panel :element="activeHostedPanel.element" />
         </div>
       </ml-overflow-tabs>
     </ml-tool-palette>
@@ -114,13 +113,13 @@
 import {
   AcApDocManager,
   AcApLayerService,
-  acapRunDatabaseEdit,
+  AcApUiRegistry,
   AcEdOpenMode
 } from '@mlightcad/cad-simple-viewer'
 import {
-  type AcDbEntity,
-  type AcDbEntityProperties,
-  type AcDbEntityRuntimeProperty
+  AcDbDatabase,
+  AcDbEntityProperties,
+  AcDbObjectId
 } from '@mlightcad/data-model'
 import {
   type MlOverflowTab,
@@ -128,39 +127,39 @@ import {
   MlToolPalette
 } from '@mlightcad/ui-components'
 import { ElConfigProvider } from 'element-plus'
-import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { store } from '../../app'
 import {
-  useDocument,
-  useLayers,
-  useSelectionSet,
-  useViewerRect
-} from '../../composable'
+  mlPluginPaletteHeader,
+  mlPluginPaletteTitle,
+  pluginUiRevision
+} from '../../app/pluginUi'
+import { useDocument, useSelectionSet, useViewerRect } from '../../composable'
 import { toolPaletteTabName, toolPaletteTitle } from '../../locale'
+import {
+  buildLineTypeOptions,
+  type LineTypeOption
+} from '../common/lineTypeOptions'
+import {
+  type MlEntityPropertyUpdate,
+  mlResolvePropertyEditTargets
+} from './entityPropertyEdit'
 import MlBDetectPalette from './MlBDetectPalette.vue'
 import MlBlocksPalette from './MlBlocksPalette.vue'
-import MlCadScriptPanel from './MlCadScriptPanel.vue'
+import MlBSearchPalette from './MlBSearchPalette.vue'
 import MlCountList from './MlCountList.vue'
 import MlDesignReviewPalette from './MlDesignReviewPalette.vue'
 import MlEntityProperties from './MlEntityProperties.vue'
 import MlFindPalette from './MlFindPalette.vue'
+import MlHostedPanel from './MlHostedPanel.vue'
 import MlLayerList from './MlLayerList.vue'
 import MlMeasurementPalette from './MlMeasurementPalette.vue'
 import MlMemoryProfile from './MlMemoryProfile.vue'
 import MlMissingResources from './MlMissingResources.vue'
 import MlOpenFileProfile from './MlOpenFileProfile.vue'
-
-const loadAgentPlugin = () =>
-  Promise.all([
-    import('@mlightcad/cad-agent-plugin/style.css'),
-    import('@mlightcad/cad-agent-plugin')
-  ]).then(([, module]) => module)
-
-const AgentChatPanel = defineAsyncComponent(() =>
-  loadAgentPlugin().then(module => module.AgentChatPanel)
-)
+import MlPluginPalette from './MlPluginPalette.vue'
 
 /**
  * Properties of palette manager component
@@ -173,7 +172,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const { t } = useI18n()
+const { locale } = useI18n()
 const containerRect = useViewerRect()
 
 const DEFAULT_WIDTH = 520
@@ -279,31 +278,52 @@ const tabNames = computed((): readonly string[] => {
   if (store.dialogs.bdetectTabVisible) {
     names.push('bdetect')
   }
-  if (store.features.agentPlugin) {
-    names.push('agent')
+  // Only while BSEARCH reviews its instances.
+  if (store.dialogs.bsearchTabVisible) {
+    names.push('bsearch')
   }
-  if (store.features.scriptPlugin) {
-    names.push('cadScript')
-  }
+  pluginUiRevision.value
+  for (const palette of AcApUiRegistry.palettes()) names.push(palette.id)
+  for (const panel of store.dialogs.hostedPanels) names.push(panel.tab)
   return names
 })
 
+/** Command panel of the active tab, if that tab is a hosted panel. */
+const activeHostedPanel = computed(() =>
+  store.dialogs.hostedPanels.find(
+    panel => panel.tab === store.dialogs.activePaletteTab
+  )
+)
+
 const tabs = computed<MlOverflowTab[]>(() => {
+  locale.value
+  pluginUiRevision.value
   return tabNames.value.map(name => {
+    const hosted = store.dialogs.hostedPanels.find(panel => panel.tab === name)
+    const palette = AcApUiRegistry.palette(name)
     return {
       name,
-      label:
-        name === 'cadScript'
-          ? t('main.toolPalette.script.scriptTab')
+      label: hosted
+        ? hosted.title
+        : palette
+          ? mlPluginPaletteTitle(palette)
           : toolPaletteTabName(name)
     }
   })
 })
 
+/** Plugin palette for the active tab, when one is registered. */
+const activePluginPalette = computed(() => {
+  pluginUiRevision.value
+  return AcApUiRegistry.palette(store.dialogs.activePaletteTab)
+})
+
 const activeTabTitle = computed(() => {
-  if (store.dialogs.activePaletteTab === 'cadScript') {
-    return t('main.toolPalette.script.scriptTitle')
-  }
+  locale.value
+  pluginUiRevision.value
+  const palette = AcApUiRegistry.palette(store.dialogs.activePaletteTab)
+  if (palette) return mlPluginPaletteHeader(palette)
+  if (activeHostedPanel.value) return activeHostedPanel.value.title
   return toolPaletteTitle(store.dialogs.activePaletteTab)
 })
 
@@ -327,220 +347,118 @@ watch(
 )
 
 const { selectionSet } = useSelectionSet()
-const { openMode: docOpenMode } = useDocument()
-const { layers } = useLayers(AcApDocManager.instance)
-/**
- * Bumped after every panel edit so `propertyRows` recomputes and the
- * controlled dropdowns (layer / linetype / lineweight) re-read the freshly
- * written database values instead of snapping back to the pre-edit state.
- */
-const propertyRefreshTick = ref(0)
-/**
- * The entity-properties panel only renders editable controls when the active
- * document is opened in Write mode; `MlEntityProperties` hides every editor
- * (falling back to read-only text) when `editable` is false. Property writes
- * go through `openEntityForWrite`, which requires Write mode, so gate the
- * editors on it too.
- */
-const propertiesEditable = computed(
-  () => docOpenMode.value === AcEdOpenMode.Write
-)
+const { openMode } = useDocument()
 
 /**
- * A lightweight polyline vertex as stored in the data model's `vertices`
- * accessor. Position lives on `x`/`y`; each vertex carries a `startWidth` and
- * `endWidth` (both `undefined` when the segment is hairline). There is no
- * separate constant-width field: a "global width" is just every vertex sharing
- * the same start and end width (DXF group 43).
+ * Bumped when entities or layers change (palette edits, commands, undo) so
+ * the property list re-reads the live values.
  */
-interface MlPolylineVertex {
-  x: number
-  y: number
-  bulge?: number
-  startWidth?: number
-  endWidth?: number
+const databaseRevision = ref(0)
+let observedDatabase: AcDbDatabase | undefined
+const bumpDatabaseRevision = () => {
+  databaseRevision.value++
 }
 
-/**
- * Reads the live vertex array of a polyline entity through its public
- * `geometry.vertices` accessor (no private field access), so the panel and the
- * write path can mutate the exact objects the entity serializes from.
- */
-function polylineVerticesOf(entity: AcDbEntity): MlPolylineVertex[] | undefined {
-  const verticesProp = entity.properties?.groups
-    ?.find(group => group.groupName === 'geometry')
-    ?.properties.find(item => item.name === 'vertices')
-  const arr = verticesProp?.accessor.get()
-  return Array.isArray(arr) ? (arr as MlPolylineVertex[]) : undefined
-}
-
-/**
- * The single constant width shared by every vertex, or `undefined` when widths
- * vary per vertex (mirrors the data model's `resolveConstantWidth`).
- */
-function constantWidthOf(
-  vertices?: MlPolylineVertex[]
-): number | undefined {
-  if (!vertices?.length) return undefined
-  let common: number | undefined
-  for (const vertex of vertices) {
-    const start = vertex.startWidth ?? 0
-    const end = vertex.endWidth ?? 0
-    if (start !== end) return undefined
-    if (common === undefined) common = start
-    else if (common !== start) return undefined
+function observeDatabase(db?: AcDbDatabase) {
+  if (observedDatabase === db) return
+  if (observedDatabase) {
+    const events = observedDatabase.events
+    events.entityModified.removeEventListener(bumpDatabaseRevision)
+    events.entityErased.removeEventListener(bumpDatabaseRevision)
+    events.layerAppended.removeEventListener(bumpDatabaseRevision)
+    events.layerModified.removeEventListener(bumpDatabaseRevision)
   }
-  return common
+  observedDatabase = db
+  if (!db) return
+  db.events.entityModified.addEventListener(bumpDatabaseRevision)
+  db.events.entityErased.addEventListener(bumpDatabaseRevision)
+  db.events.layerAppended.addEventListener(bumpDatabaseRevision)
+  db.events.layerModified.addEventListener(bumpDatabaseRevision)
 }
 
-/**
- * Adds the polyline-only vertex-width controls the data model does not expose:
- * per-vertex `startWidth`/`endWidth` on the `vertices` array, and a scalar
- * `globalWidth` (constant width) in the `others` group. `entity.properties`
- * returns a freshly built object each call, so these additions never
- * accumulate across recomputes.
- */
-function augmentPolylineProperties(
-  entity: AcDbEntity
-): AcDbEntityProperties {
-  const props = entity.properties
-  if (props.type !== 'Polyline') return props
-
-  const verticesProp = props.groups
-    .find(group => group.groupName === 'geometry')
-    ?.properties.find(item => item.name === 'vertices')
-  const schema = verticesProp?.itemSchema
-  if (schema) {
-    for (const name of ['startWidth', 'endWidth']) {
-      if (!schema.properties.some(item => item.name === name)) {
-        schema.properties.push({ name, type: 'float', editable: true })
-      }
-    }
-  }
-
-  const others = props.groups.find(group => group.groupName === 'others')
-  if (others && !others.properties.some(item => item.name === 'globalWidth')) {
-    const globalWidth: AcDbEntityRuntimeProperty = {
-      name: 'globalWidth',
-      type: 'float',
-      editable: true,
-      accessor: {
-        get: () => constantWidthOf(polylineVerticesOf(entity))
-      }
-    }
-    others.properties.unshift(globalWidth)
-  }
-
-  return props
+const handleDocumentActivated = () => {
+  observeDatabase(AcApDocManager.instance.curDocument?.database)
+  bumpDatabaseRevision()
 }
+
+onMounted(() => {
+  AcApDocManager.instance.events.documentActivated.addEventListener(
+    handleDocumentActivated
+  )
+  handleDocumentActivated()
+})
+
+onUnmounted(() => {
+  AcApDocManager.instance.events.documentActivated.removeEventListener(
+    handleDocumentActivated
+  )
+  observeDatabase(undefined)
+})
 
 const propertyRows = computed(() => {
-  propertyRefreshTick.value
+  databaseRevision.value
   const list: AcDbEntityProperties[] = []
   const locked: boolean[] = []
+  const ids: AcDbObjectId[] = []
   const db = AcApDocManager.instance.curDocument?.database
-  if (!db) return { list, locked }
+  if (!db) return { list, locked, ids }
   const blockTable = db.tables.blockTable
   for (const id of selectionSet.value) {
     // Use getEntityById which works for entities in any layout (model space or paper space)
     const entity = blockTable.getEntityById(id)
     if (!entity) continue
-    list.push(augmentPolylineProperties(entity))
+    list.push(entity.properties)
     locked.push(AcApLayerService.isEntityOnLockedLayer(db, entity))
+    ids.push(id)
   }
-  return { list, locked }
+  return { list, locked, ids }
 })
 const properties = computed(() => propertyRows.value.list)
 const propertyEntityLocked = computed(() => propertyRows.value.locked)
-const propertyDatabase = computed(
-  () => AcApDocManager.instance.curDocument?.database ?? null
-)
-const layerOptions = computed(() =>
-  layers.map(layer => ({
-    value: layer.name,
-    name: layer.name,
-    cssColor: layer.cssColor || '#7b8794',
-    isOn: layer.isOn,
-    isLocked: layer.isLocked,
-    isFrozen: layer.isFrozen,
-    lineType: layer.linetype
-  }))
-)
+
+/** Editing follows the document mode, like grips. */
+const propertiesEditable = computed(() => openMode.value === AcEdOpenMode.Write)
+
+const propertyLayerNames = computed(() => {
+  databaseRevision.value
+  const db = AcApDocManager.instance.curDocument?.database
+  if (!db) return []
+  return Array.from(db.tables.layerTable.newIterator(), layer => layer.name)
+})
 
 /**
- * Writes a property edited in the entity-properties panel back to every
- * selected entity, inside a single undo group, and repaints through the
- * database's entityModified event (bound to `view.updateEntity`).
- *
- * Mirrors the ribbon property dropdown edit path (`acapRunDatabaseEdit` +
- * `openEntityForWrite`) so locked layers are skipped and undo captures the
- * before-state. The child panel emits only the descriptor coordinates
- * (groupName + propertyName); the actual mutation goes through the
- * write-opened entity's own property accessor so it participates in undo.
+ * Line types of the drawing plus the symbolic ByLayer/ByBlock values (and
+ * Continuous, which a new drawing may not list yet).
  */
-function handleUpdateProperty(payload: {
-  groupName: string
-  propertyName: string
-  newValue: unknown
-  arrayItemName?: string
-  arrayItemIndex?: number
-}) {
-  const db = AcApDocManager.instance.curDocument?.database
-  if (!db) return
+const propertyLineTypeOptions = computed<LineTypeOption[]>(() => {
+  databaseRevision.value
+  const options = buildLineTypeOptions(
+    AcApDocManager.instance.curDocument?.database
+  )
+  const existing = new Set(options.map(option => option.value.toLowerCase()))
+  const specials = ['ByLayer', 'ByBlock', 'Continuous']
+    .filter(name => !existing.has(name.toLowerCase()))
+    .map(name => ({ value: name, label: name }))
+  return [...specials, ...options]
+})
 
-  const ids = [...selectionSet.value]
+/**
+ * Applies a palette edit to the selected entities as one undoable edit.
+ */
+function handleUpdateProperty(update: MlEntityPropertyUpdate) {
+  if (!propertiesEditable.value) return
+  const doc = AcApDocManager.instance.curDocument
+  if (!doc) return
+  const ids = mlResolvePropertyEditTargets(propertyRows.value.ids, update)
   if (ids.length === 0) return
-
-  acapRunDatabaseEdit(db, 'Property', () => {
-    for (const id of ids) {
-      const existing = db.tables.blockTable.getEntityById(id)
-      if (existing && AcApLayerService.isEntityOnLockedLayer(db, existing)) {
-        continue
-      }
-      const entity = db.openEntityForWrite(id)
-      if (!entity || AcApLayerService.isEntityOnLockedLayer(db, entity)) {
-        continue
-      }
-
-      // Polyline vertex widths are not exposed as runtime properties by the
-      // data model, so route them onto the live vertex array read through the
-      // write-opened entity's own `vertices` accessor (same objects the entity
-      // serializes from, so the edit persists with the transaction and undo).
-      if (entity.properties?.type === 'Polyline') {
-        if (
-          payload.arrayItemName === 'vertices' &&
-          payload.arrayItemIndex != null
-        ) {
-          const vertex = polylineVerticesOf(entity)?.[payload.arrayItemIndex]
-          if (vertex) {
-            ;(vertex as unknown as Record<string, unknown>)[
-              payload.propertyName
-            ] = payload.newValue
-          }
-          continue
-        }
-        if (
-          payload.groupName === 'others' &&
-          payload.propertyName === 'globalWidth'
-        ) {
-          const parsed = Number(payload.newValue)
-          const width = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
-          for (const vertex of polylineVerticesOf(entity) ?? []) {
-            vertex.startWidth = width
-            vertex.endWidth = width
-          }
-          continue
-        }
-      }
-
-      const property = entity.properties?.groups
-        ?.find(group => group.groupName === payload.groupName)
-        ?.properties.find(item => item.name === payload.propertyName)
-      property?.accessor?.set?.(payload.newValue)
-    }
-  })
-
-  propertyRefreshTick.value++
+  doc.entityService.setEntityProperty(
+    ids,
+    update.groupName,
+    update.propertyName,
+    update.newValue
+  )
+  // Values the entity rejected or normalized must show as stored.
+  bumpDatabaseRevision()
 }
 </script>
 
@@ -556,6 +474,7 @@ function handleUpdateProperty(payload: {
 }
 
 .ml-bdetect-palette-wrapper,
+.ml-bsearch-palette-wrapper,
 .ml-layer-list-wrapper {
   overflow: hidden;
   width: 100%;
@@ -647,7 +566,8 @@ function handleUpdateProperty(payload: {
   flex-direction: column;
 }
 
-.ml-agent-palette-wrapper {
+.ml-agent-palette-wrapper,
+.ml-hosted-panel-wrapper {
   overflow: hidden;
   width: 100%;
   height: 100%;

@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-svg-converter",
-  "version": "1.8.0-preview.3",
+  "version": "1.8.0-preview.6",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -31,11 +31,11 @@
     "lint:fix": "eslint --fix --quiet src/"
   },
   "devDependencies": {
-    "@mlightcad/data-model": "1.15.23",
+    "@mlightcad/data-model": "1.16.1",
     "@types/svg-parser": "2.0.6"
   },
   "peerDependencies": {
-    "@mlightcad/data-model": "1.15.23"
+    "@mlightcad/data-model": "1.16.1"
   },
   "dependencies": {
     "svg-parser": "2.1.0"

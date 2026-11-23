@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-agent-plugin",
-  "version": "1.8.0-preview.3",
+  "version": "1.8.0-preview.6",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -48,17 +48,16 @@
     "lint:fix": "eslint --fix --quiet src/"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.0",
-    "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/vue": "^2.0.0",
     "ai": "^5.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@mlightcad/cad-agent-core": "workspace:*",
+    "@mlightcad/cad-llm-plugin": "workspace:*",
     "@mlightcad/cad-script-core": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
-    "@mlightcad/data-model": "1.15.23",
+    "@mlightcad/data-model": "1.16.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "vite": "^6.4.3",
     "vue": "^3.4.21",
@@ -66,9 +65,10 @@
   },
   "peerDependencies": {
     "@mlightcad/cad-agent-core": "workspace:^",
+    "@mlightcad/cad-llm-plugin": "workspace:^",
     "@mlightcad/cad-script-core": "workspace:^",
     "@mlightcad/cad-simple-viewer": "workspace:^",
-    "@mlightcad/data-model": "1.15.23",
+    "@mlightcad/data-model": "1.16.1",
     "vue": "^3.4.21"
   }
 }

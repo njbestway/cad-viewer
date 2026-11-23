@@ -39,6 +39,9 @@ export default {
     exportingPdf: 'PDF 내보내는 중 ...',
     exportingSvg: 'SVG 내보내는 중 ...',
     calculatingSmartExtents: '스마트 범위 계산 중 ...',
+    copyingToClipboard: '클립보드에 복사하는 중 ...',
+    cuttingToClipboard: '잘라내는 중 ...',
+    pastingFromClipboard: '붙여넣는 중 ...',
     importingPdf: 'PDF 가져오는 중 ...',
     exportingEntityPreview: '이미지 내보내는 중 ...',
     collectingMemoryProfile: '메모리 분석 중 ...',
@@ -140,6 +143,9 @@ export default {
     undo: '명령 취소',
     redo: '명령 복구',
     erase: '삭제',
+    copy: '복사',
+    cut: '잘라내기',
+    paste: '붙여넣기',
     collapse: '도구막대 접기',
     expand: '도구막대 펼치기'
   },
@@ -203,5 +209,21 @@ export default {
     selectFile: '파일 선택',
     signInRequired: '파일을 선택하려면 먼저 로그인하십시오.',
     downloading: '파일 다운로드 중 ...'
+  },
+  dockPanel: {
+    close: '패널 닫기',
+    dockSide: '도킹 위치',
+    dockTop: '위쪽에 도킹',
+    dockBottom: '아래쪽에 도킹',
+    dockLeft: '왼쪽에 도킹',
+    dockRight: '오른쪽에 도킹',
+    moreTabs: '추가 탭',
+    resize: '패널 크기 조정',
+    tab: {
+      layers: '도면층',
+      review: '검토',
+      find: '찾기',
+      measurements: '측정'
+    }
   }
 }

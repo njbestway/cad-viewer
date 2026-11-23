@@ -1,24 +1,103 @@
 ---
-title: "ترقية cad-simple-viewer و cad-editor"
+title: 'ترقية cad-simple-viewer و cad-editor'
 ---
 
 # ترقية cad-simple-viewer و cad-editor
 
 يشرح هذا الدليل كيفية ترقية `@mlightcad/cad-simple-viewer` و`@mlightcad/cad-editor` بأمان — ولماذا لا يمكن رفعهما بمعزل عن غيرهما، وأي الحزم ذات الصلة يجب أن تتحرك معًا، وطريقتان موثوقتان لتحديد مجموعة الإصدارات المتوافقة الصحيحة لأي إصدار معين.
 
+::: info واجهة الإضافات تأتي من `AcApUiRegistry`
+بدءًا من الإصدار الذي يتضمن هذا التغيير، مجموعات الشريط وصفوف ملف ← تصدير وأزرار شريط الأدوات في الواجهة البسيطة وألسنة اللوحة التي تخص إضافةً ما تُعلَن من وحدة `/register` الخاصة بتلك الإضافة عبر **`AcApUiRegistry`**. المضيف يرسم ما هو مسجّل فقط. الحزمة غير المثبّتة لا تُظهر واجهة.
+
+الترحيل:
+
+- لم يعد `@mlightcad/cad-editor` يضم أزرار الوكيل وإعدادات النموذج والسكريبت وPDF وHTML وSVG. يحمّل `@mlightcad/cad-pdf-plugin/register` و`@mlightcad/cad-html-plugin/register` و`@mlightcad/cad-svg-plugin/register` عبر `import()` الديناميكي، كما يفعل مع الوكيل وLLM والسكريبت وPaddleOCR. أبقِ هذه المحدّدات external عند تجميع المحرّر.
+- أُزيلت أعلام `store.features` (`agentPlugin` و`llmPlugin` و`paddleOcrPlugin` و`scriptPlugin`).
+- تستدعي الإضافة `AcApUiRegistry.register` من `/register` مع مجموعات الشريط وصفوف قائمة `file.export` ودالة `mount` للوحة ورسائل اللغات. يظهر الزر فور تنفيذ `/register`، وتُحمَّل الوحدة الثقيلة عند الأمر.
+- تبني الواجهة البسيطة قائمة التصدير وأزرار شريط الأدوات الإضافية من السجل نفسه. أزل أزرار الوكيل والسكريبت المكتوبة يدويًا.
+- تبقى `setAgentPaletteOpener` و`setCadScriptPaletteOpener` للمضيفين الذين لا يفتحون معرّفات لوحات السجل. يفتح `cad-editor` والواجهة البسيطة هذه المعرّفات بنفسيهما.
+- يفتح `chtml` و`cpdf` حوارات بلا إطار واجهة داخل `cad-html-plugin` و`cad-pdf-plugin`. في المتصفح تسجّلهما وحدة `/register`، وعند التأكيد يُحمَّل الملحق عبر `-chtml` / `-cpdf`. تمرّر البيئات بلا واجهة `dialog: false` ليبقى `chtml` و`cpdf` موجهَي سطر أوامر. حُذف حوارا Vue `MlExportHtmlDlg` / `MlExportPdfDlg` وفئتا الأمر في المحرّر.
+  :::
+
+::: info واجهة Simple UI أصبحت داخل `cad-simple-viewer`
+بدءًا من الإصدار الذي يتضمن هذا التغيير، **تمت إزالة `@mlightcad/cad-simple-ui-plugin`**. شريط الأدوات وعلامات الإرساء و`AcApPaletteHost` الافتراضي موجودة في **`@mlightcad/cad-simple-viewer`**. فعّل عبر `simpleUi` (مفعّل افتراضيًا)؛ ولـ `cad-editor` / CLI استخدم `simpleUi: false`. تمت إزالة المسار الفرعي `@mlightcad/cad-simple-viewer/find`؛ استورد واجهات البحث من `@mlightcad/cad-simple-viewer`. أُزيلت المسارات الفرعية `/simple-ui` و`/find`.
+:::
+
+::: info نقل واجهة لوحة الإرساء إلى `cad-simple-viewer`
+تعيش واجهة **لوحة الإرساء** (`AcUiDockPanel`) في **`@mlightcad/cad-simple-viewer`**. تُركّب واجهة simple UI المدمجة محتوى التبويبات (الطبقات / البحث / المراجعة / القياسات) على هذا الـ dock وتسجّل `AcApPaletteHost`؛ بينما يسجّل `cad-editor` مضيف لوحة أدوات Vue.
+
+الترحيل:
+
+- استورد `AcUiDockPanel` و`AcUiDockPanelTab` و`AcUiDockPanelSide` من `@mlightcad/cad-simple-viewer`.
+- مفاتيح الترجمة ضمن **`main.dockPanel.*`**.
+- بدون مضيف يستخدم `AcApPaletteService.open` لوحة `AcUiDockPanel` (إرساء يمين / ورقة هاتف).
+- التبويبات المسماة عبر `AcApPaletteService.openNamedTab` / `ACAP_PALETTE_NAMED_TAB` و**تتطلب مضيفاً مسجّلاً** (لا يوجد مسار احتياطي للإرساء للتبويبات المسماة). لوحات `HTMLElement` المستضافة ما زالت تستخدم `AcApPaletteService.open`.
+  :::
+
+::: info PaddleOCR المحلي (`@mlightcad/cad-paddleocr-plugin`)
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يمكن للمضيف تثبيت **`@mlightcad/cad-paddleocr-plugin`** للتعرّف البصري على النص المفكّك من PDF داخل المتصفح (`pdftext` / OCR عند الاستيراد). تسجّل معرّف `paddleocr` في `AcApTextRecognitionService`؛ وتُحمَّل ملفات Wasm ونماذج ONNX عند أول طلب OCR فقط. تعرض قائمة «التعرّف على النص المفكّك» عند الاستيراد كل خيار OCR _متاح_: PaddleOCR المحلي وكل **نموذج** LLM مُعدّ ويدعم الصور (مثل `kkidc — model-id`)، وليس صفًا واحدًا لكل مزوّد.
+
+الترحيل:
+
+- ثبّت `@mlightcad/cad-paddleocr-plugin` واستدعِ `registerLazyPaddleOcrPlugin` **قبل** `registerLazyLlmPlugin` حتى تعود الأسطر غير المقروءة إلى نموذج الرؤية. تقوم `@mlightcad/cad-editor` بذلك تلقائيًا عند تثبيت الحزمة.
+- قدّم ملفات wasm الخاصة بـ ONNX Runtime Web من نفس المنشأ (تستخدم العروض التوضيحية `./vendor/onnxruntime/`) ومرّر `wasmPaths`.
+- يمكن التحقق من تسجيل معرّف معيّن عبر `AcApTextRecognitionService.has(id)` (مثلًا تخطّي تلميح «OCR غير مُعدّ» الخاص بـ LLM عند وجود `paddleocr`).
+
+```ts
+import { registerLazyPaddleOcrPlugin } from '@mlightcad/cad-paddleocr-plugin/register'
+import { registerLazyLlmPlugin } from '@mlightcad/cad-llm-plugin/register'
+
+registerLazyPaddleOcrPlugin(pluginManager, {
+  wasmPaths: './vendor/onnxruntime/'
+})
+registerLazyLlmPlugin(pluginManager)
+```
+
+:::
+
+::: info إعدادات نموذج الذكاء الاصطناعي المشتركة (`@mlightcad/cad-llm-plugin`)
+بدءًا من الإصدار الذي يتضمن هذا التغيير، تنتقل إعدادات مزودي LLM من `@mlightcad/cad-agent-plugin` إلى الحزمة الجديدة **`@mlightcad/cad-llm-plugin`**، فيتشارك وكيل CAD والتعرف على النص في `pdftext` (OCR) إعدادًا واحدًا. تضيف الحزمة الجديدة الأمر **LLMSETTINGS** ومربع حوار إعدادات لا يعتمد على إطار واجهة مستخدم (متاح أيضًا من علامة تبويب AI في الشريط ضمن `@mlightcad/cad-editor`)، وتضيف `@mlightcad/cad-simple-viewer` الخدمة `AcApLlmSettingsService` حتى تتمكن أي ميزة من فتح مربع الحوار أو التحقق من إعداد نموذج يدعم الصور.
+
+ترحيل التطبيقات المضيفة:
+
+- ثبّت `@mlightcad/cad-llm-plugin` (أصبحت تبعية peer للحزمة `@mlightcad/cad-agent-plugin`) واستدعِ `registerLazyLlmPlugin` بجانب `registerLazyAgentPlugin`. تقوم `@mlightcad/cad-editor` بذلك تلقائيًا عند تثبيت الحزمة.
+- لم تعد `registerLazyAgentPlugin` تسجّل أداة التعرف على النص. أصبح معرّف الأداة `cad-llm` (كان `cad-agent`) وتسجّلها `registerLazyLlmPlugin`. أصبحت `acapAgentRecognizeText` / `cleanRecognizedText` الآن `acapLlmRecognizeText` / `acapLlmCleanRecognizedText` في `@mlightcad/cad-llm-plugin`.
+- حلّ مربع الحوار محل بطاقة الإعدادات المضمنة في لوحة الوكيل، ويفتح زر الترس الأمر LLMSETTINGS.
+- تبقى الإعدادات المحفوظة كما هي: لم يتغير مفتاح `localStorage` المسمى `cad-agent-plugin.llm-config`.
+- عندما يدعم النموذج المستخدم النص فقط، يستخدم OCR أول نموذج مُعدّ يدعم الصور.
+
+```ts
+import { registerLazyAgentPlugin } from '@mlightcad/cad-agent-plugin/register'
+import { registerLazyLlmPlugin } from '@mlightcad/cad-llm-plugin/register'
+
+registerLazyLlmPlugin(pluginManager)
+registerLazyAgentPlugin(pluginManager)
+```
+
+:::
+
+::: info استيراد PDF: أصبح `ipdf` الآن `PDFIMPORT` / `-PDFIMPORT`
+بدءًا من الإصدار الذي يتضمن هذا التغيير (1.8.0)، يستخدم أمر استيراد PDF في `@mlightcad/cad-pdf-plugin` أسماء AutoCAD:
+
+- يفتح **PDFIMPORT** مربع الحوار **استيراد PDF** (`AcUiPdfImportDialog`) بعد اختيار الملف: الصفحة مع معاينة، ونقطة الإدراج (X/Y أو على الشاشة)، والمقياس، والوضع (استعادة الرسم / الحفاظ على مظهر PDF).
+- يحتفظ **-PDFIMPORT** بمطالبات سطر الأوامر التي كانت في `ipdf` (رقم الصفحة، ونقطة الإدراج مع الخيارين **مقياس** و**الوضع**). فئته هي `AcApImportPdfPromptCmd`.
+
+الترحيل: لم يعد `ipdf` موجودًا. يجب أن تستخدم البرامج النصية التي كانت تشغّل `executeCommand('ipdf')` وتجيب عن المطالبات الأمر `-pdfimport`؛ ويجب أن تستخدم التطبيقات المضيفة التي ترسم شريطها الخاص `pdfimport` (معرّف عنصر الشريط في cad-editor أصبح `cmd-pdfimport`). انتقلت أوصاف الأوامر من `command.ACAD.ipdf` إلى `command.ACAD.pdfimport` / `command.ACAD.-pdfimport`، ونصوص المطالبات من `jig.ipdf` إلى `jig.pdfimport` (نصوص مربع الحوار ضمن `jig.pdfimport.dialog`). يعرض `AcApPdfImportConvertor.importFromFilePicker` الآن مربع الحوار، و`importFromCommandLine` هو مسار المطالبات.
+:::
+
 ::: info الكتل الذكية: بحث وتحويل (`BSEARCH`)
-بدءًا من الإصدار الذي يتضمن هذا التغيير، يسجّل `@mlightcad/cad-simple-viewer` الأمر **-BSEARCH** ويضيف `@mlightcad/cad-editor` الأمر **BSEARCH** (الاسم البديل `BCONVERT`) مع شريط مراجعة ومربع حوار التحويل إلى كتلة (في علامتي التبويب إدراج وAI).
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يسجّل `@mlightcad/cad-simple-viewer` الأمر **-BSEARCH** ويضيف `@mlightcad/cad-editor` الأمر **BSEARCH** (الاسم البديل `BCONVERT`) مع علامة تبويب «بحث وتحويل» في لوحة الأدوات (قائمة بالنسخ التي تم العثور عليها) ومربع حوار التحويل إلى كتلة (في علامتي التبويب إدراج وAI).
 
 انتقلت مطابقة الأشكال من `@mlightcad/cad-pdf-plugin` إلى `@mlightcad/cad-simple-viewer`. انقل الاستيرادات:
 
-| `@mlightcad/cad-pdf-plugin` (مهمل) | `@mlightcad/cad-simple-viewer` |
-| --- | --- |
-| `findPdfShapeMatches` | `acedFindShapeMatches` |
-| `applyPdfAffine` | `acedApplyAffine2d` |
-| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `@mlightcad/cad-pdf-plugin` (مهمل)                                         | `@mlightcad/cad-simple-viewer`                                                   |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `findPdfShapeMatches`                                                      | `acedFindShapeMatches`                                                           |
+| `applyPdfAffine`                                                           | `acedApplyAffine2d`                                                              |
+| `pdfEntityToFeature`                                                       | `acedEntityToShapeFeature(entity, id, { matchLayer: false })`                    |
 | `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
 
-تبقى الأسماء القديمة متاحة كأسماء بديلة مهملة. انتقل نص الكتابة من `kind` إلى `label`. يتبع `pdfblock` الآن ترتيب مطالبات `-BSEARCH` (تحويل ← جديد/موجود ← الاسم ← نقطة الإدراج ← النطاق)، لذا يجب تعديل النصوص البرمجية التي تجيب على المطالبات القديمة.
+تبقى الأسماء القديمة متاحة كأسماء بديلة مهملة. انتقل نص الكتابة من `kind` إلى `label`. أُزيل أمر `pdfblock` من `@mlightcad/cad-pdf-plugin`؛ استخدم `BSEARCH` / `-BSEARCH` بدلًا منه (بعد استيراد PDF أوقف مطابقة الطبقة — طبقات PDF حسب اللون).
 :::
 
 ::: info مجموعات AutoCAD (`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
@@ -140,15 +219,21 @@ import { acuiCreateFileOpenSession } from '@mlightcad/cad-simple-viewer/file-ope
 بدءًا من **1.8.0** يمكن فتح `.svg` كرسم عبر File → Open / `openDocument` / `openUrl`. التحويل في الحزمة الجديدة [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter). يسجّله `initializeCadViewer` في `cad-editor` تلقائيًا؛ ومع `cad-simple-viewer` فقط استدعِ `registerSvgConverter()` مرة عند البدء. التصدير يبقى `csvg` في `cad-svg-plugin`.
 :::
 
+::: info تصدير HTML/PDF يتخطى المخططات الفارغة افتراضيًا
+بدءًا من الإصدار الذي يتضمن هذا التغيير، يضيف تصدير HTML وPDF الخيار **`exportEmptyLayouts`** (الافتراضي **`false`**). تُحذف مخططات مساحة الورق التي تحتوي فقط على منفذ العرض الافتراضي لـ AutoCAD `*Paper_Space` ما لم تضبط الخيار على `true`. تُبقى مساحة النموذج دائمًا عند تصدير المخططات.
+
+الترحيل: مرّر `exportEmptyLayouts: true` (مفتاح مربع حوار التصدير، مطالبة `-chtml` / `-cpdf`، أو السكربت `cad.file.saveHtml` / `savePdf`، أو علم CLI للمصدّر `--export-empty-layouts`) إذا احتجت علامات تبويب ورق فارغة في الناتج.
+:::
+
 ::: info تقسيم تصدير PDF إلى نواة مشتركة (المتصفح + Node)
 بدءًا من **1.8.0**، يستخدم تصدير PDF نفس التقسيم الطبقي لتصدير HTML. المنطق المشترك في `@mlightcad/cad-pdf-core` (نموذج الخيارات ومسار database → PDF، **بدون** اعتماد على `cad-simple-viewer` / DOM). يستهلكه واجهتان أماميتان:
 
-| الحزمة | الدور |
-| --- | --- |
-| `@mlightcad/cad-pdf-plugin` | أوامر المتصفح `cpdf` / `-cpdf` / `ipdf` (وحوار التصدير في Vue) |
-| `@mlightcad/cad-pdf-exporter` | DXF/DWG → PDF بلا واجهة في Node — **بدون متصفح** |
+| الحزمة                        | الدور                                                               |
+| ----------------------------- | ------------------------------------------------------------------- |
+| `@mlightcad/cad-pdf-plugin`   | أوامر المتصفح `cpdf` / `-cpdf` / `pdfimport` (وحوار التصدير في Vue) |
+| `@mlightcad/cad-pdf-exporter` | DXF/DWG → PDF بلا واجهة في Node — **بدون متصفح**                    |
 
-**مدمجو المتصفح — دون تغيير يُذكر.** استمر في استخدام `cpdf` / `-cpdf` / `ipdf` و`AcApPdfConvertor` و`AcApPdfExportOptions` و`resolveAcApPdfExportOptions`. ثبّت الـ peer الجديد `@mlightcad/cad-pdf-core` بجانب الإضافة (نفس إصدار `cad-simple-viewer`).
+**مدمجو المتصفح — دون تغيير يُذكر.** استمر في استخدام `cpdf` / `-cpdf` / `pdfimport` و`AcApPdfConvertor` و`AcApPdfExportOptions` و`resolveAcApPdfExportOptions`. ثبّت الـ peer الجديد `@mlightcad/cad-pdf-core` بجانب الإضافة (نفس إصدار `cad-simple-viewer`).
 
 **فروق واجهة / سلوك تؤثر على المستخدم:**
 
@@ -200,71 +285,71 @@ await exportFileToPdf('drawing.dwg', 'drawing.pdf', {
 
 ### حزم العارض الأساسية
 
-| الحزمة | الدور |
-| --- | --- |
+| الحزمة                         | الدور                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------ |
 | `@mlightcad/cad-simple-viewer` | النواة المستقلة عن إطار العمل (إدارة المستندات، مكدس الأوامر، لصق العرض) |
-| `@mlightcad/cad-editor` | غلاف واجهة المستخدم Vue 3 + Element Plus المبني فوق cad-simple-viewer |
+| `@mlightcad/cad-editor`        | غلاف واجهة المستخدم Vue 3 + Element Plus المبني فوق cad-simple-viewer    |
 
 ### الإضافات — **يجب أن تطابق إصدار cad-simple-viewer بدقة**
 
-| الحزمة | الغرض |
-| --- | --- |
-| `@mlightcad/cad-html-plugin` | تصدير HTML مكتفٍ ذاتيًا بنقرة واحدة |
-| `@mlightcad/cad-pdf-plugin` | تصدير PDF في المتصفح واستيراد PDF إلى CAD |
-| `@mlightcad/cad-svg-plugin` | تصدير SVG |
-| `@mlightcad/cad-simple-ui-plugin` | شريط أدوات DOM عادي، مدير طبقات، لوحة مثبتة |
-| `@mlightcad/cad-agent-plugin` | تفاعل مدعوم بوكيل ذكاء اصطناعي |
-| `@mlightcad/cad-onedrive-plugin` | تكامل OneDrive |
-| `@mlightcad/cad-google-drive-plugin` | تكامل Google Drive |
+| الحزمة                                      | الغرض                                               |
+| ------------------------------------------- | --------------------------------------------------- |
+| `@mlightcad/cad-html-plugin`                | تصدير HTML مكتفٍ ذاتيًا بنقرة واحدة                 |
+| `@mlightcad/cad-pdf-plugin`                 | تصدير PDF في المتصفح واستيراد PDF إلى CAD           |
+| `@mlightcad/cad-svg-plugin`                 | تصدير SVG                                           |
+| `@mlightcad/cad-simple-viewer` (`simpleUi`) | Built-in plain-DOM toolbar / dock tabs (`simpleUi`) |
+| `@mlightcad/cad-agent-plugin`               | تفاعل مدعوم بوكيل ذكاء اصطناعي                      |
+| `@mlightcad/cad-onedrive-plugin`            | تكامل OneDrive                                      |
+| `@mlightcad/cad-google-drive-plugin`        | تكامل Google Drive                                  |
 
 > **قاعدة عامة:** يجب تثبيت كل إضافة في القائمة أعلاه على **رقم الإصدار نفسه بالضبط** الذي تنتقل إليه في `cad-simple-viewer` (على سبيل المثال، `1.7.5`).
 
 ### نوى التصدير المشتركة والمصدّرون بلا واجهة (نفس إصدار النواة)
 
-| الحزمة | الغرض |
-| --- | --- |
-| `@mlightcad/cad-html-core` | مسار لقطة/حزم HTML مشترك (بلا عارض / DOM) |
-| `@mlightcad/cad-html-exporter` | تصدير HTML بلا واجهة في Node |
-| `@mlightcad/cad-pdf-core` | نموذج خيارات PDF المشترك ومسار database → PDF (بلا عارض / DOM) |
-| `@mlightcad/cad-pdf-exporter` | DXF/DWG → PDF بلا واجهة في Node (بدون متصفح) |
+| الحزمة                         | الغرض                                                          |
+| ------------------------------ | -------------------------------------------------------------- |
+| `@mlightcad/cad-html-core`     | مسار لقطة/حزم HTML مشترك (بلا عارض / DOM)                      |
+| `@mlightcad/cad-html-exporter` | تصدير HTML بلا واجهة في Node                                   |
+| `@mlightcad/cad-pdf-core`      | نموذج خيارات PDF المشترك ومسار database → PDF (بلا عارض / DOM) |
+| `@mlightcad/cad-pdf-exporter`  | DXF/DWG → PDF بلا واجهة في Node (بدون متصفح)                   |
 
 ### طبقة العارض الداخلية (الإصدار نفسه كالنواة، تُنشر منفصلة)
 
-| الحزمة | الغرض |
-| --- | --- |
-| `@mlightcad/three-renderer` | محرك عرض 2D/3D مبني على THREE.js |
-| `@mlightcad/pdf-renderer` | خلفية محتوى PDF التي يستخدمها `cad-pdf-core` |
+| الحزمة                      | الغرض                                        |
+| --------------------------- | -------------------------------------------- |
+| `@mlightcad/three-renderer` | محرك عرض 2D/3D مبني على THREE.js             |
+| `@mlightcad/pdf-renderer`   | خلفية محتوى PDF التي يستخدمها `cad-pdf-core` |
 
 تُستهلك هذه داخليًا بواسطة الإضافات وcad-simple-viewer. عادةً **لا** تثبّتها مباشرةً، لكن إصدارها يجب أن يكون متوافقًا مع الإضافات التي تثبّتها.
 
 ### طبقة البيانات والنصوص منخفضة المستوى — **يجب أن تطابق إصدارات الإصدار**
 
-| الحزمة | ملاحظات |
-| --- | --- |
-| `@mlightcad/data-model` | أنواع الكيانات وقاعدة البيانات الأساسية؛ كل إصدار يرفعها مع العارض |
-| `@mlightcad/libredwg-converter` | غلاف WebAssembly لتحليل DWG — دعم DWG يعتمد عليه |
-| `@mlightcad/mtext-parser` | محلّل محتوى MTEXT |
-| `@mlightcad/mtext-renderer` | عارض MTEXT → هندسة THREE |
-| `@mlightcad/mtext-input-box` | أداة تحرير MTEXT داخل اللوحة |
+| الحزمة                          | ملاحظات                                                            |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `@mlightcad/data-model`         | أنواع الكيانات وقاعدة البيانات الأساسية؛ كل إصدار يرفعها مع العارض |
+| `@mlightcad/libredwg-converter` | غلاف WebAssembly لتحليل DWG — دعم DWG يعتمد عليه                   |
+| `@mlightcad/mtext-parser`       | محلّل محتوى MTEXT                                                  |
+| `@mlightcad/mtext-renderer`     | عارض MTEXT → هندسة THREE                                           |
+| `@mlightcad/mtext-input-box`    | أداة تحرير MTEXT داخل اللوحة                                       |
 
 ### اعتماديات واجهة Vue الخاصة بـ cad-editor فقط
 
 تظهر هذه في تجاوزات `pnpm-workspace.yaml` لكنها مطلوبة فقط عند استخدام `@mlightcad/cad-editor` (واجهة Vue 3 الكاملة). لا تثبّتها تكاملات cad-simple-viewer مباشرةً.
 
-| الحزمة | الغرض |
-| --- | --- |
-| `@mlightcad/ribbon` | مكوّن واجهة الشريط |
+| الحزمة                     | الغرض               |
+| -------------------------- | ------------------- |
+| `@mlightcad/ribbon`        | مكوّن واجهة الشريط  |
 | `@mlightcad/ui-components` | عناصر Vue UI مشتركة |
 
 ### اعتماديات أقران خارجية (أبقِ الإصدارات كما هي مثبتة في الإصدار)
 
-| الحزمة |
-| --- |
-| `three` |
-| `vue` (لـ cad-editor فقط) |
+| الحزمة                             |
+| ---------------------------------- |
+| `three`                            |
+| `vue` (لـ cad-editor فقط)          |
 | `element-plus` (لـ cad-editor فقط) |
-| `vue-i18n` (لـ cad-editor فقط) |
-| `lodash-es` |
+| `vue-i18n` (لـ cad-editor فقط)     |
+| `lodash-es`                        |
 
 ---
 
@@ -417,7 +502,7 @@ await exportFileToPdf('drawing.dwg', 'drawing.pdf', {
 
 **س: هل تحميني الترقية الدلالية (semver)؟**
 
-ج: تعمل نطاقات Semver (`^`، `~`) بشكل جيد لرفع مستوى التصحيحات *داخل* سلسلة إصدار واحدة (على سبيل المثال، سيلتقط `^1.7.0` الإصدار `1.7.5` تلقائيًا)، لكن **إصدارات الإضافات/data-model/libredwg-converter المنسّقة** لا يمكن اكتشافها من semver وحده — بل يضبطها القائمون على الإصدار. لا تزال بحاجة إلى إحدى الطريقتين أعلاه لمعرفة الإصدارات التي تتوافق مع بعضها لأي رفع ثانوي معين.
+ج: تعمل نطاقات Semver (`^`، `~`) بشكل جيد لرفع مستوى التصحيحات _داخل_ سلسلة إصدار واحدة (على سبيل المثال، سيلتقط `^1.7.0` الإصدار `1.7.5` تلقائيًا)، لكن **إصدارات الإضافات/data-model/libredwg-converter المنسّقة** لا يمكن اكتشافها من semver وحده — بل يضبطها القائمون على الإصدار. لا تزال بحاجة إلى إحدى الطريقتين أعلاه لمعرفة الإصدارات التي تتوافق مع بعضها لأي رفع ثانوي معين.
 
 **س: أستخدم npm/yarn بدلًا من pnpm. هل ينطبق هذا أيضًا؟**
 

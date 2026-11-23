@@ -1,5 +1,68 @@
 # @mlightcad/cad-pdf-exporter
 
+## 1.8.0-preview.6
+
+### Minor Changes
+
+- feat: makes the Properties palette editable in Write mode, lets plugins register ribbon menus and palettes, and opens BDETECT with an options panel. Agent redraw adds evidence-tracked cad.redraw with pixel comparison plus a clearer busy and context meter. PDF import recognizes dimensions and exploded text via local PaddleOCR, honours image clips and hatch order, and HTML package zips include a drawing thumbnail. Also fixes elevated geometry clipping, block linework precision, and Model_Space placeholders while reading.
+
+### Patch Changes
+
+- 9a09628: Pin the default font CDN to `cad-data@main`, bump `@mlightcad/mtext-renderer` to 0.13.10 (catalog refresh + preferred-type glyph fallback), and give headless PDF/HTML export the same stale-`fonts.json` revalidation and GitHub raw fallback as the browser viewer.
+- Updated dependencies [206a3d2]
+- Updated dependencies [e4d1399]
+- Updated dependencies [9a09628]
+- Updated dependencies [43c3a93]
+- Updated dependencies
+  - @mlightcad/three-renderer@1.8.0-preview.6
+  - @mlightcad/cad-pdf-core@1.8.0-preview.6
+  - @mlightcad/pdf-renderer@1.8.0-preview.6
+
+## 1.8.0-preview.5
+
+### Minor Changes
+
+- fix: makes published type declarations resolve under moduleResolution nodenext by emitting explicit .js import specifiers, keeps middle-button panning working while the PAN command is active, and upgrades realdwg-web to 1.15.30 to pick up the latest data-model and DWG conversion fixes.
+
+### Patch Changes
+
+- Updated dependencies
+  - @mlightcad/cad-pdf-core@1.8.0-preview.5
+  - @mlightcad/pdf-renderer@1.8.0-preview.5
+  - @mlightcad/three-renderer@1.8.0-preview.5
+
+## 1.8.0-preview.4
+
+### Minor Changes
+
+- f599e38: Add an `exportEmptyLayouts` option (default `false`) to HTML and PDF export. Empty paper-space layouts that only contain AutoCAD's default `*Paper_Space` viewport are skipped unless the option is enabled; model space is always kept. Dialogs, `-chtml`/`-cpdf`, script `cad.file.saveHtml`/`savePdf`, and the CLI exporters expose the toggle.
+- feat: completes PDF import with pdftext OCR, pdfhatch and pdfdim recovery plus review palettes, and adds Smart Blocks Search and Detect. New SCALE, LEADER/MLEADER, UCS, named-view and clipboard commands land alongside a shared LLM settings plugin, an SVG Open converter, the AI ribbon tab, and the simple UI folded into cad-simple-viewer.
+
+### Patch Changes
+
+- 47c83c2: Fix Hangul PDF text and frozen-viewport layer plotting
+
+  Embed Hangul-capable TrueType faces without pdf-lib subsetting so Korean
+  glyphs stay visible in Acrobat, and keep plotting model content through
+  viewports whose border layer is Off/Frozen (AutoCAD frame-hide workflow).
+
+- Updated dependencies [2632f9e]
+- Updated dependencies [2018b40]
+- Updated dependencies [228004a]
+- Updated dependencies [f599e38]
+- Updated dependencies [8bfe54b]
+- Updated dependencies [cafbb8f]
+- Updated dependencies [1cf426f]
+- Updated dependencies [47c83c2]
+- Updated dependencies [d7787ad]
+- Updated dependencies [84f82ff]
+- Updated dependencies [05b2041]
+- Updated dependencies
+- Updated dependencies [b4306a7]
+  - @mlightcad/three-renderer@1.8.0-preview.4
+  - @mlightcad/cad-pdf-core@1.8.0-preview.4
+  - @mlightcad/pdf-renderer@1.8.0-preview.4
+
 ## 1.8.0-preview.3
 
 ### Patch Changes

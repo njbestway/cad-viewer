@@ -1,9 +1,9 @@
 /**
  * Text search over the entities of one layout (FIND).
  *
- * Shared by every UI (cad-simple-ui-plugin, the full Vue cad-viewer) so that
- * both behave identically. Pure TypeScript with no runtime imports, published
- * as the `@mlightcad/cad-simple-viewer/find` subpath.
+ * Shared by every UI (simple-ui chrome, the full Vue cad-editor) so that
+ * both behave identically. Pure TypeScript with no UI-framework imports;
+ * re-exported from the main `@mlightcad/cad-simple-viewer` entry.
  *
  * Searched fields:
  * - `TEXT` — `textString`
@@ -15,8 +15,11 @@
  *   legends and labels are usually drawn this way
  * - constant `ATTDEF` values inside block definitions (the only ATTDEFs that
  *   are drawn inside a block; templates get their value from an `ATTRIB`)
- * - `DIMENSION` — the text of its dimension block when that block has a
- *   match, otherwise the override text (`dimensionText`)
+ * - `DIMENSION` — the text of its dimension block (the displayed text,
+ *   measured value included) when that block has a match, otherwise the
+ *   override text (`dimensionText`). With
+ *   {@link AcApFindOptions.dimensionOverrideOnly} only the override text is
+ *   searched, like AutoCAD FIND.
  * - `MULTILEADER` — its MTEXT contents
  * - `ACAD_TABLE` — the cell text (from the table block when present,
  *   otherwise the cell strings)
@@ -52,6 +55,12 @@ export interface AcApFindOptions {
    * (default) case, accents (diacritics) and runs of whitespace are ignored.
    */
   matchCase?: boolean
+  /**
+   * When true a dimension only matches its override text (`dimensionText`),
+   * like AutoCAD FIND, so a measured value such as `422` is not found. When
+   * false (default) the displayed text of the dimension block is searched too.
+   */
+  dimensionOverrideOnly?: boolean
   /** Maximum hits to return; defaults to {@link ACAP_FIND_MAX_RESULTS}. */
   maxResults?: number
 }
@@ -98,24 +107,65 @@ export interface AcApFindResult {
 type EntityLike = any
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** Block table record shape used by Find (layout or block definition). */
+export interface AcApFindBlockTableRecordLike {
+  objectId?: string
+  newIterator(): Iterable<EntityLike>
+  /** Used to resolve the matched entity for zoom extents. */
+  getIdAt?(id: string): EntityLike
+}
+
 /** Minimal database shape used by the search. */
 export interface AcApFindDatabaseLike {
   tables: {
     blockTable: {
       /** Block definition by name; used to search text inside blocks. */
-      getAt?(name: string): { newIterator(): Iterable<EntityLike> } | undefined
-      getIdAt(id: string):
-        | {
-            newIterator(): Iterable<EntityLike>
-            /** Used to resolve the matched entity for zoom extents. */
-            getIdAt?(id: string): EntityLike
-          }
-        | undefined
+      getAt?(name: string): AcApFindBlockTableRecordLike | undefined
+      getIdAt(id: string): AcApFindBlockTableRecordLike | undefined
+      /**
+       * Fallback when {@link AcApFindDatabaseLike.tables.blockTable.getIdAt}
+       * rejects a record whose `ownerId` still points at a displaced block-table
+       * handle (common on real DWGs after handle reminting).
+       */
+      newIterator?(
+        iterateById?: boolean
+      ): Iterable<AcApFindBlockTableRecordLike>
+      /** Same fallback as {@link newIterator}, keyed by the model-space id. */
+      modelSpace?: AcApFindBlockTableRecordLike
     }
     layerTable?: {
       getAt(name: string): { isOff?: boolean; isFrozen?: boolean } | undefined
     }
   }
+}
+
+/**
+ * Resolves a block table record by object id for Find.
+ *
+ * Prefer `getIdAt`. Some drawings leave a BTR's `ownerId` pointing at a
+ * displaced block-table handle, so `getIdAt` returns undefined even though the
+ * record is still in the table (reachable via `modelSpace` / iteration). Without
+ * this fallback FIND misses every entity in model space on those drawings.
+ */
+export function acapResolveFindBlockTableRecord(
+  db: AcApFindDatabaseLike,
+  btrId: string
+): AcApFindBlockTableRecordLike | undefined {
+  const direct = db.tables.blockTable.getIdAt(btrId)
+  if (direct) return direct
+
+  const modelSpace = db.tables.blockTable.modelSpace
+  if (modelSpace?.objectId === btrId) return modelSpace
+
+  const iterate = db.tables.blockTable.newIterator
+  if (!iterate) return undefined
+  for (const record of iterate.call(db.tables.blockTable, true)) {
+    if (record.objectId === btrId) return record
+  }
+  for (const record of iterate.call(db.tables.blockTable)) {
+    if (record.objectId === btrId) return record
+  }
+  return undefined
 }
 
 const DIACRITICS = /[̀-ͯ]/g
@@ -327,12 +377,13 @@ export function acapFindTextInLayout(
   options: AcApFindOptions = {}
 ): AcApFindResult {
   const matchCase = options.matchCase === true
+  const dimensionOverrideOnly = options.dimensionOverrideOnly === true
   const max = options.maxResults ?? ACAP_FIND_MAX_RESULTS
   const needle = acapNormalizeFindText(query, matchCase)
   const result: AcApFindResult = { hits: [], truncated: false }
   if (!needle) return result
 
-  const btr = db.tables.blockTable.getIdAt(layoutBtrId)
+  const btr = acapResolveFindBlockTableRecord(db, layoutBtrId)
   if (!btr) return result
 
   const layers = new Map<string, boolean>()
@@ -476,11 +527,18 @@ export function acapFindTextInLayout(
       const table = entity.blockTableRecord
       if (table?.newIterator)
         return table as { newIterator(): Iterable<EntityLike> }
-      const id = entity.dimBlockId
-      const byId = id ? db.tables.blockTable.getIdAt(id) : undefined
-      if (byId) return byId
-      const name = entity.blockName
-      return name ? db.tables.blockTable.getAt?.(name) : undefined
+      // `dimBlockId` holds the block *name* (data-model draws the dimension
+      // with `blockTable.getAt(dimBlockId)`); an annotative dimension draws
+      // the block of its current annotation scale instead.
+      const ref: string | undefined =
+        entity.resolveAnnotativePresentation?.()?.dimBlockId ??
+        entity.dimBlockId ??
+        entity.blockName
+      if (!ref) return undefined
+      return (
+        db.tables.blockTable.getAt?.(ref) ??
+        acapResolveFindBlockTableRecord(db, ref)
+      )
     } catch {
       return undefined
     }
@@ -537,7 +595,10 @@ export function acapFindTextInLayout(
     if (type === 'DIMENSION' || type === 'ACAD_TABLE') {
       const kind = type === 'DIMENSION' ? 'dimension' : 'table'
       const owner: Owner = { entity, kind, layer: entity.layer }
-      const block = ownBlock(entity)
+      const block =
+        type === 'DIMENSION' && dimensionOverrideOnly
+          ? undefined
+          : ownBlock(entity)
       const before = result.hits.length
       if (block) {
         // Dimension / table blocks are already in WCS.

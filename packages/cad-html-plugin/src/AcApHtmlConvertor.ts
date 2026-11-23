@@ -1,6 +1,7 @@
 import type { AcExHtmlSnapshot } from '@mlightcad/cad-html-core'
 import {
   acexHtmlApplyBackground,
+  acexHtmlIsEmptyPaperSpaceLayout,
   acexHtmlProtectEncodedSnapshot,
   acexHtmlResolveExpiresAt
 } from '@mlightcad/cad-html-core'
@@ -10,6 +11,7 @@ import {
 } from '@mlightcad/cad-html-core'
 import { acexHtmlPackHtml } from '@mlightcad/cad-html-core'
 import { acexHtmlBuildPackageAsync } from '@mlightcad/cad-html-core'
+import { acexHtmlAppendPackagePreview } from '@mlightcad/cad-html-core'
 import { acexHtmlZipPackageFiles } from '@mlightcad/cad-html-core'
 import { acexHtmlEncodeSnapshot } from '@mlightcad/cad-html-core'
 import {
@@ -19,22 +21,45 @@ import {
   getDrawingExportBaseName,
   resolveExportDownloadName
 } from '@mlightcad/cad-simple-viewer'
-import { accmYieldForPaint } from '@mlightcad/data-model'
+import { accmYieldForPaint, type AcDbDatabase } from '@mlightcad/data-model'
 
 import {
   type AcApHtmlExportOptions,
   captureAcApHtmlViewState,
   resolveAcApHtmlExportOptions,
   resolveAcApHtmlPackageBuildOptions
-} from './AcApHtmlExportOptions'
+} from './AcApHtmlExportOptions.js'
 import {
   type AcApHtmlPluginOptions,
   resolveViewerRuntimeUrl
-} from './AcApHtmlPluginOptions'
-import { AcApHtmlSnapshotBuilder } from './AcApHtmlSnapshotBuilder'
+} from './AcApHtmlPluginOptions.js'
+import { acapHtmlThumbnailToJpeg } from './AcApHtmlPreviewImage.js'
+import { AcApHtmlSnapshotBuilder } from './AcApHtmlSnapshotBuilder.js'
 
 function logExportTiming(label: string, ms: number) {
   console.log(`[chtml] ${label}: ${ms.toFixed(0)} ms`)
+}
+
+/**
+ * Shows or hides cross-layer fragments of INSERTs on currently frozen layers.
+ *
+ * Snapshot collection must see those fragments (freeze → false) so reparenting
+ * can move them onto the INSERT layer. After export, freeze → true restores
+ * AutoCAD freeze appearance in the live editor.
+ */
+function setFrozenInsertLayerHides(view: AcTrView2d, frozen: boolean) {
+  const scene = view.cadScene
+  for (const layer of scene.layers.values()) {
+    if (!layer.isFrozen) {
+      continue
+    }
+    for (const layout of scene.layouts.values()) {
+      layout.applyInsertLayerFreeze(layer.name, frozen)
+    }
+  }
+  // Freeze-hide updates GPU slot flags; without dirtying, the last painted
+  // frame stays on screen until pan/zoom.
+  view.isDirty = true
 }
 
 /** Bytes produced by {@link AcApHtmlConvertor.exportToResult} (no download). */
@@ -45,6 +70,38 @@ export interface AcApHtmlExportResult {
   bytes: Uint8Array
   /** IANA media type (`text/html;charset=utf-8` or `application/zip`). */
   mediaType: string
+}
+
+/**
+ * Whether the live camera should be written into the snapshot for
+ * `initialView: 'current'`. Empty paper tabs remapped to model space must
+ * not keep paper-space pan/zoom.
+ */
+function shouldCaptureAcApHtmlViewState(
+  resolved: ReturnType<typeof resolveAcApHtmlExportOptions>,
+  exportView: AcTrView2d,
+  database: AcDbDatabase
+): boolean {
+  if (resolved.initialView !== 'current') {
+    return false
+  }
+  const activeIsModel =
+    exportView.activeLayoutBtrId === exportView.modelSpaceBtrId
+  if (!resolved.exportLayouts && !activeIsModel) {
+    return false
+  }
+  if (
+    !resolved.exportEmptyLayouts &&
+    !activeIsModel &&
+    acexHtmlIsEmptyPaperSpaceLayout(
+      database,
+      exportView.activeLayoutBtrId,
+      exportView.modelSpaceBtrId
+    )
+  ) {
+    return false
+  }
+  return true
 }
 
 /**
@@ -172,25 +229,38 @@ export class AcApHtmlConvertor {
     const sourceName = fileName || document.fileName || document.docTitle
     const baseName = getDrawingExportBaseName(sourceName)
     t0 = performance.now()
-    const snapshot = await this._snapshotBuilder.buildAsync(
-      exportView.cadScene,
-      document.database,
-      {
-        title: baseName,
-        background: exportView.backgroundColor,
-        exportInvisibleLayers: resolved.exportInvisibleLayers,
-        exportLayouts: resolved.exportLayouts,
-        initialView: resolved.initialView,
-        viewerMode: resolved.viewerMode,
-        viewState:
-          resolved.initialView === 'current' &&
-          (resolved.exportLayouts ||
-            exportView.activeLayoutBtrId === exportView.modelSpaceBtrId)
+    // Live freeze hides cross-layer INSERT slots before collection. Reveal
+    // them for the snapshot, then restore freeze appearance afterward.
+    setFrozenInsertLayerHides(exportView, false)
+    let snapshot: AcExHtmlSnapshot
+    try {
+      snapshot = await this._snapshotBuilder.buildAsync(
+        exportView.cadScene,
+        document.database,
+        {
+          title: baseName,
+          background: exportView.backgroundColor,
+          exportInvisibleLayers: resolved.exportInvisibleLayers,
+          exportLayouts: resolved.exportLayouts,
+          exportEmptyLayouts: resolved.exportEmptyLayouts,
+          initialView: resolved.initialView,
+          viewerMode: resolved.viewerMode,
+          // Skip camera capture when the active empty paper tab will be
+          // remapped to model space — otherwise `initialView: 'current'`
+          // would open model with paper-space pan/zoom.
+          viewState: shouldCaptureAcApHtmlViewState(
+            resolved,
+            exportView,
+            document.database
+          )
             ? captureAcApHtmlViewState(exportView)
             : undefined,
-        canvasAspectRatio: exportView.width / Math.max(exportView.height, 1)
-      }
-    )
+          canvasAspectRatio: exportView.width / Math.max(exportView.height, 1)
+        }
+      )
+    } finally {
+      setFrozenInsertLayerHides(exportView, true)
+    }
     // Live geometry is baked for the active layout canvas (white in paper
     // space). Remap near-black / near-white ink onto the chosen canvas.
     // `'space'` remaps each layout on its own: model black, paper white.
@@ -224,7 +294,16 @@ export class AcApHtmlConvertor {
         performance.now() - t0
       )
       t0 = performance.now()
-      const zipBytes = acexHtmlZipPackageFiles(pkg)
+      const previewJpeg = await acapHtmlThumbnailToJpeg(
+        document.database.thumbnailImage
+      )
+      const files = acexHtmlAppendPackagePreview(pkg.files, previewJpeg)
+      logExportTiming(
+        previewJpeg ? 'preview.jpg' : 'preview.jpg (no drawing thumbnail)',
+        performance.now() - t0
+      )
+      t0 = performance.now()
+      const zipBytes = acexHtmlZipPackageFiles({ ...pkg, files })
       logExportTiming('zip package', performance.now() - t0)
       await accmYieldForPaint()
       return {

@@ -96,6 +96,29 @@ export default {
       description: 'Seçili varlıkları klonlayarak yeni konumlara kopyalar',
       prompt: 'Varlıkları seçin'
     },
+    copybase: {
+      description:
+        'Seçili nesneleri belirtilen bir taban noktasıyla panoya kopyalar',
+      prompt: 'Varlıkları seçin'
+    },
+    copyclip: {
+      description: 'Seçili nesneleri panoya kopyalar',
+      prompt: 'Varlıkları seçin'
+    },
+    cutclip: {
+      description: 'Seçili nesneleri panoya kopyalar ve çizimden kaldırır',
+      prompt: 'Varlıkları seçin'
+    },
+    pasteblock: {
+      description: 'Panodaki nesneleri blok olarak yapıştırır'
+    },
+    pasteclip: {
+      description: 'Panodaki nesneleri geçerli çizime yapıştırır'
+    },
+    pasteorig: {
+      description:
+        'Panodaki nesneleri özgün çizimin koordinatlarını kullanarak yapıştırır'
+    },
     csvg: {
       description: 'Geçerli çizimi SVG\'ye dönüştürür'
     },
@@ -140,6 +163,12 @@ export default {
     dwgname: {
       description: 'Geçerli çizim dosyasının adını saklar (salt okunur)'
     },
+    find: {
+      description: 'Metin arama yerleştirme panelini açar'
+    },
+    layer: {
+      description: 'Katman yöneticisi yerleştirme panelini açar veya kapatır'
+    },
     loginname: {
       description: 'Kullanıcının oturum açma adını görüntüler (salt okunur)'
     },
@@ -157,6 +186,10 @@ export default {
     erase: {
       description: 'Seçili varlıkları çizimden siler',
       prompt: 'Varlıkları seçin'
+    },
+    explode: {
+      description: 'Bileşik bir nesneyi bileşen nesnelerine ayırır',
+      prompt: 'Patlatılacak nesneleri seçin'
     },
     group: {
       description:
@@ -232,9 +265,10 @@ export default {
         'Patlatılmış PDF ölçülerini ölçü nesnelerine geri dönüştürür',
       prompt: 'Ölçüleri içeren alanı seçin'
     },
-    pdfblock: {
-      description: 'PDF içindeki tekrarlanan geometriyi bloğa geri dönüştürür',
-      prompt: 'Bir blok örneğinin nesnelerini seçin'
+    pdfhatch: {
+      description:
+        'PDF taramasının dağınık çizgilerini tarama nesnesine geri dönüştürür',
+      prompt: 'Taralı alanı çevresindeki çizgilerle birlikte seçin'
     },
     pdftext: {
       description:
@@ -246,8 +280,13 @@ export default {
         'İçe aktarılan PDF geometrisini bilinen bir mesafeye göre kalibre eder',
       prompt: 'Ölçeklenecek nesneleri seçin'
     },
-    ipdf: {
-      description: 'Bir PDF dosyasından vektör geometrisini içe aktarır'
+    pdfimport: {
+      description:
+        'PDF İçe Aktar iletişim kutusuyla bir PDF dosyasından vektör geometrisini içe aktarır'
+    },
+    '-pdfimport': {
+      description:
+        'Komut satırı seçenekleriyle bir PDF dosyasından vektör geometrisini içe aktarır'
     },
     hpang: {
       description:
@@ -442,6 +481,11 @@ export default {
     mtext: {
       description: 'Bir çoklu metin varlığı oluşturur'
     },
+    txt2mtxt: {
+      description:
+        'Seçili metin ve çoklu metin nesnelerini tek bir çoklu metin nesnesinde birleştirir',
+      prompt: 'Metin veya çoklu metin nesnelerini seçin'
+    },
     open: {
       description: 'Mevcut bir çizim dosyasını açar'
     },
@@ -564,6 +608,11 @@ export default {
     },
     rotate: {
       description: 'Seçili varlıkları bir taban noktası etrafında döndürür',
+      prompt: 'Varlıkları seçin'
+    },
+    scale: {
+      description:
+        'Seçili varlıkları, ölçeklemeden sonra oranlarını koruyarak büyütür veya küçültür',
       prompt: 'Varlıkları seçin'
     },
     select: {

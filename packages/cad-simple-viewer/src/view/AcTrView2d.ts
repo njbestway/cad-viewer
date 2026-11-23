@@ -53,11 +53,21 @@ import * as THREE from 'three'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 
-import { AcApDocManager, AcApSettingManager } from '../app'
-import { AcApOpenViewMode } from '../app/AcApOpenDatabaseOptions'
-import { AcApZoomCmd } from '../command/AcApZoomCmd'
-import { isMarkupHtmlTextEditing } from '../command/markup/AcApMarkupTextEdit'
-import { notifyMeasurementLayoutChanged } from '../command/measure/AcApMeasurementStore'
+import { AcApOpenViewMode } from '../app/AcApOpenDatabaseOptions.js'
+import { AcApDocManager, AcApSettingManager } from '../app/index.js'
+import { AcApZoomCmd } from '../command/AcApZoomCmd.js'
+import { isMarkupHtmlTextEditing } from '../command/markup/AcApMarkupTextEdit.js'
+import { notifyMeasurementLayoutChanged } from '../command/measure/AcApMeasurementStore.js'
+import {
+  ACGI_MODEL_SPACE_BACKGROUND,
+  isModelSpaceDatabase,
+  readLayoutBackgroundColor
+} from '../editor/global/AcEdUiColor.js'
+import { ML_UI_Z_CANVAS_HTML_OVERLAY } from '../editor/global/AcEdUiLayout.js'
+import {
+  type AcEdGripViewportCandidate,
+  acedPickViewportForModelExtents
+} from '../editor/grip/AcEdGripViewport.js'
 import {
   acedAttachMobileBoxGesture,
   AcEdBaseView,
@@ -82,53 +92,48 @@ import {
   AcEdViewportCoordinateMapper,
   eventBus,
   resolvePointerSelectionAction
-} from '../editor'
+} from '../editor/index.js'
 import {
-  ACGI_MODEL_SPACE_BACKGROUND,
-  isModelSpaceDatabase,
-  readLayoutBackgroundColor
-} from '../editor/global/AcEdUiColor'
-import { ML_UI_Z_CANVAS_HTML_OVERLAY } from '../editor/global/AcEdUiLayout'
-import {
+  acedBlockReferenceIntersectsSelectionBox,
   acedEntityIntersectsSelectionBox,
   acedNeedsCrossingGeometryRefine
-} from '../editor/view/AcEdSelectionBoxIntersect'
-import { isEffectiveSpatialQueryHit } from '../editor/view/AcEdSpatialQueryResult'
-import { AcApUcsService } from '../service/AcApUcsService'
-import type { AcTrLazySpatialChildren } from '../spatialIndex'
-import type { AcTrSpatialSearchOptions } from '../spatialIndex/AcTrSpatialIndex'
-import { AcTrGeometryUtil } from '../util'
-import { acapRunDatabaseEdit } from '../util/AcApDatabaseEdit'
+} from '../editor/view/AcEdSelectionBoxIntersect.js'
+import { isEffectiveSpatialQueryHit } from '../editor/view/AcEdSpatialQueryResult.js'
+import { AcApUcsService } from '../service/AcApUcsService.js'
+import type { AcTrSpatialSearchOptions } from '../spatialIndex/AcTrSpatialIndex.js'
+import type { AcTrLazySpatialChildren } from '../spatialIndex/index.js'
+import { acapRunDatabaseEdit } from '../util/AcApDatabaseEdit.js'
 import {
   acapResolveContentFrameBox,
   acapResolveLayoutFrameBox
-} from '../util/AcApLayoutViewFraming'
+} from '../util/AcApLayoutViewFraming.js'
 import {
   collectTextStyleFontNames,
   planTextStyleFontPreload
-} from '../util/AcApTextStyleFontPreload'
-import type { AcApCompareDisplayOptions } from './AcApCompareDisplay'
+} from '../util/AcApTextStyleFontPreload.js'
+import { AcTrGeometryUtil } from '../util/index.js'
+import type { AcApCompareDisplayOptions } from './AcApCompareDisplay.js'
 import {
   ACAP_READING_MODE_BACKGROUND,
   AcApReadingModeState
-} from './AcApReadingMode'
-import { AcApUcsIconOverlay } from './AcApUcsIconOverlay'
+} from './AcApReadingMode.js'
+import { AcApUcsIconOverlay } from './AcApUcsIconOverlay.js'
 import {
   trySelectReviewOverlay,
   trySelectReviewOverlaysByBox
-} from './AcEdReviewOverlayPick'
-import { AcEdViewKeyHandler } from './AcEdViewKeyHandler'
+} from './AcEdReviewOverlayPick.js'
+import { AcEdViewKeyHandler } from './AcEdViewKeyHandler.js'
 import {
   absorbConvertQueue,
   adaptConvertSliceSize,
   createConvertPending,
   hasPendingActiveOwner
-} from './AcTrConvertQueue'
+} from './AcTrConvertQueue.js'
 import {
   shouldExtendBboxForDirectEntity,
   tryBuildDirectEntityMeta
-} from './AcTrDirectBatch'
-import { AcTrEntityDisplayController } from './AcTrEntityDisplayController'
+} from './AcTrDirectBatch.js'
+import { AcTrEntityDisplayController } from './AcTrEntityDisplayController.js'
 import {
   ACTR_CONVERT_SCHEDULER_DEFAULT,
   AcTrConvertScheduler
@@ -144,22 +149,22 @@ import {
 import {
   assertAcTrGroupWcsBboxesConsistent,
   unionGroupWcsChildBoxes
-} from './AcTrGroupWcsBboxAssert'
-import { AcTrInheritedLayerMaterialMapper } from './AcTrInheritedLayerMaterialMapper'
-import { computeIntelligentExtentsAsync } from './AcTrIntelligentExtents'
-import { AcTrLayer } from './AcTrLayer'
-import { AcTrLayerAppearanceController } from './AcTrLayerAppearanceController'
-import { AcTrLayout } from './AcTrLayout'
-import { AcTrLayoutView } from './AcTrLayoutView'
-import { AcTrLayoutViewManager } from './AcTrLayoutViewManager'
-import { sortPickResults } from './AcTrPickResultUtil'
-import { AcTrProgressiveOpenFitController } from './AcTrProgressiveOpenFitController'
-import { AcTrScene } from './AcTrScene'
-import type { AcTrSceneReadiness } from './AcTrSceneWorkTracker'
-import { AcTrSceneWorkTracker } from './AcTrSceneWorkTracker'
-import type { AcTrViewSessionState } from './AcTrViewSessionState'
-import { AcTrWorkSlice } from './AcTrWorkSlice'
-import { shouldRegenDatabaseAfterFontLoad } from './fontLoadRegen'
+} from './AcTrGroupWcsBboxAssert.js'
+import { AcTrInheritedLayerMaterialMapper } from './AcTrInheritedLayerMaterialMapper.js'
+import { computeIntelligentExtentsAsync } from './AcTrIntelligentExtents.js'
+import { AcTrLayer } from './AcTrLayer.js'
+import { AcTrLayerAppearanceController } from './AcTrLayerAppearanceController.js'
+import { AcTrLayout } from './AcTrLayout.js'
+import { AcTrLayoutView } from './AcTrLayoutView.js'
+import { AcTrLayoutViewManager } from './AcTrLayoutViewManager.js'
+import { sortPickResults } from './AcTrPickResultUtil.js'
+import { AcTrProgressiveOpenFitController } from './AcTrProgressiveOpenFitController.js'
+import { AcTrScene } from './AcTrScene.js'
+import type { AcTrSceneReadiness } from './AcTrSceneWorkTracker.js'
+import { AcTrSceneWorkTracker } from './AcTrSceneWorkTracker.js'
+import type { AcTrViewSessionState } from './AcTrViewSessionState.js'
+import { AcTrWorkSlice } from './AcTrWorkSlice.js'
+import { shouldRegenDatabaseAfterFontLoad } from './fontLoadRegen.js'
 
 /**
  * Scheduling knobs a phase 2.9 A/B run may toggle per session.
@@ -392,6 +397,20 @@ export class AcTrView2d extends AcEdBaseView {
    * **first visit** to every other layout the user has not framed yet.
    */
   private _openViewMode: AcApOpenViewMode = AcApOpenViewMode.Extents
+  /**
+   * Layout cameras captured by {@link clearForRegen}. Each entry is applied
+   * (and dropped) when the regen recreates that layout's view.
+   */
+  private _regenCameras = new Map<
+    AcDbObjectId,
+    { center: AcGePoint2dLike; zoom: number }
+  >()
+  /**
+   * True once this document's scene has fat-line geometry for LWDISPLAY.
+   * Opening with LWDISPLAY off keeps cheap `GL_LINES`; the first enable may
+   * need one upgrade regen, after which toggles only flip `linewidth`.
+   */
+  private _lineWeightGeometryReady = false
   /** Progressive camera framing while entities batch-convert at document open. */
   private readonly _progressiveOpenFit: AcTrProgressiveOpenFitController
   /** Entity display policy for layer-aware conversion skipping. */
@@ -2140,6 +2159,38 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * Applies AutoCAD LWDISPLAY.
+   *
+   * - Off: keep fat geometry (if any) and force hairline `linewidth`.
+   * - On, geometry already fat: restore authored `linewidth`.
+   * - On, scene still on cheap `GL_LINES`: returns `true` so the caller can
+   *   run one camera-preserving upgrade regen.
+   *
+   * @param show - Whether entity lineweights should be displayed
+   * @returns `true` when the caller must rebuild line geometry for display-on
+   */
+  setShowLineWeight(show: boolean): boolean {
+    this._renderer.showLineWeight = show
+    this._scene.applyShowLineWeight(show)
+    this._isDirty = true
+    if (!show) {
+      return false
+    }
+    if (this._lineWeightGeometryReady) {
+      return false
+    }
+    return true
+  }
+
+  /**
+   * Records that the active scene now has fat-line geometry for LWDISPLAY.
+   * Call after open-with-display-on or after an upgrade regen.
+   */
+  markLineWeightGeometryReady() {
+    this._lineWeightGeometryReady = true
+  }
+
+  /**
    * Applies canvas background colour from layout background sysvars or explicit
    * API calls. Also refreshes ACI-7 foreground inversion via the style
    * manager. Does not touch `COLORTHEME` / UI chrome.
@@ -2382,6 +2433,9 @@ export class AcTrView2d extends AcEdBaseView {
     this.htmlTransientManager.setActiveLayoutId(value)
     this._isDirty = true
     if (previous !== value) {
+      // Viewport drill-through hints are layout-local; drop them on switch so
+      // grips do not reuse a paper viewport id from the previous sheet.
+      this.clearModelEntityViewportHints()
       notifyMeasurementLayoutChanged()
     }
   }
@@ -3138,6 +3192,60 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
+   * @inheritdoc
+   *
+   * Resolves a user viewport that shows the model-space entity so grips can
+   * be positioned in paper WCS (and drag deltas mapped back to model WCS).
+   */
+  override findViewportMapperForModelEntity(
+    entityId: AcDbObjectId
+  ):
+    | { viewportId: AcDbObjectId; mapper: AcEdViewportCoordinateMapper }
+    | undefined {
+    const activeLayoutView = this.activeLayoutView
+    if (!activeLayoutView) return undefined
+    if (activeLayoutView.layoutBtrId === this._scene.modelSpaceBtrId) {
+      return undefined
+    }
+
+    const database = AcApDocManager.tryGetInstance()?.curDocument?.database
+    const entity = database?.tables.blockTable.getEntityById(entityId)
+    if (!entity || entity.ownerId !== this._scene.modelSpaceBtrId) {
+      return undefined
+    }
+
+    const candidates: AcEdGripViewportCandidate[] = []
+    for (const vpView of activeLayoutView.viewportViews) {
+      const viewBox = vpView.viewport.viewBox
+      candidates.push({
+        viewportId: vpView.viewport.id,
+        viewBox: {
+          min: { x: viewBox.min.x, y: viewBox.min.y },
+          max: { x: viewBox.max.x, y: viewBox.max.y }
+        }
+      })
+    }
+    if (candidates.length === 0) return undefined
+
+    const extents = entity.geometricExtents
+    const viewportId = acedPickViewportForModelExtents(
+      extents
+        ? {
+            min: { x: extents.min.x, y: extents.min.y },
+            max: { x: extents.max.x, y: extents.max.y }
+          }
+        : undefined,
+      candidates,
+      this.getModelEntityViewportHint(entityId)
+    )
+    if (viewportId == null) return undefined
+
+    const mapper = this.getViewportCoordinateMapper(viewportId)
+    if (!mapper) return undefined
+    return { viewportId, mapper }
+  }
+
+  /**
    * Resolves hits against the model-space layout for each viewport the
    * click drills through. Appends the matches into `results` (caller
    * sorts/dedups). Kept private and separate from `pick` so the main
@@ -3203,7 +3311,12 @@ export class AcTrView2d extends AcEdBaseView {
   select(point?: AcGePoint2dLike) {
     const idsAdded: Array<AcDbObjectId> = []
     const results = this.pick(point)
-    results.forEach(item => idsAdded.push(item.id))
+    results.forEach(item => {
+      idsAdded.push(item.id)
+      // Remember which viewport the click drilled through so grips map
+      // through the same viewport when several overlap the entity.
+      this.rememberModelEntityViewportHint(item.id, item.viewportId)
+    })
     const selectable = this.selectableIds(idsAdded, 'add')
     if (selectable.length > 0) this.selectionSet.add(selectable)
   }
@@ -3238,6 +3351,7 @@ export class AcTrView2d extends AcEdBaseView {
     const viewports: AcEdViewportBoxProjection[] = []
     for (const vpView of activeLayoutView.viewportViews) {
       viewports.push({
+        viewportId: vpView.viewport.id,
         paperBox: vpView.viewport.box,
         frozenLayers: vpView.viewport.frozenLayers,
         paperPointToModel: point => vpView.paperPointToModel(point),
@@ -3253,7 +3367,13 @@ export class AcTrView2d extends AcEdBaseView {
       viewports,
       searchModel: (modelBox, selectionMode) =>
         modelLayout.search(modelBox, { selectionMode }),
-      entityOf: id => database?.tables.blockTable.getEntityById(id) ?? undefined
+      entityOf: id =>
+        database?.tables.blockTable.getEntityById(id) ?? undefined,
+      // Mirror click-pick hints so grips map through the same viewport when
+      // several overlap the entity after a window/crossing select.
+      onHit: (entityId, viewport) => {
+        this.rememberModelEntityViewportHint(entityId, viewport.viewportId)
+      }
     })
   }
 
@@ -3276,7 +3396,17 @@ export class AcTrView2d extends AcEdBaseView {
     const ids: AcDbObjectId[] = []
     for (const item of results) {
       if (!acedNeedsCrossingGeometryRefine(item)) {
-        ids.push(item.id)
+        // INSERT: the child index only filtered sub-entities by AABB. Like
+        // AutoCAD, require the box to touch a sub-entity's real geometry so
+        // a crossing box in the empty interior of a frame block misses it.
+        const blockRef = database.tables.blockTable.getEntityById(item.id)
+        if (
+          !(blockRef instanceof AcDbBlockReference) ||
+          !item.children ||
+          acedBlockReferenceIntersectsSelectionBox(blockRef, item.children, box)
+        ) {
+          ids.push(item.id)
+        }
         continue
       }
 
@@ -3341,16 +3471,18 @@ export class AcTrView2d extends AcEdBaseView {
   }
 
   /**
-   * Add the specified transient entity or entities into this view
+   * Add the specified transient entity or entities into this view.
+   *
+   * Transients are jig previews of drawing entities (PASTECLIP, MOVE, grip
+   * edits, ...), so they follow the drawing's lineweight display (LWDISPLAY)
+   * like the entities they preview. Markups and measurements draw through
+   * {@link htmlTransientManager} instead.
+   *
    * @param entity Input one or multiple transient entities
    */
   addTransientEntity(entity: AcDbEntity | AcDbEntity[]) {
     const entities = Array.isArray(entity) ? entity : [entity]
     const epoch = this._convertEpoch
-    // Overlay transients (markup / measurement / jigs) must honor entity
-    // lineweight even when LWDISPLAY is off; otherwise ribbon style is a no-op.
-    const previousForce = this._renderer.forceShowLineWeight
-    this._renderer.forceShowLineWeight = true
     // Force merge-mode glyphs on the transient tree (see AcTrMText). Keep the
     // context flag raised for the whole sync convert so nested MTEXT never
     // enqueue world InstancedMesh placements that flush after the command.
@@ -3412,7 +3544,6 @@ export class AcTrView2d extends AcEdBaseView {
         }
       }
     } finally {
-      this._renderer.forceShowLineWeight = previousForce
       releaseSkipMeshGlyph()
     }
   }
@@ -3579,7 +3710,7 @@ export class AcTrView2d extends AcEdBaseView {
     // many converts in parallel and OOM'd dense drawings (e.g. cathedral.dwg)
     // during "Rendering drawing ...". Progressive mid-open paints stay gated
     // by `_progressiveRendering` inside batchConvert / markProgressiveDirty.
-    this._convertQueue.push(...entities)
+    this.enqueueConvert(entities)
     void this.drainConvertQueue()
     if (reappliedSelection.length > 0) {
       const restoreHighlight = () => {
@@ -4121,9 +4252,45 @@ export class AcTrView2d extends AcEdBaseView {
    * @inheritdoc
    */
   addLayout(layout: AcDbLayout) {
-    this._scene.addEmptyLayout(layout.blockTableRecordId)
-    this.createLayoutViewIfNeeded(layout.blockTableRecordId)
+    const btrId = layout.blockTableRecordId
+    // Converters can emit a layout before its BTR link is healed (empty
+    // blockTableRecordId). Skip until a real id exists — otherwise the scene
+    // grows a junk layout under `''` and paper tabs stay missing.
+    if (!btrId) return
+    this._scene.addEmptyLayout(btrId)
+    this.createLayoutViewIfNeeded(btrId)
     this._isDirty = true
+  }
+
+  /**
+   * Ensures entities for `layoutBtrId` are queued for convert / already loaded.
+   *
+   * Open-into-paper (`$TILEMODE = 0`) activates the sheet via
+   * {@link AcApDocManager.setActiveLayout} without a `layoutSwitched` event, so
+   * the first-visit loader must be invoked explicitly or the canvas stays blank.
+   *
+   * @param layoutBtrId - Layout block table record id.
+   * @param options.forceIfEmpty - When true, clear a stale `isLoaded` flag if
+   *   the scene layout still has no entities so the BTR is scanned again.
+   */
+  ensureLayoutEntitiesLoaded(
+    layoutBtrId: AcDbObjectId,
+    options?: { forceIfEmpty?: boolean }
+  ) {
+    if (!layoutBtrId) return
+    this.ensureLayoutView(layoutBtrId)
+    if (options?.forceIfEmpty) {
+      const layout = this._scene.layouts.get(layoutBtrId)
+      if (
+        layout &&
+        layout.isLoaded &&
+        layout.entityCount === 0 &&
+        !this._loadingLayouts.has(layoutBtrId)
+      ) {
+        layout.isLoaded = false
+      }
+    }
+    this.loadLayoutEntitiesIfNeeded(layoutBtrId)
   }
 
   /**
@@ -4359,6 +4526,39 @@ export class AcTrView2d extends AcEdBaseView {
    * @inheritdoc
    */
   clear() {
+    this._regenCameras.clear()
+    this._lineWeightGeometryReady = false
+    this.resetScene()
+  }
+
+  /**
+   * Clears converted content before `database.regen()` while keeping what
+   * the user is looking at.
+   *
+   * Unlike {@link clear}, which is meant for document open / close, every
+   * layout keeps its camera (re-applied when the regen recreates its view)
+   * and already-framed layouts are not auto-zoomed again on their next visit.
+   */
+  clearForRegen() {
+    this._layoutViewManager.forEach(layoutView => {
+      const camera = layoutView.internalCamera
+      this._regenCameras.set(layoutView.layoutBtrId, {
+        center: { x: camera.position.x, y: camera.position.y },
+        zoom: camera.zoom
+      })
+    })
+    const initializedLayouts = new Set(this._initializedLayouts)
+    const openViewMode = this._openViewMode
+    this.resetScene()
+    this._initializedLayouts = initializedLayouts
+    this._openViewMode = openViewMode
+  }
+
+  /**
+   * Tears down scene content and layout views shared by {@link clear} and
+   * {@link clearForRegen}.
+   */
+  private resetScene() {
     this.abortConversion()
     // Scene.clear keeps active/model BTR ids (regen reuses them). Capture
     // before layouts are dropped so we can rebind cameras afterward.
@@ -4410,6 +4610,7 @@ export class AcTrView2d extends AcEdBaseView {
       missedImages: this._missedImages,
       missedFonts: this._renderer.snapshotMissedFonts(),
       selectionIds: this.selectionSet.ids,
+      lineWeightGeometryReady: this._lineWeightGeometryReady,
       // Detach so the next document cannot pick/highlight this one's glyphs.
       meshGlyphBatch: AcTrMTextRenderer.getInstance().detachMeshGlyphBatch()
     }
@@ -4435,6 +4636,7 @@ export class AcTrView2d extends AcEdBaseView {
     this.resetDeferredGeometryQueue()
     this._entityProcessingIdleAt = 0
     this.resetSceneLifecycle()
+    this._regenCameras.clear()
     this._scene = state.scene
     this._layoutViewManager = state.layoutViewManager
     this._initializedLayouts = state.initializedLayouts
@@ -4442,6 +4644,7 @@ export class AcTrView2d extends AcEdBaseView {
     this._openViewMode = state.openViewMode ?? AcApOpenViewMode.Extents
     this._loadingLayouts = state.loadingLayouts
     this._missedImages = state.missedImages
+    this._lineWeightGeometryReady = state.lineWeightGeometryReady ?? false
     this._renderer.replaceMissedFonts(state.missedFonts ?? {})
     AcTrMTextRenderer.getInstance().attachMeshGlyphBatch(state.meshGlyphBatch)
     this.rebindLayerAppearance()
@@ -4474,6 +4677,8 @@ export class AcTrView2d extends AcEdBaseView {
     this.resetDeferredGeometryQueue()
     this._entityProcessingIdleAt = 0
     this.resetSceneLifecycle()
+    this._regenCameras.clear()
+    this._lineWeightGeometryReady = false
     this._scene = this.createScene()
     this._layoutViewManager = new AcTrLayoutViewManager()
     this._initializedLayouts = new Set()
@@ -4562,6 +4767,17 @@ export class AcTrView2d extends AcEdBaseView {
     }
     const active = document.activeElement
     return active instanceof Node && this.container.contains(active)
+  }
+
+  /**
+   * Appends entities to the convert queue. Not `push(...entities)`: one
+   * commit can carry hundreds of thousands of entities (e.g. a PDF import),
+   * which exceeds the engine's argument limit and throws "Maximum call stack
+   * size exceeded".
+   */
+  private enqueueConvert(entities: readonly AcDbEntity[]) {
+    const queue = this._convertQueue
+    for (let i = 0; i < entities.length; i++) queue.push(entities[i])
   }
 
   /**
@@ -5107,6 +5323,11 @@ export class AcTrView2d extends AcEdBaseView {
         this.events.viewChanged.dispatch()
         this.clearHover()
       })
+      const regenCamera = this._regenCameras.get(layoutBtrId)
+      if (regenCamera) {
+        this._regenCameras.delete(layoutBtrId)
+        layoutView.flyTo(regenCamera.center, regenCamera.zoom)
+      }
       this._layoutViewManager.add(layoutView)
     }
     // Viewport entities may already have been converted while this view was
@@ -5155,7 +5376,14 @@ export class AcTrView2d extends AcEdBaseView {
    */
   private loadLayoutEntities(layoutBtrId: AcDbObjectId) {
     try {
-      const db = AcApDocManager.instance.curDocument.database
+      // Prefer tryGetInstance: setActiveLayout used to call this during
+      // createInstance before the singleton was assigned.
+      const db =
+        AcApDocManager.tryGetInstance()?.curDocument?.database ??
+        this._renderer.context.database
+      if (!db) {
+        return
+      }
       const blockTableRecord = db.tables.blockTable.getIdAt(layoutBtrId)
       if (!blockTableRecord) {
         return
@@ -5235,7 +5463,7 @@ export class AcTrView2d extends AcEdBaseView {
       const convert = async () => {
         try {
           if (this._progressiveRendering) {
-            this._convertQueue.push(...entities)
+            this.enqueueConvert(entities)
             await this.drainConvertQueue()
           } else {
             await this.batchConvert(entities)

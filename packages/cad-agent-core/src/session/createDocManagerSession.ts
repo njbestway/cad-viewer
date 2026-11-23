@@ -5,8 +5,9 @@ import type {
 } from '@mlightcad/cad-script-core'
 import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
 
-import { captureDrawingPreview } from '../preview/captureDrawingPreview'
-import { viewerRunEdit } from './withViewerDefaults'
+import { captureDrawingPreview } from '../preview/captureDrawingPreview.js'
+import { createViewerRedrawRasterHost } from '../preview/redrawRasterHost.js'
+import { viewerRunEdit } from './withViewerDefaults.js'
 
 /**
  * Session that reads {@link AcApDocManager.instance} on every call.
@@ -44,6 +45,7 @@ export function createDocManagerSession(): CadSession {
       }
     },
     runEdit: viewerRunEdit,
-    capturePreview: options => captureDrawingPreview(options)
+    capturePreview: options => captureDrawingPreview(options),
+    redrawRaster: createViewerRedrawRasterHost()
   }
 }

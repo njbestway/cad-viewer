@@ -129,6 +129,19 @@ export default {
       }
     }
   },
+  copybase: {
+    basePoint: 'حدد نقطة الأساس'
+  },
+  pasteclip: {
+    insertionPoint: 'حدد نقطة الإدراج',
+    empty: 'لا تحتوي الحافظة على كائنات رسم'
+  },
+  pasteorig: {
+    sameDrawing: 'لا يمكن لـ PASTEORIG اللصق في الرسم الذي نُسخت منه الكائنات'
+  },
+  pasteblock: {
+    insertionPoint: 'حدد نقطة الإدراج'
+  },
   dimlinear: {
     xLine1Point: 'حدد نقطة أصل خط الامتداد الأول',
     xLine2Point: 'حدد نقطة أصل خط الامتداد الثاني',
@@ -387,6 +400,10 @@ export default {
       otherAxis: 'المحور الآخر غير صالح: يجب أن تكون المسافة أكبر من 0.',
       rotation: 'الدوران غير صالح: يجب أن يكون المحور الأصغر الناتج أكبر من 0.'
     }
+  },
+  explode: {
+    notExplodable: 'تعذر تفجير {count} من الكائنات',
+    minsert: 'لا يمكن تفجير {count} من الكتل المدرجة باستخدام MINSERT'
   },
   hatch: {
     prompt: 'حدد عنصر حدود أو',
@@ -884,7 +901,16 @@ export default {
     endPoint: 'حدد نقطة نهاية القوس',
     lockedEndPoint:
       'حدد نقطة نهاية القوس (استخدم Ctrl للتبديل بين القوس الأكبر والأصغر)',
-    invalidPoints: 'النقاط الثلاث على استقامة واحدة ولا يمكنها تعريف قوس.'
+    invalidPoints: 'النقاط الثلاث على استقامة واحدة ولا يمكنها تعريف قوس.',
+    pickArc: 'حدد دائرة أو قوسًا أو قوس خط متعدد',
+    noArc: 'لا توجد دائرة أو قوس هنا. انقر على منحنى، أو اختر ثلاث نقاط.',
+    keywords: {
+      threePoint: {
+        display: 'ثلاث نقاط(T)',
+        local: 'ثلاث نقاط',
+        global: 'ThreePoint'
+      }
+    }
   },
   measureArea: {
     firstPoint: 'حدد النقطة الأولى',
@@ -1174,6 +1200,7 @@ export default {
     arrowheadOrRemove: 'حدد موقع رأس سهم خط الإشارة أو [إزالة خطوط الإشارة]',
     selectLeaderToRemove: 'حدد خط إشارة لإزالته أو اضغط Enter للإنهاء',
     cannotRemoveLast: 'لا يمكن إزالة آخر خط إشارة من خط الإشارة المتعدد هذا.',
+    noLeaderAtPoint: 'لم يتم العثور على خط إشارة عند هذه النقطة.',
     keywords: {
       remove: {
         display: 'إزالة خطوط الإشارة(R)',
@@ -1412,6 +1439,35 @@ export default {
     invalid: {
       referencePoints:
         'النقاط المرجعية غير صالحة: يجب أن تكون النقطتان مختلفتين.'
+    }
+  },
+  scale: {
+    basePoint: 'حدد نقطة الأساس',
+    scaleFactorOrOptions: 'حدد معامل المقياس أو',
+    referenceLength: 'حدد الطول المرجعي',
+    newLengthOrPoints: 'حدد الطول الجديد أو',
+    newLengthFirstPoint: 'حدد النقطة الأولى',
+    copyMessage: 'جارٍ تغيير مقياس نسخة من الكائنات المحددة.',
+    keywords: {
+      copy: {
+        display: 'نسخ(C)',
+        local: 'نسخ',
+        global: 'Copy'
+      },
+      reference: {
+        display: 'مرجع(R)',
+        local: 'مرجع',
+        global: 'Reference'
+      },
+      points: {
+        display: 'نقاط(P)',
+        local: 'نقاط',
+        global: 'Points'
+      }
+    },
+    invalid: {
+      factor: 'يجب أن تكون القيمة موجبة وغير صفرية.',
+      length: 'يجب أن تكون القيمة موجبة وغير صفرية.'
     }
   },
   revcloud: {
@@ -1679,6 +1735,7 @@ export default {
     exportFormat: 'تنسيق التصدير',
     exportInvisibleLayers: 'تصدير الطبقات غير المرئية',
     exportLayouts: 'تصدير المخططات',
+    exportEmptyLayouts: 'تصدير المخططات الفارغة',
     background: 'لون الخلفية',
     initialView: 'العرض الأولي عند فتح HTML',
     viewerMode: 'وضع العارض دون اتصال',
@@ -1745,6 +1802,7 @@ export default {
   cpdf: {
     modelSpaceFit: 'إطار مساحة النموذج',
     exportLayouts: 'تصدير المخططات',
+    exportEmptyLayouts: 'تصدير المخططات الفارغة',
     textMode: 'عرض النص',
     colorMode: 'وضع الألوان',
     keywords: {
@@ -2036,13 +2094,18 @@ export default {
       }
     }
   },
-  ipdf: {
+  pdfimport: {
     pageNumber: 'أدخل رقم الصفحة (1-{count})',
-    insertionPoint: 'حدد نقطة الإدراج (المقياس {scale}، الوضع {mode}) أو',
+    insertionPoint:
+      'حدد نقطة الإدراج (المقياس {scale}، الوضع {mode}، النص {text}) أو',
     modePrompt: 'اختر طريقة الاستيراد',
     modeRecover: 'استعادة الرسم',
     modeVisual: 'الحفاظ على مظهر PDF',
     scaleFactor: 'أدخل معامل المقياس',
+    textPrompt: 'اختر طريقة التعرّف على النص المفكّك',
+    textOff: 'إيقاف',
+    textLocal: 'قاموس الحروف المحلي',
+    textOcr: 'خدمة OCR',
     keywords: {
       scale: {
         display: 'مقياس(S)',
@@ -2054,6 +2117,11 @@ export default {
         local: 'الوضع',
         global: 'Mode'
       },
+      text: {
+        display: 'نص(T)',
+        local: 'نص',
+        global: 'Text'
+      },
       recover: {
         display: 'استعادة(R)',
         local: 'استعادة',
@@ -2063,17 +2131,139 @@ export default {
         display: 'مرئي(V)',
         local: 'مرئي',
         global: 'Visual'
+      },
+      off: {
+        display: 'إيقاف(O)',
+        local: 'إيقاف',
+        global: 'Off'
+      },
+      local: {
+        display: 'محلي(L)',
+        local: 'محلي',
+        global: 'Local'
+      },
+      ocr: {
+        display: 'تعرّف(C)',
+        local: 'تعرّف',
+        global: 'Ocr'
       }
+    },
+    pickInsertionPoint: 'حدد نقطة الإدراج',
+    dialog: {
+      title: 'استيراد PDF',
+      close: 'إغلاق',
+      fileName: 'اسم الملف:',
+      browse: 'استعراض...',
+      pagesGroup: 'الصفحة المراد استيرادها',
+      page: 'الصفحة:',
+      total: 'الإجمالي: {count}',
+      singleView: 'عرض معاينة الصفحة',
+      gridView: 'عرض الصور المصغرة للصفحات',
+      pageLabel: 'الصفحة {page}',
+      pageSize:
+        'حجم الصفحة: {width} × {height} مم ({widthIn} × {heightIn} بوصة)',
+      previewError: 'المعاينة غير متاحة',
+      positionGroup: 'الموضع',
+      onScreen: 'تحديد نقطة الإدراج على الشاشة',
+      x: 'X:',
+      y: 'Y:',
+      scale: 'المقياس:',
+      modeGroup: 'وضع الاستيراد',
+      modeRecover: 'استعادة الرسم',
+      recoverHint:
+        'إعادة بناء الدوائر والأقواس والمنحنيات والنصوص والتهشيرات والكتل',
+      modeVisual: 'الحفاظ على مظهر PDF',
+      visualHint: 'استيراد المسارات والنصوص كما رُسمت في PDF تمامًا',
+      recognizeDimensions: 'التعرّف على الأبعاد',
+      recognizeDimensionsHint: 'تحويل الأبعاد المفكّكة إلى كائنات أبعاد',
+      recognizeExplodedText: 'التعرّف على النص المفكّك',
+      recognizeExplodedTextHint:
+        'تحويل نص SHX / المخطط المرسوم بخطوط إلى كائنات نص (قاموس محلي أو مزوّد OCR متاح)',
+      recognizeExplodedTextOff: 'إيقاف',
+      recognizeExplodedTextLocal: 'قاموس الحروف المحلي',
+      recognizeExplodedTextOcr: 'OCR',
+      ok: 'موافق',
+      cancel: 'إلغاء'
     }
   },
   pdfdim: {
+    cancelled: 'تم إلغاء استعادة الأبعاد؛ لم يتم تغيير أي شيء.',
     noDimensions:
       'لم يتم العثور على أبعاد في التحديد (يلزم وجود رؤوس أسهم أو علامات وخطوط أبعاد ونصوص قيم).',
-    convertAll:
-      'تم العثور على {count} بُعد (مقياس الرسم 1:{scale}). هل تريد تحويلها؟',
-    convertOne: 'البُعد {index}/{count} "{text}": تحويل؟',
     summary:
-      'تم تحويل {count} بُعد؛ يستخدم النمط PDF_DIM معامل مقياس خطي قدره {scale}.'
+      'تم تحويل {count} بُعد؛ يستخدم النمط {style} معامل مقياس خطي قدره {scale}.',
+    panel: {
+      title: 'استعادة الأبعاد',
+      style: 'نمط البعد',
+      dimStyle: 'النمط',
+      newStyle: 'نمط بعد جديد…',
+      newStyleName: 'اسم نمط البعد الجديد',
+      createStyle: 'إنشاء',
+      nameEmpty: 'أدخل اسمًا.',
+      nameInvalid: 'يحتوي الاسم على أحرف غير مسموح بها.',
+      nameExists: 'يوجد بالفعل نمط بعد بهذا الاسم.',
+      scale: 'مقياس الرسم',
+      stylePreview: 'معاينة نمط البُعد المحدد مع الأحجام المُستعادة',
+      dimensions: 'الأبعاد',
+      selectHint: 'حدد بُعدًا للتكبير إليه؛ يمكنك تعديل القيمة قبل التطبيق.',
+      empty: 'لم يتم العثور على أبعاد في التحديد.',
+      include: 'تحويل هذا البُعد',
+      kindLinear: 'خطي',
+      kindRadius: 'نصف القطر',
+      kindDiameter: 'القطر',
+      kindAngular: 'زاوي',
+      kindAligned: 'محاذٍ',
+      kindArcLength: 'طول القوس',
+      kindOrdinate: 'إحداثي',
+      textTip: 'نص البُعد (تجاوز)',
+      measured: 'المقاس {value}',
+      hideStrokes: 'إخفاء الخطوط الأصلية',
+      ready: '{ready} من {count} أبعاد جاهزة',
+      cancel: 'إلغاء',
+      apply: 'تطبيق'
+    }
+  },
+  pdfhatch: {
+    cancelled: 'تم إلغاء استعادة التهشير؛ لم يتم تغيير أي شيء.',
+    pickPoint: 'حدد نقطة داخل المنطقة المراد تهشيرها',
+    panel: {
+      title: 'استعادة التهشير',
+      hatches: 'التهشيرات',
+      addArea: 'إضافة منطقة',
+      addAreaTip:
+        'حدد نقطة داخل منطقة لم يتم التعرّف عليها؛ ستتم مطابقة خطوطها مع أنسب نمط.',
+      picking: 'حدد نقطة داخل المنطقة في الرسم…',
+      noBoundary: 'لم يتم العثور على منطقة مغلقة حول تلك النقطة.',
+      noStrokes: 'لم يتم العثور على نمط منتظم في تلك المنطقة.',
+      empty: 'لم يتم العثور على تهشير. استخدم "إضافة منطقة" لتحديد واحد.',
+      include: 'تحويل هذا التهشير',
+      addedTag: 'مضاف',
+      entities: '{count} كائن',
+      selectHint: 'حدد تهشيرًا لتغيير نمطه أو مقياسه أو زاويته.',
+      ownGroup: 'مقاس / معرّف من المستخدم',
+      libraryGroup: 'معرّف مسبقًا',
+      pattern: 'النمط',
+      scale: 'المقياس',
+      spacing: 'التباعد',
+      angle: 'الزاوية',
+      autoFit: 'ملاءمة تلقائية',
+      autoFitTip: 'إعادة قياس مقياس هذا النمط وزاويته ونقطة أصله من الخطوط.',
+      match: 'النمط على الخطوط: {precision} · الخطوط المعاد رسمها: {recall}',
+      noEntities:
+        'لا يعيد هذا النمط رسم أي كائن بالكامل؛ لن يتم استبدال أي شيء.',
+      guessed: 'لا يوجد أثر لهذا النمط في الخطوط؛ المقياس والزاوية تقديريان.',
+      poorMatch: 'تطابق ضعيف: تبقى الخطوط التي لا يعيد التهشير رسمها.',
+      userSingle: 'معرّف من المستخدم',
+      userDouble: 'معرّف من المستخدم، مزدوج',
+      measured: 'نمط مقاس',
+      hideStrokes: 'إخفاء الخطوط الأصلية',
+      ready: '{ready} من {count} تهشيرات جاهزة',
+      cancel: 'إلغاء',
+      apply: 'تطبيق'
+    },
+    noHatches:
+      'لم يتم العثور على تهشير في التحديد (يلزم وجود خطوط متوازية منتظمة والخطوط التي تحدها).',
+    summary: 'تم تحويل {count} تهشير ({patterns}) واستبدال {strokes} كائن.'
   },
   bsearch: {
     unsupported:
@@ -2199,39 +2389,70 @@ export default {
       }
     }
   },
-  pdfblock: {
-    keywords: {
-      yes: {
-        display: 'نعم(Y)',
-        local: 'نعم',
-        global: 'Yes'
-      },
-      no: {
-        display: 'لا(N)',
-        local: 'لا',
-        global: 'No'
-      },
-      review: {
-        display: 'مراجعة(R)',
-        local: 'مراجعة',
-        global: 'Review'
-      },
-      all: {
-        display: 'الكل(A)',
-        local: 'الكل',
-        global: 'All'
-      },
-      exit: {
-        display: 'خروج(X)',
-        local: 'خروج',
-        global: 'eXit'
-      }
-    }
-  },
   pdftext: {
-    enterText:
-      'سطر النص {index}/{count}: أدخل النص المظلل (اتركه فارغًا للتخطي، Esc للإيقاف)',
-    enterTextWithSuggestion: 'سطر النص {index}/{count}: أدخل النص المظلل',
+    panel: {
+      title: 'استعادة النص',
+      shxGroup: 'نص SHX (خطوط خطية)',
+      meshGroup: 'نص TrueType (خطوط محددة)',
+      style: 'نمط النص',
+      newStyle: 'نمط نص جديد…',
+      newTag: 'جديد',
+      newStyleName: 'اسم نمط النص الجديد',
+      create: 'إنشاء',
+      cancel: 'إلغاء',
+      apply: 'تطبيق',
+      nameError: {
+        empty: 'أدخل اسمًا.',
+        invalid: 'يحتوي الاسم على أحرف غير مسموح بها.',
+        exists: 'يوجد نمط نص بهذا الاسم بالفعل.'
+      },
+      font: 'الخط',
+      bigFont: 'الخط الكبير',
+      noBigFont: '(بلا)',
+      shxFonts: 'خطوط SHX',
+      ttfFonts: 'خطوط TrueType',
+      fontsUsed: 'المستخدم: {fonts}',
+      fontMissing: 'الخط "{font}" غير متاح؛ سيُرسم بالخط "{fallback}".',
+      fontNotShx: 'هذا خط TrueType: لن يبدو النص مثل نص SHX الخطي.',
+      fontNotTtf: 'هذا خط SHX: لن يبدو النص مثل نص TrueType المحدد.',
+      styleChanges:
+        'سيتم تغيير خطوط نمط النص "{style}": ستتغير أيضًا النصوص التي تستخدمه.',
+      heightScale: 'مقياس الارتفاع',
+      widthFactor: 'معامل العرض',
+      autoWidth: 'ملاءمة العرض الأصلي',
+      lines: 'أسطر النص',
+      include: 'تحويل هذا السطر',
+      textPlaceholder: 'اكتب النص، أو اتركه فارغًا للتخطي',
+      switchKind: 'التبديل بين نص SHX ونص TrueType',
+      kind: {
+        shx: 'SHX',
+        mesh: 'TrueType'
+      },
+      source: {
+        dictionary: 'مُتعلَّم',
+        ocr: 'OCR',
+        typed: 'مُعدَّل',
+        unread: 'غير مقروء'
+      },
+      hideStrokes: 'إخفاء الخطوط الأصلية',
+      ready: '{ready} من {count} أسطر جاهزة',
+      merge: 'دمج في نص متعدد الأسطر',
+      mergeTip: 'دمج الأسطر المحددة في نص متعدد الأسطر واحد (MTEXT)',
+      split: 'تقسيم',
+      splitTip: 'تقسيم النص المدمج المحدد إلى أسطره الأصلية',
+      mergeAdjacent: 'دمج المتجاورة',
+      mergeAdjacentTip:
+        'دمج الأحرف والكلمات المتجاورة على خط أساس واحد في نص متعدد الأسطر',
+      mergedCount: 'تم الدمج في {count} من النصوص متعددة الأسطر.',
+      selectHint: 'استخدم Ctrl+نقر أو Shift+نقر لتحديد عدة أسطر.',
+      mtextTag: 'نص متعدد الأسطر'
+    },
+    cancelled: 'تم إلغاء استعادة النص؛ لم يتم تغيير أي شيء.',
+    ocrNotConfigured:
+      'التعرف على النص (OCR) متوقف: لم يتم إعداد نموذج ذكاء اصطناعي يدعم الصور. شغّل LLMSETTINGS لإعداده.',
+    recognizing: 'جارٍ التعرف على {count} من أسطر النص…',
+    ocrFailed:
+      'فشل التعرف على النص (OCR): {message}. اكتب النص بنفسك، أو شغّل LLMSETTINGS للتحقق من نموذج الذكاء الاصطناعي.',
     noCandidates: 'لم يتم العثور على خطوط تشبه النص في التحديد.',
     summary:
       'تم تحويل {converted} سطر نصي، منها {automatic} تلقائيًا؛ تم تخطي {skipped}.'
@@ -2244,5 +2465,10 @@ export default {
       'أدخل الطول الحقيقي (المقاس {measured}؛ تشير نصوص الأبعاد إلى 1:{scale})',
     zeroDistance: 'النقطتان متطابقتان.',
     applied: 'تم تغيير مقياس {count} كائن بمعامل {factor}.'
+  },
+  txt2mtxt: {
+    needTwo: 'حدد كيانَي نص أو نص متعدد الأسطر على الأقل للدمج.',
+    mergeFailed: 'تعذّر دمج كيانات النص المحددة.',
+    eraseFailed: 'تعذّر مسح كل كيانات النص المصدر. تم إلغاء الدمج.'
   }
 }

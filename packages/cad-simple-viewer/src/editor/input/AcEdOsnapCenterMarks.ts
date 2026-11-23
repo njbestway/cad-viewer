@@ -198,11 +198,42 @@ function collectFromOsnapCenter(
   return points.map(point => markFromPoint(point))
 }
 
-/** Full INSERT transform (OCS blockTransform + extrusion), matching intersect curves. */
-function fullInsertionTransform(blockRef: AcDbBlockReference): AcGeMatrix3d {
+/**
+ * Full INSERT transform (OCS blockTransform + extrusion), matching the WCS
+ * frame of `subGetIntersectCurves`. Maps block-definition coordinates of the
+ * reference's direct children into its owner space.
+ */
+export function acedBlockReferenceInsertionMatrix(
+  blockRef: AcDbBlockReference
+): AcGeMatrix3d {
   return new AcGeMatrix3d()
     .setFromExtrusionDirection(blockRef.normal)
     .multiply(blockRef.blockTransform)
+}
+
+/**
+ * Center of a spatial-index child box, used as the `hintPoint` of
+ * {@link resolveBlockSubEntity} to prefer the INSERT instance under the cursor.
+ */
+export function blockChildBoxHint(child: {
+  minX?: number
+  minY?: number
+  maxX?: number
+  maxY?: number
+}): AcGePoint3dLike | undefined {
+  if (
+    child.minX == null ||
+    child.minY == null ||
+    child.maxX == null ||
+    child.maxY == null
+  ) {
+    return undefined
+  }
+  return {
+    x: (child.minX + child.maxX) / 2,
+    y: (child.minY + child.maxY) / 2,
+    z: 0
+  }
 }
 
 /**
@@ -257,7 +288,10 @@ function resolveBlockSubEntityOccurrence(
   hintPoint: AcGePoint3dLike | undefined,
   allowHintPrune: boolean
 ):
-  | { found: { entity: AcDbEntity; transform: AcGeMatrix3d }; remaining: number }
+  | {
+      found: { entity: AcDbEntity; transform: AcGeMatrix3d }
+      remaining: number
+    }
   | { found: undefined; remaining: number } {
   const blockTableRecord = blockRef.blockTableRecord
   if (!blockTableRecord) {
@@ -266,12 +300,14 @@ function resolveBlockSubEntityOccurrence(
 
   const thisMat = new AcGeMatrix3d().multiplyMatrices(
     parentMat,
-    fullInsertionTransform(blockRef)
+    acedBlockReferenceInsertionMatrix(blockRef)
   )
 
   let localHint: AcGePoint3d | undefined
   if (allowHintPrune && hintPoint != null && remaining === 0) {
-    localHint = new AcGePoint3d(hintPoint).applyMatrix4(thisMat.clone().invert())
+    localHint = new AcGePoint3d(hintPoint).applyMatrix4(
+      thisMat.clone().invert()
+    )
   }
 
   for (const entity of blockTableRecord.newIterator()) {

@@ -5,9 +5,6 @@ export default {
     drawingUnits: '도면 단위',
     exportMenu: '내보내기',
     export: 'DXF로 내보내기',
-    exportHtml: 'HTML로 내보내기',
-    exportPdf: 'PDF로 내보내기',
-    exportSvg: 'SVG로 내보내기',
     exportImage: '이미지로 내보내기',
     about: '정보'
   },
@@ -209,11 +206,10 @@ export default {
     },
     group: {
       smartBlocks: '스마트 블록',
-      agent: '에이전트',
-      pdf: 'PDF',
       draw: '그리기',
       dimension: '치수',
       modify: '수정',
+      clipboard: '클립보드',
       layer: '도면층',
       properties: '특성',
       groups: '그룹',
@@ -280,16 +276,8 @@ export default {
     tooltip: {
       searchConvert:
         '선택한 객체의 모든 사본을 찾아 블록으로 변환합니다(BSEARCH).',
-      detectConvert: '도면 전체에서 반복 객체를 찾아 블록으로 변환합니다(BDETECT).',
-      importPdf:
-        'PDF 파일에서 벡터 형상을 가져오고 원, 호, 곡선을 복원합니다 (IPDF).',
-      pdfScale:
-        '알려진 거리의 두 점으로 가져온 PDF 형상의 축척을 조정합니다 (PDFSCALE).',
-      pdfDim:
-        'PDF에서 분해된 치수(화살표 또는 사선, 치수선, 치수 보조선, 문자)를 치수 객체로 되돌립니다 (PDFDIM).',
-      pdfBlock:
-        'PDF의 반복 형상을 블록으로 만들고 각 사본을 블록 참조로 바꿉니다 (PDFBLOCK).',
-      pdfText: 'PDF에서 분해된 문자 획을 문자 객체로 되돌립니다 (PDFTEXT).',
+      detectConvert:
+        '도면 전체에서 반복 객체를 찾아 블록으로 변환합니다(BDETECT).',
       line: '단일 직선 세그먼트를 그립니다.',
       polyline: '연결된 선 또는 호 세그먼트를 하나의 객체로 그립니다.',
       spline: '맞춤점 또는 조정점을 지나는 매끄러운 스플라인 곡선을 그립니다.',
@@ -316,13 +304,26 @@ export default {
       dimcontinue: '이전 치수에서 계속 치수를 작성합니다.',
       dimbaseline: '이전 치수에서 기준선 치수를 작성합니다.',
       dimstyle: '치수 스타일 관리자를 엽니다.',
+      textStyle: '문자 스타일 관리자를 엽니다.',
+      mleaderStyle: '다중 지시선 스타일 관리자를 엽니다.',
       mleader: '다중 지시선 주석을 작성합니다.',
       mleaderAdd: '기존 다중 지시선에 지시선을 추가합니다.',
       mleaderRemove: '기존 다중 지시선에서 지시선을 제거합니다.',
       move: '선택한 객체를 새 위치로 이동합니다.',
       rotate: '선택한 객체를 기준점을 중심으로 회전합니다.',
-      copy: '선택한 객체를 새 위치에 복사합니다.',
+      scale:
+        '선택한 객체를 축척 후에도 비율이 유지되도록 확대 또는 축소합니다.',
       erase: '도면에서 선택한 객체를 지웁니다.',
+      pasteClip: '클립보드의 객체를 현재 도면에 붙여넣습니다(PASTECLIP).',
+      pasteOrig:
+        '원본 도면의 좌표를 사용하여 클립보드의 객체를 붙여넣습니다(PASTEORIG).',
+      pasteBlock:
+        '클립보드의 객체를 현재 도면에 블록으로 붙여넣습니다(PASTEBLOCK).',
+      cutClip: '선택한 객체를 지우고 클립보드에 복사합니다(CUTCLIP).',
+      copyClip: '선택한 객체를 클립보드에 복사합니다(COPYCLIP).',
+      copyBase:
+        '지정한 기준점을 사용하여 선택한 객체를 클립보드에 복사합니다(COPYBASE).',
+      explode: '복합 객체를 구성 요소 객체로 분해합니다.',
       offset: '지정한 거리에 객체의 평행 사본을 작성합니다.',
       undo: '마지막 편집 작업을 명령 취소합니다.',
       redo: '마지막으로 취소한 편집 작업을 명령 복구합니다.',
@@ -345,7 +346,6 @@ export default {
       editAttributes:
         '고급 속성 편집기를 열어 블록 속성 값과 표시 특성을 편집합니다(ATTEDIT).',
       defineAttribute: '블록에서 사용할 속성 정의를 작성합니다(ATTDEF).',
-      agent: 'CAD 에이전트 팔레트 탭을 열어 자연어로 형상을 그립니다.',
       pan: '배율을 변경하지 않고 도면의 뷰를 이동합니다.',
       zoom: '도면 표시를 줌합니다.',
       zoomExtents: '모든 객체의 최대 범위를 표시하도록 줌합니다.',
@@ -423,11 +423,6 @@ export default {
     command: {
       searchConvert: '검색 및\n변환',
       detectConvert: '감지 및\n변환',
-      importPdf: 'PDF\n가져오기',
-      pdfScale: '축척\n보정',
-      pdfDim: '치수\n인식',
-      pdfBlock: '블록\n만들기',
-      pdfText: '문자\n인식',
       line: '선',
       polyline: '폴리선',
       circle: '원',
@@ -458,13 +453,22 @@ export default {
       dimcontinue: '계속',
       dimbaseline: '기준선',
       dimstyle: '치수 스타일',
+      textStyle: '문자 스타일',
+      mleaderStyle: '다중 지시선 스타일',
       mleader: '다중 지시선',
       mleaderAdd: '지시선 추가',
       mleaderRemove: '지시선 제거',
       move: '이동',
       rotate: '회전',
-      copy: '복사',
+      scale: '축척',
       erase: '지우기',
+      pasteClip: '붙여넣기',
+      pasteOrig: '원래 좌표에 붙여넣기',
+      pasteBlock: '블록으로 붙여넣기',
+      cutClip: '잘라내기',
+      copyClip: '복사',
+      copyBase: '기준점을 사용하여 복사',
+      explode: '분해',
       offset: '간격띄우기',
       undo: '명령 취소',
       redo: '명령 복구',
@@ -483,7 +487,6 @@ export default {
       insert: '삽입',
       editAttributes: '속성\n편집',
       defineAttribute: '속성\n정의',
-      agent: 'CAD\n에이전트',
       pan: '초점이동',
       zoom: '줌',
       zoomExtents: '범위',
@@ -507,12 +510,9 @@ export default {
     }
   },
   bsearch: {
-    title: '검색 및 변환',
     found: '인스턴스 {count}개 찾음, {included}개 포함',
-    position: '{index}/{count}',
     previous: '이전 인스턴스',
     next: '다음 인스턴스',
-    includeCurrent: '이 인스턴스 포함',
     convert: '블록으로 변환…',
     cancel: '취소',
     rotation: '회전',
@@ -521,12 +521,54 @@ export default {
     sameLayer: '같은 도면층',
     existingBlocks: '기존 블록',
     textVariations: '문자 변형',
-    pickPrompt: '인스턴스를 클릭하여 포함 또는 제외하거나'
+    pickPrompt: '인스턴스를 클릭하여 포함 또는 제외하거나',
+    source: '선택한 객체: {count}개',
+    options: '검색 옵션',
+    none: '다른 인스턴스를 찾지 못했습니다. 검색 옵션을 변경하거나 선택한 객체만 변환하십시오.',
+    includeAll: '모두 포함',
+    include: '이 인스턴스 포함',
+    instance: '인스턴스 {index}',
+    blockReference: '블록 참조',
+    rotatedBy: '회전 {angle}°',
+    mirrored: '대칭됨',
+    scaledBy: '축척 {scale}',
+    hint: '행을 클릭하면 해당 인스턴스로 줌합니다. 도면에서 인스턴스를 클릭하면 포함하거나 제외합니다.'
   },
   bdetect: {
     detecting: '도면에서 반복 객체를 검색하는 중…',
     foundSoFar: '지금까지 그룹 {count}개 찾음',
     stop: '중지',
+    ready: '옵션을 조정한 다음 감지를 클릭하십시오.',
+    detect: '감지',
+    detectAgain: '다시 감지',
+    options: '감지 옵션',
+    explain: '{option} 설명',
+    rotation: '회전',
+    mirror: '대칭',
+    scale: '축척',
+    sameLayer: '동일 도면층',
+    textVariations: '문자 변형',
+    minInstances: '최소 인스턴스 수',
+    minSavings: '최소 절감 수',
+    maxEntities: '최대 객체 수',
+    help: {
+      rotation:
+        '아무 각도로 회전한 복사본도 같은 객체로 봅니다. 끄면 방향이 같은 복사본만 한 그룹이 됩니다.',
+      mirror:
+        '뒤집힌 복사본도 같은 객체로 봅니다. 예를 들어 반대쪽으로 열리는 문입니다. 끄면 대칭된 복사본은 그룹에 들어가지 않습니다.',
+      scale:
+        '가로세로 비율을 유지한 채 크거나 작아진 복사본도 같은 객체로 봅니다. 끄면 크기가 같은 복사본만 한 그룹이 됩니다. 늘이거나 찌그러뜨린 형상은 일치하지 않습니다.',
+      sameLayer:
+        '복사본의 각 형상은 대응하는 형상과 같은 도면층에 있어야 합니다. PDF에서 가져온 도면은 색별로 도면층이 나뉘어, 하나의 기호가 여러 도면층에 흩어지는 경우가 많습니다. 그때는 끄십시오.',
+      textVariations:
+        '호실 번호처럼 복사본마다 다른 한 줄 문자를 허용합니다. 그룹을 변환하면 그 문자는 블록 속성이 됩니다. 끄면 문자가 완전히 같은 복사본만 그룹이 됩니다. 여러 줄 문자는 항상 글자 그대로 같아야 하며 속성이 되지 않습니다.',
+      minInstances:
+        '원본을 포함하여 적어도 이 수만큼 복사본이 있을 때만 그룹으로 표시합니다. 최솟값은 2입니다. 값을 높이면 두 개만 반복된 객체는 빠지고, 더 자주 반복되는 객체만 남습니다.',
+      minSavings:
+        '블록으로 변환했을 때 적어도 이 수만큼 객체를 줄일 수 있는 그룹만 남깁니다. 절감 수는 복사본 수 × (복사본 하나의 객체 수 − 1)입니다. 하나는 블록이 되고, 나머지 복사본은 각각 블록 참조 하나로 바뀝니다. 예를 들어 객체 3개로 된 복사본이 5개이면 10개를 줄입니다. 값을 높이면 작은 그룹은 숨겨지고, 0으로 하면 모든 반복이 표시됩니다.',
+      maxEntities:
+        '복사본 하나에 들어갈 수 있는 객체 수의 상한입니다. 감지는 이 수까지만 그룹을 키우므로, 부품이 더 많은 기호는 일부만 포함됩니다. 값을 낮추면 크고 복잡한 반복을 건너뛰고, 찾으려는 기호의 부품이 더 많으면 높이십시오. 기본값은 64입니다.'
+    },
     groups: '반복 객체 그룹 {count}개',
     none: '반복 객체를 찾지 못했습니다.',
     selectAll: '모두 선택',
@@ -893,6 +935,10 @@ export default {
     bdetect: {
       tab: '감지',
       title: '감지 및 변환'
+    },
+    bsearch: {
+      tab: '검색',
+      title: '검색 및 변환'
     },
     countList: {
       tab: '개수',

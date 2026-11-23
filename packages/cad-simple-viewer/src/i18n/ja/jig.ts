@@ -125,6 +125,19 @@ export default {
       }
     }
   },
+  copybase: {
+    basePoint: '基点を指定'
+  },
+  pasteclip: {
+    insertionPoint: '挿入点を指定',
+    empty: 'クリップボードに図面オブジェクトがありません'
+  },
+  pasteorig: {
+    sameDrawing: 'PASTEORIG はコピー元の図面には貼り付けできません'
+  },
+  pasteblock: {
+    insertionPoint: '挿入点を指定'
+  },
   dimlinear: {
     xLine1Point: '1 本目の寸法補助線の起点を指定 または <オブジェクトを選択>',
     xLine2Point: '2 本目の寸法補助線の起点を指定',
@@ -313,6 +326,10 @@ export default {
       rotation:
         '無効な回転の入力: 結果の短軸は 0 より大きくする必要があります。'
     }
+  },
+  explode: {
+    notExplodable: '{count} 個のオブジェクトは分解できませんでした',
+    minsert: 'MINSERT で挿入された {count} 個のブロックは分解できません'
   },
   hatch: {
     prompt: '境界オブジェクトを選択 または',
@@ -813,7 +830,16 @@ export default {
     throughPoint: '円弧上の点を指定',
     endPoint: '円弧の終点を指定',
     lockedEndPoint: '円弧の終点を指定 (Ctrl キーで優弧/劣弧を切り替え)',
-    invalidPoints: '3 点が同一直線上にあるため、円弧を定義できません。'
+    invalidPoints: '3 点が同一直線上にあるため、円弧を定義できません。',
+    pickArc: '円、円弧、またはポリライン円弧を選択',
+    noArc: 'ここに円または円弧はありません。曲線をクリックするか、3 点を選択してください。',
+    keywords: {
+      threePoint: {
+        display: '3点(T)',
+        local: '3点',
+        global: 'ThreePoint'
+      }
+    }
   },
   measureArea: {
     firstPoint: '1 点目を指定',
@@ -1070,6 +1096,7 @@ export default {
     selectLeaderToRemove: '削除する引出線を指定 または Enter キーで終了',
     cannotRemoveLast:
       'このマルチ引出線から最後の引出線を削除することはできません。',
+    noLeaderAtPoint: 'その位置に引出線が見つかりません。',
     keywords: {
       remove: {
         display: '引出線を削除(R)',
@@ -1308,6 +1335,35 @@ export default {
     },
     invalid: {
       referencePoints: '無効な参照点: 点はそれぞれ異なる必要があります。'
+    }
+  },
+  scale: {
+    basePoint: '基点を指定',
+    scaleFactorOrOptions: '尺度を指定 または',
+    referenceLength: '参照する長さを指定',
+    newLengthOrPoints: '新しい長さを指定 または',
+    newLengthFirstPoint: '1 点目を指定',
+    copyMessage: '選択したオブジェクトのコピーを尺度変更します。',
+    keywords: {
+      copy: {
+        display: 'コピー(C)',
+        local: 'コピー',
+        global: 'Copy'
+      },
+      reference: {
+        display: '参照(R)',
+        local: '参照',
+        global: 'Reference'
+      },
+      points: {
+        display: '点(P)',
+        local: '点',
+        global: 'Points'
+      }
+    },
+    invalid: {
+      factor: '値は正で 0 以外でなければなりません。',
+      length: '値は正で 0 以外でなければなりません。'
     }
   },
   revcloud: {
@@ -1575,6 +1631,7 @@ export default {
     exportFormat: '書き出し形式',
     exportInvisibleLayers: '非表示の画層を書き出す',
     exportLayouts: 'レイアウトを書き出す',
+    exportEmptyLayouts: '空のレイアウトを書き出す',
     background: '背景色',
     initialView: 'HTML を開いたときの初期ビュー',
     viewerMode: 'オフライン ビューアのモード',
@@ -1641,6 +1698,7 @@ export default {
   cpdf: {
     modelSpaceFit: 'モデル空間の範囲',
     exportLayouts: 'レイアウトを書き出す',
+    exportEmptyLayouts: '空のレイアウトを書き出す',
     textMode: '文字のレンダリング',
     colorMode: '色モード',
     keywords: {
@@ -1932,13 +1990,18 @@ export default {
       }
     }
   },
-  ipdf: {
+  pdfimport: {
     pageNumber: 'ページ番号を入力 (1-{count})',
-    insertionPoint: '挿入点を指定（尺度 {scale}、モード {mode}）または',
+    insertionPoint:
+      '挿入点を指定（尺度 {scale}、モード {mode}、文字 {text}）または',
     modePrompt: 'インポート方式を選択',
     modeRecover: '図面を復元',
     modeVisual: 'PDF の見た目を保持',
     scaleFactor: '尺度を入力',
+    textPrompt: '分解文字の認識方法を選択',
+    textOff: 'オフ',
+    textLocal: 'ローカル字形辞書',
+    textOcr: 'OCR サービス',
     keywords: {
       scale: {
         display: '尺度(S)',
@@ -1950,6 +2013,11 @@ export default {
         local: 'モード',
         global: 'Mode'
       },
+      text: {
+        display: '文字(T)',
+        local: '文字',
+        global: 'Text'
+      },
       recover: {
         display: '復元(R)',
         local: '復元',
@@ -1959,17 +2027,141 @@ export default {
         display: '見た目(V)',
         local: '見た目',
         global: 'Visual'
+      },
+      off: {
+        display: 'オフ(O)',
+        local: 'オフ',
+        global: 'Off'
+      },
+      local: {
+        display: 'ローカル(L)',
+        local: 'ローカル',
+        global: 'Local'
+      },
+      ocr: {
+        display: '認識(C)',
+        local: '認識',
+        global: 'Ocr'
       }
+    },
+    pickInsertionPoint: '挿入点を指定',
+    dialog: {
+      title: 'PDF 読み込み',
+      close: '閉じる',
+      fileName: 'ファイル名:',
+      browse: '参照...',
+      pagesGroup: '読み込むページ',
+      page: 'ページ:',
+      total: '合計: {count}',
+      singleView: 'ページのプレビューを表示',
+      gridView: 'ページのサムネイルを表示',
+      pageLabel: 'ページ {page}',
+      pageSize:
+        'ページ サイズ: {width} × {height} mm ({widthIn} × {heightIn} インチ)',
+      previewError: 'プレビューを表示できません',
+      positionGroup: '位置',
+      onScreen: '挿入位置を画面上で指定',
+      x: 'X:',
+      y: 'Y:',
+      scale: '尺度:',
+      modeGroup: '読み込みモード',
+      modeRecover: '図面を復元',
+      recoverHint: '円、円弧、曲線、文字、ハッチング、ブロックを再構築します',
+      modeVisual: 'PDF の見た目を保持',
+      visualHint: 'PDF に描かれたとおりにパスと文字を読み込みます',
+      recognizeDimensions: '寸法を認識',
+      recognizeDimensionsHint: '分解された寸法を寸法オブジェクトに戻します',
+      recognizeExplodedText: '分解文字を認識',
+      recognizeExplodedTextHint:
+        'SHX / 輪郭のストローク文字を文字オブジェクトに戻します（ローカル辞書または利用可能な OCR プロバイダ）',
+      recognizeExplodedTextOff: 'オフ',
+      recognizeExplodedTextLocal: 'ローカル字形辞書',
+      recognizeExplodedTextOcr: 'OCR',
+      ok: 'OK',
+      cancel: 'キャンセル'
     }
   },
   pdfdim: {
+    cancelled: '寸法認識をキャンセルしました。変更はありません。',
     noDimensions:
       '選択範囲に寸法が見つかりません（矢印または斜線、寸法線、数値文字が必要です）。',
-    convertAll:
-      '寸法が {count} 個見つかりました（図面尺度 1:{scale}）。変換しますか？',
-    convertOne: '寸法 {index}/{count}「{text}」: 変換しますか？',
     summary:
-      '{count} 個の寸法を変換しました。寸法スタイル PDF_DIM の長さ尺度は {scale} です。'
+      '{count} 個の寸法を変換しました。寸法スタイル {style} の長さ尺度は {scale} です。',
+    panel: {
+      title: '寸法認識',
+      style: '寸法スタイル',
+      dimStyle: 'スタイル',
+      newStyle: '新しい寸法スタイル…',
+      newStyleName: '新しい寸法スタイルの名前',
+      createStyle: '作成',
+      nameEmpty: '名前を入力してください。',
+      nameInvalid: '名前に使用できない文字が含まれています。',
+      nameExists: '同じ名前の寸法スタイルが既に存在します。',
+      scale: '図面尺度',
+      stylePreview: '選択した寸法スタイルのプレビュー（認識したサイズを反映）',
+      dimensions: '寸法',
+      selectHint: '寸法を選択するとズームします。適用前に値を編集できます。',
+      empty: '選択範囲に寸法が見つかりません。',
+      include: 'この寸法を変換',
+      kindLinear: '長さ',
+      kindRadius: '半径',
+      kindDiameter: '直径',
+      kindAngular: '角度',
+      kindAligned: '平行',
+      kindArcLength: '弧長',
+      kindOrdinate: '座標',
+      textTip: '寸法値（上書き）',
+      measured: '測定値 {value}',
+      hideStrokes: '元の線を非表示',
+      ready: '{ready}/{count} 個の寸法が準備完了',
+      cancel: 'キャンセル',
+      apply: '適用'
+    }
+  },
+  pdfhatch: {
+    cancelled: 'ハッチング認識をキャンセルしました。変更はありません。',
+    pickPoint: 'ハッチングする領域の内側の点を指定',
+    panel: {
+      title: 'ハッチング認識',
+      hatches: 'ハッチング',
+      addArea: '領域を追加',
+      addAreaTip:
+        '認識されなかった領域の内側の点を指定すると、その中の線分に最適なパターンを当てはめます。',
+      picking: '図面で領域の内側の点を指定してください…',
+      noBoundary: 'その点の周囲に閉じた領域が見つかりません。',
+      noStrokes: 'その領域に規則的なパターンが見つかりません。',
+      empty: 'ハッチングが見つかりません。「領域を追加」で指定してください。',
+      include: 'このハッチングを変換',
+      addedTag: '追加',
+      entities: '{count} 個のオブジェクト',
+      selectHint:
+        'ハッチングを選択すると、パターン、尺度、角度を変更できます。',
+      ownGroup: '計測 / ユーザ定義',
+      libraryGroup: '定義済み',
+      pattern: 'パターン',
+      scale: '尺度',
+      spacing: '間隔',
+      angle: '角度',
+      autoFit: '自動フィット',
+      autoFitTip: '線分からこのパターンの尺度、角度、原点を再計測します。',
+      match: '線分上のパターン: {precision} · 再描画された線分: {recall}',
+      noEntities:
+        'このパターンで完全に再描画されるオブジェクトがないため、何も置き換えられません。',
+      guessed:
+        '線分にこのパターンの特徴が見つかりません。尺度と角度は推定値です。',
+      poorMatch: '一致度が低い: ハッチングで再描画されない線分は残ります。',
+      userSingle: 'ユーザ定義',
+      userDouble: 'ユーザ定義 (ダブル)',
+      measured: '計測したパターン',
+      hideStrokes: '元の線分を非表示',
+      ready: '{count} 個中 {ready} 個のハッチングが準備完了',
+      cancel: 'キャンセル',
+      apply: '適用'
+    },
+    noHatches:
+      '選択範囲にハッチングが見つかりません（規則的な平行線分とその境界線が必要です）。',
+    summary:
+      '{count} 個のハッチングを変換しました（{patterns}）。{strokes} 個のオブジェクトを置き換えました。'
   },
   bsearch: {
     unsupported:
@@ -2097,40 +2289,74 @@ export default {
       }
     }
   },
-  pdfblock: {
-    keywords: {
-      yes: {
-        display: 'はい(Y)',
-        local: 'はい',
-        global: 'Yes'
-      },
-      no: {
-        display: 'いいえ(N)',
-        local: 'いいえ',
-        global: 'No'
-      },
-      review: {
-        display: '個別確認(R)',
-        local: '個別確認',
-        global: 'Review'
-      },
-      all: {
-        display: 'すべて(A)',
-        local: 'すべて',
-        global: 'All'
-      },
-      exit: {
-        display: '終了(X)',
-        local: '終了',
-        global: 'eXit'
-      }
-    }
-  },
   pdftext: {
-    enterText:
-      '文字行 {index}/{count}: ハイライトされた文字を入力（空欄でスキップ、Esc で終了）',
-    enterTextWithSuggestion:
-      '文字行 {index}/{count}: ハイライトされた文字を入力',
+    panel: {
+      title: '文字認識',
+      shxGroup: 'SHX 文字（線フォント）',
+      meshGroup: 'TrueType 文字（アウトライン フォント）',
+      style: '文字スタイル',
+      newStyle: '新しい文字スタイル…',
+      newTag: '新規',
+      newStyleName: '新しい文字スタイル名',
+      create: '作成',
+      cancel: 'キャンセル',
+      apply: '適用',
+      nameError: {
+        empty: '名前を入力してください。',
+        invalid: '名前に使用できない文字が含まれています。',
+        exists: '同じ名前の文字スタイルが既に存在します。'
+      },
+      font: 'フォント',
+      bigFont: 'ビッグフォント',
+      noBigFont: '(なし)',
+      shxFonts: 'SHX フォント',
+      ttfFonts: 'TrueType フォント',
+      fontsUsed: '使用フォント: {fonts}',
+      fontMissing:
+        'フォント「{font}」は使用できないため、「{fallback}」で表示されます。',
+      fontNotShx:
+        'TrueType フォントです。SHX の線文字のようには表示されません。',
+      fontNotTtf:
+        'SHX フォントです。TrueType のアウトライン文字のようには表示されません。',
+      styleChanges:
+        '文字スタイル「{style}」のフォントを変更します。このスタイルを使用している既存の文字も変わります。',
+      heightScale: '高さの尺度',
+      widthFactor: '幅係数',
+      autoWidth: '元の幅に合わせる',
+      lines: '文字行',
+      include: 'この行を変換',
+      textPlaceholder: '文字を入力 (空欄の場合はスキップ)',
+      switchKind: 'SHX 文字と TrueType 文字を切り替え',
+      kind: {
+        shx: 'SHX',
+        mesh: 'TrueType'
+      },
+      source: {
+        dictionary: '学習済み',
+        ocr: 'OCR',
+        typed: '編集済み',
+        unread: '未認識'
+      },
+      hideStrokes: '元の線分を非表示',
+      ready: '{count} 行中 {ready} 行が準備完了',
+      merge: 'マルチテキストに結合',
+      mergeTip: '選択した行を 1 つのマルチテキスト（MTEXT）に結合します',
+      split: '分割',
+      splitTip: '選択した結合済みの文字を元の行に分割します',
+      mergeAdjacent: '隣接文字を結合',
+      mergeAdjacentTip:
+        '同じベースライン上で隣り合う文字や単語をマルチテキストに結合します',
+      mergedCount: '{count} 個のマルチテキストに結合しました。',
+      selectHint:
+        'Ctrl+クリックまたは Shift+クリックで複数の行を選択できます。',
+      mtextTag: 'マルチテキスト'
+    },
+    cancelled: '文字認識をキャンセルしました。変更はありません。',
+    ocrNotConfigured:
+      '文字認識（OCR）は無効です：画像に対応した AI モデルが設定されていません。LLMSETTINGS を実行して設定してください。',
+    recognizing: '{count} 行の文字を認識しています…',
+    ocrFailed:
+      '文字認識（OCR）に失敗しました：{message}。文字を手動で入力するか、LLMSETTINGS を実行して AI モデルの設定を確認してください。',
     noCandidates: '選択内に文字らしいストロークが見つかりません。',
     summary:
       '{converted} 行を変換しました（自動認識 {automatic} 行）。スキップ {skipped} 行。'
@@ -2143,5 +2369,12 @@ export default {
       '実際の長さを入力（測定値 {measured}、寸法値から推定した尺度 1:{scale}）',
     zeroDistance: '2 点が同じ位置です。',
     applied: '{count} 個のオブジェクトを尺度 {factor} で変更しました。'
+  },
+  txt2mtxt: {
+    needTwo:
+      '結合するには、文字またはマルチ テキストを 2 つ以上選択してください。',
+    mergeFailed: '選択した文字を結合できませんでした。',
+    eraseFailed:
+      '元の文字をすべて削除できなかったため、結合は取り消されました。'
   }
 }

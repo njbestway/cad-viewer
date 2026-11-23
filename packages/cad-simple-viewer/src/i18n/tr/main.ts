@@ -39,6 +39,9 @@ export default {
     exportingPdf: 'PDF dışa aktarılıyor ...',
     exportingSvg: 'SVG dışa aktarılıyor ...',
     calculatingSmartExtents: 'Akıllı sınırlar hesaplanıyor ...',
+    copyingToClipboard: 'Panoya kopyalanıyor ...',
+    cuttingToClipboard: 'Kesiliyor ...',
+    pastingFromClipboard: 'Yapıştırılıyor ...',
     importingPdf: 'PDF içe aktarılıyor ...',
     exportingEntityPreview: 'Görüntü dışa aktarılıyor ...',
     collectingMemoryProfile: 'Bellek analiz ediliyor ...',
@@ -139,6 +142,9 @@ export default {
     undo: 'Geri al',
     redo: 'Yinele',
     erase: 'Sil',
+    copy: 'Kopyala',
+    cut: 'Kes',
+    paste: 'Yapıştır',
     collapse: 'Araç çubuğunu daralt',
     expand: 'Araç çubuğunu genişlet'
   },
@@ -202,5 +208,21 @@ export default {
     selectFile: 'Dosya seç',
     signInRequired: 'Dosya seçmek için önce oturum açın.',
     downloading: 'Dosya indiriliyor ...'
+  },
+  dockPanel: {
+    close: 'Paneli kapat',
+    dockSide: 'Yerleşim kenarı',
+    dockTop: 'Üste yerleştir',
+    dockBottom: 'Alta yerleştir',
+    dockLeft: 'Sola yerleştir',
+    dockRight: 'Sağa yerleştir',
+    moreTabs: 'Diğer sekmeler',
+    resize: 'Panel boyutunu ayarla',
+    tab: {
+      layers: 'Katmanlar',
+      review: 'İnceleme',
+      find: 'Bul',
+      measurements: 'Ölçümler'
+    }
   }
 }

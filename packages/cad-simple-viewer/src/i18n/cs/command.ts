@@ -93,6 +93,29 @@ export default {
         'Kopíruje vybrané objekty vytvořením kopií na nových pozicích',
       prompt: 'Vyberte objekty'
     },
+    copybase: {
+      description:
+        'Zkopíruje vybrané objekty do schránky se zadaným základním bodem',
+      prompt: 'Vyberte objekty'
+    },
+    copyclip: {
+      description: 'Zkopíruje vybrané objekty do schránky',
+      prompt: 'Vyberte objekty'
+    },
+    cutclip: {
+      description:
+        'Zkopíruje vybrané objekty do schránky a odstraní je z výkresu',
+      prompt: 'Vyberte objekty'
+    },
+    pasteblock: {
+      description: 'Vloží objekty ze schránky jako blok'
+    },
+    pasteclip: {
+      description: 'Vloží objekty ze schránky do aktuálního výkresu'
+    },
+    pasteorig: {
+      description: 'Vloží objekty ze schránky se souřadnicemi původního výkresu'
+    },
     csvg: {
       description: 'Převede aktuální výkres na SVG'
     },
@@ -137,6 +160,12 @@ export default {
     dwgname: {
       description: 'Ukládá název aktuálního souboru výkresu (pouze pro čtení)'
     },
+    find: {
+      description: 'Otevře dokovací panel hledání textu'
+    },
+    layer: {
+      description: 'Otevře nebo zavře dokovací panel správce hladin'
+    },
     loginname: {
       description: 'Zobrazí přihlašovací jméno uživatele (pouze pro čtení)'
     },
@@ -153,6 +182,10 @@ export default {
     erase: {
       description: 'Odstraní vybrané objekty z výkresu',
       prompt: 'Vyberte objekty'
+    },
+    explode: {
+      description: 'Rozloží složený objekt na jednotlivé objekty',
+      prompt: 'Vyberte objekty k rozložení'
     },
     group: {
       description: 'Vytváří a spravuje uložené sady objektů nazývané skupiny'
@@ -224,9 +257,9 @@ export default {
       description: 'Převede rozložené kóty z PDF zpět na kótovací objekty',
       prompt: 'Vyberte oblast s kótami'
     },
-    pdfblock: {
-      description: 'Převede opakovanou geometrii z PDF zpět na blok',
-      prompt: 'Vyberte objekty jedné instance bloku'
+    pdfhatch: {
+      description: 'Převede rozložené čáry šrafy z PDF zpět na objekt šrafy',
+      prompt: 'Vyberte šrafovanou oblast i s čarami kolem ní'
     },
     pdftext: {
       description: 'Převede rozložené tahy textu z PDF zpět na textové objekty',
@@ -237,8 +270,13 @@ export default {
         'Kalibruje importovanou geometrii PDF podle známé vzdálenosti',
       prompt: 'Vyberte objekty ke změně měřítka'
     },
-    ipdf: {
-      description: 'Importuje vektorovou geometrii ze souboru PDF'
+    pdfimport: {
+      description:
+        'Importuje vektorovou geometrii ze souboru PDF pomocí dialogu Importovat PDF'
+    },
+    '-pdfimport': {
+      description:
+        'Importuje vektorovou geometrii ze souboru PDF pomocí příkazového řádku'
     },
     hpang: {
       description:
@@ -426,6 +464,11 @@ export default {
     mtext: {
       description: 'Vytvoří jeden objekt víceřádkového textu'
     },
+    txt2mtxt: {
+      description:
+        'Sloučí vybrané texty a víceřádkové texty do jednoho víceřádkového textu',
+      prompt: 'Vyberte texty nebo víceřádkové texty'
+    },
     open: {
       description: 'Otevře existující soubor výkresu'
     },
@@ -549,6 +592,11 @@ export default {
     },
     rotate: {
       description: 'Otočí vybrané objekty kolem základního bodu',
+      prompt: 'Vyberte objekty'
+    },
+    scale: {
+      description:
+        'Zvětší nebo zmenší vybrané objekty se zachováním jejich proporcí',
       prompt: 'Vyberte objekty'
     },
     select: {

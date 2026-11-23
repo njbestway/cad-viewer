@@ -1,5 +1,5 @@
-import { AcTrLayoutView } from './AcTrLayoutView'
-import { AcTrScene } from './AcTrScene'
+import { AcTrLayoutView } from './AcTrLayoutView.js'
+import { AcTrScene } from './AcTrScene.js'
 
 /**
  * Manages multiple layout views and coordinates active layout switching.
@@ -83,6 +83,15 @@ export class AcTrLayoutViewManager {
    */
   getAt(layoutBtrId: string) {
     return this._layoutViews.get(layoutBtrId)
+  }
+
+  /**
+   * Iterates every layout view managed by this manager.
+   *
+   * @param callback - Invoked once per layout view, in insertion order
+   */
+  forEach(callback: (layoutView: AcTrLayoutView) => void) {
+    this._layoutViews.forEach(layoutView => callback(layoutView))
   }
 
   /**

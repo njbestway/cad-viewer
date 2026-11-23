@@ -1,4 +1,9 @@
-import { AcDbCircle, AcGePoint3d } from '@mlightcad/data-model'
+import {
+  AcDbCircle,
+  AcDbDatabase,
+  acdbHostApplicationServices,
+  AcGePoint3d
+} from '@mlightcad/data-model'
 
 import { AcEdGripPreviewJig } from '../src/editor/grip/AcEdGripPreviewJig'
 import { AcEdBaseView } from '../src/editor/view/AcEdBaseView'
@@ -11,6 +16,12 @@ function createMockView(): AcEdBaseView {
 }
 
 describe('AcEdGripPreviewJig grip offsets stay in the XY plane', () => {
+  // A detached entity resolves `entity.database` through the host working
+  // database, which throws when none is set.
+  beforeEach(() => {
+    acdbHostApplicationServices().workingDatabase = new AcDbDatabase()
+  })
+
   // 人员定位立体图20250530.dxf handle 0x1B39: Circle center z = 31,110,344.
   // The grip base point carries the true elevation while the drag cursor
   // resolves on the z=0 view plane; a 3D subtraction used to translate the

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
-import { AcTrCommonUtil } from '../util'
-import { getMaterialRuntimeUserData } from '../util/AcTrObjectUserData'
+import { getMaterialRuntimeUserData } from '../util/AcTrObjectUserData.js'
+import { AcTrCommonUtil } from '../util/index.js'
 import {
   AcTrBatchGeometryDefaultFlags,
   AcTrIndexedBatchGeometryInfo,
@@ -12,7 +12,7 @@ import {
   isSlotGenerationCurrent as isSlotGenerationValid,
   nextSlotGeneration,
   setBatchGeometryVisible
-} from './AcTrBatchedGeometryInfo'
+} from './AcTrBatchedGeometryInfo.js'
 import {
   type AcTrBatchSlotLifecycleCounters,
   type BatchSlotLifecycleMetrics,
@@ -23,7 +23,7 @@ import {
 import {
   type AcTrBatchDrawVisibilityInfo,
   applyBatchSlotDrawVisibility
-} from './drawVisibility'
+} from './drawVisibility/index.js'
 import {
   type AcTrBatchCompareRole,
   type AcTrBatchHighlightKind,
@@ -33,7 +33,7 @@ import {
   ensureSlotIdAttribute,
   installBatchHighlightRenderer,
   writeSlotIdRange
-} from './highlight'
+} from './highlight/index.js'
 
 /** Whether any material in the batch was patched for highlight/compare shaders. */
 function hasBatchHighlightMaterial(

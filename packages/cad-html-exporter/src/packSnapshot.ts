@@ -1,4 +1,5 @@
 import {
+  acexHtmlAppendPackagePreview,
   acexHtmlBuildPackageAsync,
   acexHtmlEncodeSnapshot,
   acexHtmlPackHtml,
@@ -6,16 +7,17 @@ import {
   acexHtmlProtectEncodedSnapshot,
   acexHtmlResolveExpiresAt,
   acexHtmlShouldEmbedChunks,
-  type AcExHtmlSnapshot} from '@mlightcad/cad-html-core'
+  type AcExHtmlSnapshot
+} from '@mlightcad/cad-html-core'
 
 import {
   type AcExHtmlExporterOptions,
   type AcExHtmlExportResult,
   resolveAcExHtmlPackageBuildOptions
-} from './exportOptions'
-import { loadViewerRuntime } from './loadViewerRuntime'
-import { installNodeSnapshotCompressor } from './nodeGzip'
-import { zipPackageEntries } from './nodeZip'
+} from './exportOptions.js'
+import { loadViewerRuntime } from './loadViewerRuntime.js'
+import { installNodeSnapshotCompressor } from './nodeGzip.js'
+import { zipPackageEntries } from './nodeZip.js'
 
 /**
  * Packs a snapshot into HTML or a multi-file zip using the shared core APIs.
@@ -40,10 +42,7 @@ export async function packSnapshot(
       baseName,
       ...packageBuild
     })
-    const files =
-      previewJpeg?.length
-        ? [...pkg.files, { path: 'preview.jpg', bytes: previewJpeg }]
-        : pkg.files
+    const files = acexHtmlAppendPackagePreview(pkg.files, previewJpeg)
     if (options.zipPackage === false) {
       return {
         kind: 'directory',

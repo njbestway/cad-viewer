@@ -1,12 +1,14 @@
 import { PDF_FALLBACK_LAYER } from '../src/pdfOptionalContent'
 import {
+  applyPdfImportContrastColors,
   detectPdfImportPaperTone,
   extractPdfImportSubpaths,
   PDF_IMPORT_FOREGROUND_COLOR,
   PDF_PT_TO_MM,
   type PdfImportOps,
   type PdfImportViewport,
-  remapPdfImportColor} from '../src/pdfVectorImport'
+  remapPdfImportColor
+} from '../src/pdfVectorImport'
 
 const OPS: PdfImportOps = {
   save: 1,
@@ -86,14 +88,7 @@ function mm(value: number): number {
 
 describe('extractPdfImportSubpaths', () => {
   test('places packed constructPath geometry in model space', () => {
-    const stream = new Float32Array([
-      DRAW_MOVE_TO,
-      0,
-      0,
-      DRAW_LINE_TO,
-      10,
-      0
-    ])
+    const stream = new Float32Array([DRAW_MOVE_TO, 0, 0, DRAW_LINE_TO, 10, 0])
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [OPS.constructPath],
@@ -111,14 +106,7 @@ describe('extractPdfImportSubpaths', () => {
   })
 
   test('does not import an unpainted clipping path', () => {
-    const stream = new Float32Array([
-      DRAW_MOVE_TO,
-      0,
-      0,
-      DRAW_LINE_TO,
-      10,
-      0
-    ])
+    const stream = new Float32Array([DRAW_MOVE_TO, 0, 0, DRAW_LINE_TO, 10, 0])
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [OPS.constructPath],
@@ -168,14 +156,7 @@ describe('extractPdfImportSubpaths', () => {
   })
 
   test('uses constructPath coordinates as-is when PDF.js already baked a translation', () => {
-    const stream = new Float32Array([
-      DRAW_MOVE_TO,
-      10,
-      0,
-      DRAW_LINE_TO,
-      20,
-      0
-    ])
+    const stream = new Float32Array([DRAW_MOVE_TO, 10, 0, DRAW_LINE_TO, 20, 0])
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [OPS.constructPath],
@@ -194,11 +175,7 @@ describe('extractPdfImportSubpaths', () => {
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [OPS.moveTo, OPS.lineTo, OPS.stroke],
-        argsArray: [
-          [0, 0],
-          [200, 0],
-          []
-        ]
+        argsArray: [[0, 0], [200, 0], []]
       },
       OPS,
       rotated90Viewport(),
@@ -245,6 +222,79 @@ describe('extractPdfImportSubpaths', () => {
     ])
   })
 
+  test('keeps geometry nested in a hidden OCG on that hidden layer', () => {
+    // Exported frozen INSERT: `/OC VEGA BDC … /OC FRAME BDC … EMC … EMC`.
+    // Viewers hide nested content when any enclosing group is OFF, so the
+    // inner ON group must not pull the geometry onto a visible layer.
+    const { subpaths } = extractPdfImportSubpaths(
+      {
+        fnArray: [
+          OPS.beginMarkedContentProps,
+          OPS.beginMarkedContentProps,
+          OPS.moveTo,
+          OPS.lineTo,
+          OPS.stroke,
+          OPS.beginMarkedContentProps,
+          OPS.moveTo,
+          OPS.lineTo,
+          OPS.stroke,
+          OPS.endMarkedContent,
+          OPS.endMarkedContent,
+          OPS.moveTo,
+          OPS.lineTo,
+          OPS.stroke,
+          OPS.endMarkedContent,
+          OPS.beginMarkedContentProps,
+          OPS.beginMarkedContentProps,
+          OPS.moveTo,
+          OPS.lineTo,
+          OPS.stroke,
+          OPS.endMarkedContent,
+          OPS.endMarkedContent
+        ],
+        argsArray: [
+          ['OC', 'vega'],
+          ['OC', 'frame'],
+          [0, 0],
+          [1, 0],
+          [],
+          ['OC', { type: 'OCMD', ids: ['a', 'b'] }],
+          [0, 1],
+          [1, 1],
+          [],
+          [],
+          [],
+          [0, 2],
+          [1, 2],
+          [],
+          [],
+          ['OC', 'frame'],
+          ['OC', 'walls'],
+          [0, 3],
+          [1, 3],
+          [],
+          [],
+          []
+        ]
+      },
+      OPS,
+      yUpViewport(100),
+      new Map([
+        ['vega', { layerName: 'VEGA', visible: false }],
+        ['frame', { layerName: 'FRAME0_5', visible: true }],
+        ['walls', { layerName: 'A_WALL', visible: true }]
+      ]),
+      PDF_FALLBACK_LAYER
+    )
+
+    expect(subpaths.map(subpath => subpath.layerName)).toEqual([
+      'VEGA',
+      'VEGA',
+      'VEGA',
+      'A_WALL'
+    ])
+  })
+
   test('puts a multi-group OCMD on the fallback layer', () => {
     const { subpaths } = extractPdfImportSubpaths(
       {
@@ -287,14 +337,7 @@ describe('extractPdfImportSubpaths', () => {
   })
 
   test('uses the fill color for a fill and restores it with q/Q', () => {
-    const stream = new Float32Array([
-      DRAW_MOVE_TO,
-      0,
-      0,
-      DRAW_LINE_TO,
-      10,
-      0
-    ])
+    const stream = new Float32Array([DRAW_MOVE_TO, 0, 0, DRAW_LINE_TO, 10, 0])
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [
@@ -314,14 +357,7 @@ describe('extractPdfImportSubpaths', () => {
   })
 
   test('can keep paper-black colors when remapping is disabled', () => {
-    const stream = new Float32Array([
-      DRAW_MOVE_TO,
-      0,
-      0,
-      DRAW_LINE_TO,
-      10,
-      0
-    ])
+    const stream = new Float32Array([DRAW_MOVE_TO, 0, 0, DRAW_LINE_TO, 10, 0])
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [OPS.constructPath],
@@ -335,6 +371,102 @@ describe('extractPdfImportSubpaths', () => {
     )
 
     expect(subpaths[0].color).toBe('#000000')
+  })
+
+  test('keeps black ink on a light fill black instead of ACI 7', () => {
+    // A white label panel with black text and a black stroke on it, plus a
+    // black frame line on bare paper.
+    const panel = [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 50, y: 30 },
+      { x: 0, y: 30 },
+      { x: 0, y: 0 }
+    ]
+    const content = applyPdfImportContrastColors({
+      subpaths: [
+        {
+          points: panel,
+          filled: true,
+          paintGroup: 0,
+          color: '#ffffff',
+          fillColor: '#ffffff'
+        },
+        {
+          points: [
+            { x: 5, y: 5 },
+            { x: 45, y: 5 }
+          ],
+          color: '#000000'
+        },
+        {
+          points: [
+            { x: 60, y: 0 },
+            { x: 90, y: 0 }
+          ],
+          color: '#000000'
+        }
+      ],
+      texts: [
+        {
+          text: 'T5-F02',
+          position: { x: 10, y: 10 },
+          width: 20,
+          height: 3,
+          rotation: 0,
+          widthFactor: 1,
+          color: '#000000'
+        },
+        {
+          text: 'outside',
+          position: { x: 60, y: 10 },
+          width: 20,
+          height: 3,
+          rotation: 0,
+          widthFactor: 1,
+          color: '#000000'
+        }
+      ]
+    })
+
+    // The white panel is a fixed colour on every canvas, so ink on it must
+    // stay black to remain readable (ACI 7 turns white on a dark canvas).
+    expect(content.texts[0].color).toBe('#000000')
+    expect(content.subpaths[1].color).toBe('#000000')
+    // Ink on bare paper still follows the canvas.
+    expect(content.texts[1].color).toBe(PDF_IMPORT_FOREGROUND_COLOR)
+    expect(content.subpaths[2].color).toBe(PDF_IMPORT_FOREGROUND_COLOR)
+  })
+
+  test('does not treat ink under a later light fill as on it', () => {
+    // A light fill painted after the ink covers it; it does not make the
+    // ink sit "on" the fill.
+    const content = applyPdfImportContrastColors({
+      subpaths: [
+        {
+          points: [
+            { x: 5, y: 5 },
+            { x: 45, y: 5 }
+          ],
+          color: '#000000'
+        },
+        {
+          points: [
+            { x: 0, y: 0 },
+            { x: 50, y: 0 },
+            { x: 50, y: 30 },
+            { x: 0, y: 30 },
+            { x: 0, y: 0 }
+          ],
+          filled: true,
+          paintGroup: 0,
+          color: '#ffffff',
+          fillColor: '#ffffff'
+        }
+      ],
+      texts: []
+    })
+    expect(content.subpaths[0].color).toBe(PDF_IMPORT_FOREGROUND_COLOR)
   })
 
   test('remaps contrast ink to ACI 7 foreground by paper tone', () => {
@@ -380,14 +512,7 @@ describe('extractPdfImportSubpaths', () => {
     ).toBe('light')
     expect(detectPdfImportPaperTone(['#000000', '#000000'])).toBe('light')
 
-    const stream = new Float32Array([
-      DRAW_MOVE_TO,
-      0,
-      0,
-      DRAW_LINE_TO,
-      10,
-      0
-    ])
+    const stream = new Float32Array([DRAW_MOVE_TO, 0, 0, DRAW_LINE_TO, 10, 0])
     const { subpaths, texts } = extractPdfImportSubpaths(
       {
         fnArray: [
@@ -493,11 +618,7 @@ describe('extractPdfImportSubpaths', () => {
     const { subpaths } = extractPdfImportSubpaths(
       {
         fnArray: [OPS.moveTo, OPS.curveTo3, OPS.stroke],
-        argsArray: [
-          [0, 0],
-          [10, 20, 30, 0],
-          []
-        ]
+        argsArray: [[0, 0], [10, 20, 30, 0], []]
       },
       OPS,
       yUpViewport(100),
@@ -622,6 +743,48 @@ describe('extractPdfImportSubpaths', () => {
     expect(texts[0].height).toBeCloseTo(mm(10))
     expect(texts[0].rotation).toBeCloseTo(0)
     expect(texts[0].widthFactor).toBeCloseTo(1)
+  })
+
+  test('records the clip an image is painted under', () => {
+    const ops: PdfImportOps = { ...OPS, clip: 50 }
+    const { images, clipPaths } = extractPdfImportSubpaths(
+      {
+        fnArray: [
+          ops.save,
+          ops.rectangle,
+          ops.clip!,
+          ops.endPath,
+          ops.save,
+          ops.transform,
+          ops.paintImageXObject!,
+          ops.restore,
+          ops.restore,
+          ops.paintImageXObject!
+        ],
+        argsArray: [
+          null,
+          [40, 30, 20, 10],
+          null,
+          null,
+          null,
+          [100, 0, 0, 100, 0, 0],
+          ['img_p0_1', 10, 10],
+          null,
+          null,
+          ['img_p0_2', 10, 10]
+        ]
+      },
+      ops,
+      yUpViewport(600),
+      new Map()
+    )
+
+    expect(images).toHaveLength(2)
+    // A full picture clipped down to a small window (QR code detail).
+    expect(images![0].clipPath).toBe(0)
+    expect(clipPaths![0][0]).toHaveLength(4)
+    // Q restores the unclipped state.
+    expect(images![1].clipPath).toBeUndefined()
   })
 
   test('records image paints with their unit-square placement', () => {

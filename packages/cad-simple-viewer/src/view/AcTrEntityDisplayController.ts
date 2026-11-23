@@ -6,8 +6,8 @@ import {
   AcDbObjectId
 } from '@mlightcad/data-model'
 
-import { AcEdLayerInfo } from '../editor'
-import { AcTrLayer } from './AcTrLayer'
+import { AcEdLayerInfo } from '../editor/index.js'
+import { AcTrLayer } from './AcTrLayer.js'
 
 type AcTrEntityDisplayCandidate = Pick<AcDbEntity, 'visibility' | 'layer'>
 
@@ -61,6 +61,11 @@ export class AcTrEntityDisplayController {
    *
    * Export snapshots carry layer on/off state separately; geometry for off layers
    * must still be present so the HTML layer panel can toggle visibility.
+   *
+   * Frozen INSERTs are converted too: HTML/PDF layers only have visible/invisible,
+   * so freeze maps to initially invisible. Snapshot collection reparents nested
+   * fragments onto the INSERT layer so toggling that layer can show the whole
+   * reference (see HTML batch collector).
    */
   shouldConvertForExport(
     entity: AcTrEntityDisplayCandidate,

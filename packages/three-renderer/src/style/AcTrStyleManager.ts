@@ -6,11 +6,11 @@ import {
 } from '@mlightcad/data-model'
 import * as THREE from 'three'
 
-import { AcTrFillMaterialManager } from './AcTrFillMaterialManager'
-import { AcTrLineMaterialManager } from './AcTrLineMaterialManager'
-import { AcTrMaterialCacheStats } from './AcTrMaterialManager'
-import { AcTrPointMaterialManager } from './AcTrPointMaterialManager'
-import { AcTrStyleManagerOptions } from './AcTrStyleManagerOptions'
+import { AcTrFillMaterialManager } from './AcTrFillMaterialManager.js'
+import { AcTrLineMaterialManager } from './AcTrLineMaterialManager.js'
+import { AcTrMaterialCacheStats } from './AcTrMaterialManager.js'
+import { AcTrPointMaterialManager } from './AcTrPointMaterialManager.js'
+import { AcTrStyleManagerOptions } from './AcTrStyleManagerOptions.js'
 
 /** Aggregated material-cache stats across point / line / fill managers. */
 export interface AcTrStyleManagerStats {
@@ -91,7 +91,9 @@ export class AcTrStyleManager {
     layerColor?: AcCmColor,
     layerColorRgb?: number
   ): THREE.Material {
-    if (fatLines) {
+    // Overlay conversion (`forceShowLineWeight`) and explicit fat-line callers
+    // share a locked-width cache entry so LWDISPLAY cannot thin them out.
+    if (fatLines || this._forceShowLineWeight) {
       return this.lineMgr.getMaterial(
         traits,
         { fatLines: true },
@@ -102,9 +104,9 @@ export class AcTrStyleManager {
     const hasLinePattern = !!(
       traits.lineType.pattern && traits.lineType.pattern.length > 0
     )
-    const showLineWeight =
-      this.options.showLineWeight || this._forceShowLineWeight
-    const forceBasicMaterial = !showLineWeight && !hasLinePattern
+    // When LWDISPLAY is off, prefer cheap GL_LINES for solid strokes. Fat
+    // geometry is created only while display is on (or via fatLines above).
+    const forceBasicMaterial = !this.options.showLineWeight && !hasLinePattern
     return this.lineMgr.getMaterial(
       traits,
       {
@@ -123,10 +125,16 @@ export class AcTrStyleManager {
   }
 
   /**
-   * Sets whether lineweights are displayed.
+   * Sets whether lineweights are displayed and updates cached fat-line widths.
+   *
+   * Does not rebuild geometry — callers decide whether a one-shot upgrade
+   * regen is required. Batch-owned clones still need
+   * {@link applyLineWeightDisplay} via the scene.
    */
   set showLineWeight(value: boolean) {
+    if (this.options.showLineWeight === value) return
     this.options.showLineWeight = value
+    this.lineMgr.applyShowLineWeight(value)
   }
 
   /**
@@ -139,6 +147,19 @@ export class AcTrStyleManager {
 
   set forceShowLineWeight(value: boolean) {
     this._forceShowLineWeight = value
+  }
+
+  /**
+   * Material state that changes the graphics of the same entities: `'lw'`
+   * while line materials honor lineweights ({@link showLineWeight} or
+   * {@link forceShowLineWeight}), `''` otherwise.
+   *
+   * Exposed as {@link AcTrRenderer.cacheVariant} so block templates built
+   * with fat lines (for example for a transient preview) are cached apart
+   * from regular 1px templates.
+   */
+  get cacheVariant(): string {
+    return this.options.showLineWeight || this._forceShowLineWeight ? 'lw' : ''
   }
 
   /**

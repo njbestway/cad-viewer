@@ -12,11 +12,10 @@ MLightCAD 随附一组官方插件。每个插件专注于一项职责 —— UI
 
 | 包 | 职责 | 命令 / 能力 |
 |---------|------|-------------------------|
-| [`@mlightcad/cad-simple-ui-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-ui-plugin) | 为 `cad-simple-viewer` 提供**工具栏、图层管理器与审阅面板 UI**（纯 DOM，无 Vue/React） | `layer`、`markuppanel`、默认工具栏（视图、测量、导出、审阅、主题、语言） |
 | [`@mlightcad/cad-agent-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-agent-plugin) | **自然语言 CAD 智能体**（AI 聊天面板 + 绘图工具调用） | `agent` |
 | [`@mlightcad/cad-script-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-script-plugin) | **手动 CAD 脚本控制台**（对图纸运行受检脚本，无需 LLM / API 密钥） | `cadscript` |
 | [`@mlightcad/cad-html-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-html-plugin) | 将图纸导出为**自包含离线 HTML** | `chtml`（`cad-editor` 中为对话框）、`-chtml`（命令行） |
-| [`@mlightcad/cad-pdf-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-pdf-plugin) | **PDF 导出与导入**（矢量管线） | `cpdf`、`ipdf` |
+| [`@mlightcad/cad-pdf-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-pdf-plugin) | **PDF 导出与导入**（矢量管线） | `cpdf`、`pdfimport` |
 | [`@mlightcad/cad-svg-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-plugin) | **SVG 导出**及共享矢量渲染器（也被 PDF 导出使用） | `csvg` |
 | [`@mlightcad/cad-onedrive-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-onedrive-plugin) | **OneDrive 数据源** — 从 OneDrive / SharePoint 打开 DWG/DXF | 注册 `AcApDataSource`（`onedrive`）；两步 Sign in → Open（防弹窗拦截） |
 | [`@mlightcad/cad-google-drive-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-google-drive-plugin) | **Google Drive 数据源** — 从 Google Drive 打开 DWG/DXF | 注册 `AcApDataSource`（`googledrive`）；两步 Sign in → Open（防弹窗拦截） |
@@ -29,18 +28,38 @@ MLightCAD 随附一组官方插件。每个插件专注于一项职责 —— UI
 
 ### `@mlightcad/cad-simple-ui-plugin` — 简单查看器的 UI 界面
 
-[`cad-simple-viewer`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-viewer) 刻意不包含**任何应用 UI** —— 只有画布和 CAD 核心。如果你将简单查看器嵌入自己的 Web 应用，并希望获得现成的界面而不必采用完整的 Vue 版 [`cad-editor`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-editor) 外壳，**`cad-simple-ui-plugin` 就是预期的 UI 层**。
+[`cad-simple-viewer`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-viewer) 提供画布、CAD 核心，以及共享的纯 DOM chrome（如 **`AcUiDockPanel`**，也是未注册应用 UI 时 `AcApPaletteService` 的默认宿主）。如果你嵌入简单查看器，并希望获得现成的工具栏与选项板标签，而不必采用完整的 Vue 版 [`cad-editor`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-editor) 外壳，**`cad-simple-ui-plugin` 曾是预期的 UI 层**。
 
 它提供：
 
 - **可配置的工具栏**（可放置在任意边缘、默认 CAD 命令、嵌套菜单、自定义项）
-- 一个**停靠面板**，包含**图层管理器**标签页（图层开关、ACI 颜色选择器、双击缩放到图层）和**审阅面板**标签页（批注列表、状态、评论）
+- **停靠面板标签内容**（图层、查找、批注、测量），挂载在 `cad-simple-viewer` 提供的共享 `AcUiDockPanel` chrome 上；并通过 `AcApPaletteHost` 与 `cad-editor` 的 Vue 工具选项板共用 `AcApPaletteService`
 - 与 `COLORTHEME` 系统变量及宿主元素上的 `--ml-ui-*` CSS 变量**主题同步**
 - 与 `AcApI18n` **语言同步**（英语 / 中文 / 捷克语 / 土耳其语）
 
 所有组件都是框架无关的（纯 DOM）。完整 Vue 版 `cad-editor` 应用有自己的 Element Plus UI，不需要此插件；当你直接基于 `cad-simple-viewer` 构建时使用 `cad-simple-ui-plugin`。
 
-→ **快速开始、工具栏定制与选项：** [packages/cad-simple-ui-plugin/README.md](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-ui-plugin/README.md)
+→ **1.8.0 起的用法与迁移：** [升级指南](./upgrade-guide)
+
+::: tip 自 1.8.0 起 — 已并入 `cad-simple-viewer`
+从 **1.8.0** 起，独立 npm 包 **`@mlightcad/cad-simple-ui-plugin` 已移除**。相同的工具栏 / 停靠标签 / 选项板宿主现位于 **`@mlightcad/cad-simple-viewer`** （无 `/simple-ui` 子路径）。
+
+- **默认开启：** 通过 `AcApDocManager.createInstance({ simpleUi: { … } })` 传入选项（或省略 `simpleUi` 使用默认值）。该 chunk 延迟加载，因此设置 `simpleUi: false` 的宿主（`cad-editor`、CLI、MCP 等）不会下载它。
+- **类型 / 辅助 API：** 从 `@mlightcad/cad-simple-viewer` 导入。
+- **等待就绪：** 使用 `simpleUiReady` / `simpleUi`，不再使用 `pluginManager.getPlugin('SimpleUiPlugin')`。
+
+```ts
+AcApDocManager.createInstance({
+  container,
+  simpleUi: {
+    toolbar: { placement: 'right', items: 'default' }
+  }
+})
+// 关闭：simpleUi: false
+```
+
+完整迁移说明见[升级指南](./upgrade-guide)。
+:::
 
 ### `@mlightcad/cad-agent-plugin` — AI 绘图助手
 
@@ -54,7 +73,7 @@ MLightCAD 随附一组官方插件。每个插件专注于一项职责 —— UI
 - **第一阶段 CAD 工具** — `get_drawing_context`；`draw_line`、`draw_circle`、`draw_arc`、`draw_rectangle`、`draw_polyline`、`draw_text`；`set_current_layer`、`create_layer`、`zoom_extents`
 - 通过插件 i18n 层支持**英语 / 中文 / 土耳其语 / 捷克语**界面
 
-完整 Vue 版 `cad-editor` 应用在安装了该包时会自动注册智能体（面板标签页）。`cad-simple-viewer-demo` 通过 `cad-simple-ui-plugin` 将其接入停靠标签页。宿主应用调用 `registerLazyAgentPlugin` 和 `setAgentPaletteOpener` 来挂载面板。
+完整 Vue 版 `cad-editor` 应用在安装了该包时会自动注册智能体（面板标签页）。`cad-simple-viewer-demo` 通过内置 simple UI（`simpleUi`）将其接入停靠标签页。宿主应用调用 `registerLazyAgentPlugin` 和 `setAgentPaletteOpener` 来挂载面板。
 
 → **安装、注册与工具列表：** [packages/cad-agent-plugin/README.md](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-agent-plugin/README.md)
 
@@ -93,7 +112,7 @@ MLightCAD 随附一组官方插件。每个插件专注于一项职责 —— UI
 
 | 项 | 值 |
 |------|-------|
-| 命令 | `cpdf`（导出）、`ipdf`（导入） |
+| 命令 | `cpdf`（导出）、`pdfimport`（导入） |
 | 公开 API | `registerLazyPdfPlugin`、`createPdfPlugin`、`AcApPdfConvertor`、`resolveAcApPdfExportOptions` |
 
 → **构建产物与集成：** [packages/cad-pdf-plugin/README.md](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-pdf-plugin/README.md)
@@ -152,7 +171,7 @@ await registerGoogleDrivePlugin(AcApDocManager.instance.pluginManager, {
 | 应用 | 注册的插件 |
 |-----|--------------------|
 | `cad-simple-viewer` | 无 —— 仅核心，插件均为可选 |
-| `cad-simple-viewer-demo` | 导出插件（HTML/PDF/SVG）、`cad-simple-ui-plugin`、`cad-agent-plugin`、`cad-script-plugin` |
+| `cad-simple-viewer-demo` | 导出插件（HTML/PDF/SVG）、内置 simple UI（`simpleUi`，原 `cad-simple-ui-plugin`）、`cad-agent-plugin`、`cad-script-plugin` |
 | `cad-editor`（Vue） | 导出插件（HTML/PDF/SVG）；智能体和脚本插件在**已安装时**自动注册（可选 peer 依赖） |
 
 ---

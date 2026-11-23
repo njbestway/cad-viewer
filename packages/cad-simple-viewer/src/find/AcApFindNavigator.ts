@@ -4,8 +4,9 @@ import {
   AcGePoint2d
 } from '@mlightcad/data-model'
 
-import type { AcApDocManager } from '../app/AcApDocManager'
-import { acapFindHitBox, type AcApFindLayoutHit } from './findDrawing'
+import type { AcApDocManager } from '../app/AcApDocManager.js'
+import { acapFindHitBox, type AcApFindLayoutHit } from './findDrawing.js'
+import { acapResolveFindBlockTableRecord } from './findText.js'
 
 /** Options for {@link acapNavigateToFindHit}. */
 export interface AcApFindNavigateOptions {
@@ -39,7 +40,7 @@ export interface AcApFindViewInsets {
 }
 
 /** View methods used to keep the hit inside the uncovered canvas area. */
-interface InsetView {
+export interface AcApInsetView {
   width?: number
   height?: number
   center?: { x: number; y: number }
@@ -49,11 +50,17 @@ interface InsetView {
 
 /**
  * Zooms to `box` so that it fits, centred, in the part of the canvas that
- * `insets` leaves visible. Falls back to a plain `zoomTo` when the view
- * cannot convert coordinates or the visible part is too small to matter.
+ * `insets` leaves visible (e.g. not behind a docked palette). Falls back to
+ * a plain `zoomTo` when the view cannot convert coordinates or the visible
+ * part is too small to matter.
+ *
+ * @param view - The view to zoom.
+ * @param box - World box to frame.
+ * @param margin - Margin passed to `zoomTo`.
+ * @param insets - Canvas pixels covered on each side.
  */
-function zoomToVisible(
-  view: InsetView & { zoomTo(box: AcGeBox2d, margin?: number): void },
+export function acapZoomToVisible(
+  view: AcApInsetView & { zoomTo(box: AcGeBox2d, margin?: number): void },
   box: { min: { x: number; y: number }; max: { x: number; y: number } },
   margin: number,
   insets: AcApFindViewInsets | undefined
@@ -159,7 +166,9 @@ export async function acapNavigateToFindHit(
 
   if (view.activeLayoutBtrId !== hit.layoutId) {
     if (options.activateLayout === false) return 'layout-mismatch'
-    if (!db.tables.blockTable.getIdAt(hit.layoutId)) return 'layout-missing'
+    if (!acapResolveFindBlockTableRecord(db, hit.layoutId)) {
+      return 'layout-missing'
+    }
 
     if (!view.isLayoutInitialized(hit.layoutId)) {
       // We frame the layout ourselves; keep its first-visit auto zoom from
@@ -178,8 +187,8 @@ export async function acapNavigateToFindHit(
   }
 
   const box = acapFindHitBox(db, hit.layoutId, hit)
-  zoomToVisible(
-    view as unknown as Parameters<typeof zoomToVisible>[0],
+  acapZoomToVisible(
+    view as unknown as Parameters<typeof acapZoomToVisible>[0],
     box,
     options.margin ?? 1.1,
     options.insets

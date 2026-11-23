@@ -128,6 +128,20 @@ export default {
       }
     }
   },
+  copybase: {
+    basePoint: 'Určete základní bod'
+  },
+  pasteclip: {
+    insertionPoint: 'Určete bod vložení',
+    empty: 'Schránka neobsahuje žádné objekty výkresu'
+  },
+  pasteorig: {
+    sameDrawing:
+      'PASTEORIG nemůže vložit objekty do výkresu, ze kterého byly zkopírovány'
+  },
+  pasteblock: {
+    insertionPoint: 'Určete bod vložení'
+  },
   dimlinear: {
     xLine1Point: 'Zadejte počátek první pomocné čáry',
     xLine2Point: 'Zadejte počátek druhé pomocné čáry',
@@ -315,6 +329,10 @@ export default {
       rotation:
         'Neplatný vstup otočení: výsledná vedlejší osa musí být větší než 0.'
     }
+  },
+  explode: {
+    notExplodable: 'Počet objektů, které nelze rozložit: {count}',
+    minsert: 'Bloky vložené příkazem MINSERT nelze rozložit (počet: {count})'
   },
   hatch: {
     prompt: 'Vyberte objekt hranice nebo',
@@ -812,7 +830,17 @@ export default {
     endPoint: 'Zadejte koncový bod oblouku',
     lockedEndPoint:
       'Zadejte koncový bod oblouku (Ctrl přepne velký/malý oblouk)',
-    invalidPoints: 'Tři body jsou kolineární a nedefinují oblouk.'
+    invalidPoints: 'Tři body jsou kolineární a nedefinují oblouk.',
+    pickArc: 'Vyberte kružnici, oblouk nebo oblouk křivky',
+    noArc:
+      'Zde není kružnice ani oblouk. Klikněte na křivku nebo zvolte Tři body.',
+    keywords: {
+      threePoint: {
+        display: 'TřiBody(T)',
+        local: 'TřiBody',
+        global: 'ThreePoint'
+      }
+    }
   },
   measureArea: {
     firstPoint: 'Zadejte první bod',
@@ -1068,6 +1096,7 @@ export default {
     selectLeaderToRemove:
       'Zadejte odkaz k odebrání nebo stiskněte Enter pro dokončení',
     cannotRemoveLast: 'Z tohoto multiodkazu nelze odebrat poslední odkaz.',
+    noLeaderAtPoint: 'V tomto bodě nebyl nalezen žádný odkaz.',
     keywords: {
       remove: {
         display: 'Odebrat odkazy(R)',
@@ -1305,6 +1334,35 @@ export default {
     },
     invalid: {
       referencePoints: 'Neplatné referenční body: body musí být různé.'
+    }
+  },
+  scale: {
+    basePoint: 'Zadejte základní bod',
+    scaleFactorOrOptions: 'Zadejte měřítko nebo',
+    referenceLength: 'Zadejte referenční délku',
+    newLengthOrPoints: 'Zadejte novou délku nebo',
+    newLengthFirstPoint: 'Zadejte první bod',
+    copyMessage: 'Mění se měřítko kopie vybraných objektů.',
+    keywords: {
+      copy: {
+        display: 'Kopírovat(C)',
+        local: 'Kopírovat',
+        global: 'Copy'
+      },
+      reference: {
+        display: 'Reference(R)',
+        local: 'Reference',
+        global: 'Reference'
+      },
+      points: {
+        display: 'Body(P)',
+        local: 'Body',
+        global: 'Points'
+      }
+    },
+    invalid: {
+      factor: 'Hodnota musí být kladná a nenulová.',
+      length: 'Hodnota musí být kladná a nenulová.'
     }
   },
   revcloud: {
@@ -1572,6 +1630,7 @@ export default {
     exportFormat: 'Formát exportu',
     exportInvisibleLayers: 'Exportovat neviditelné hladiny',
     exportLayouts: 'Exportovat rozvržení',
+    exportEmptyLayouts: 'Exportovat prázdná rozvržení',
     background: 'Barva pozadí',
     initialView: 'Počáteční pohled při otevření HTML',
     viewerMode: 'Režim offline prohlížeče',
@@ -1638,6 +1697,7 @@ export default {
   cpdf: {
     modelSpaceFit: 'Rám modelového prostoru',
     exportLayouts: 'Exportovat rozvržení',
+    exportEmptyLayouts: 'Exportovat prázdná rozvržení',
     textMode: 'Vykreslení textu',
     colorMode: 'Barevný režim',
     keywords: {
@@ -1930,13 +1990,18 @@ export default {
       }
     }
   },
-  ipdf: {
+  pdfimport: {
     pageNumber: 'Zadejte číslo stránky (1-{count})',
-    insertionPoint: 'Určete bod vložení (měřítko {scale}, režim {mode}) nebo',
+    insertionPoint:
+      'Určete bod vložení (měřítko {scale}, režim {mode}, text {text}) nebo',
     modePrompt: 'Vyberte způsob importu',
     modeRecover: 'obnovit výkres',
     modeVisual: 'zachovat vzhled PDF',
     scaleFactor: 'Zadejte měřítko',
+    textPrompt: 'Vyberte rozpoznávání rozloženého textu',
+    textOff: 'vypnuto',
+    textLocal: 'místní slovník znaků',
+    textOcr: 'služba OCR',
     keywords: {
       scale: {
         display: 'Měřítko(S)',
@@ -1948,6 +2013,11 @@ export default {
         local: 'Režim',
         global: 'Mode'
       },
+      text: {
+        display: 'Text(T)',
+        local: 'Text',
+        global: 'Text'
+      },
       recover: {
         display: 'Obnovit(R)',
         local: 'Obnovit',
@@ -1957,16 +2027,143 @@ export default {
         display: 'Vzhled(V)',
         local: 'Vzhled',
         global: 'Visual'
+      },
+      off: {
+        display: 'Vypnuto(O)',
+        local: 'Vypnuto',
+        global: 'Off'
+      },
+      local: {
+        display: 'Místní(L)',
+        local: 'Místní',
+        global: 'Local'
+      },
+      ocr: {
+        display: 'Ocr(C)',
+        local: 'Ocr',
+        global: 'Ocr'
       }
+    },
+    pickInsertionPoint: 'Zadejte bod vložení',
+    dialog: {
+      title: 'Importovat PDF',
+      close: 'Zavřít',
+      fileName: 'Název souboru:',
+      browse: 'Procházet...',
+      pagesGroup: 'Stránka k importu',
+      page: 'Stránka:',
+      total: 'Celkem: {count}',
+      singleView: 'Zobrazit náhled stránky',
+      gridView: 'Zobrazit miniatury stránek',
+      pageLabel: 'Stránka {page}',
+      pageSize:
+        'Velikost stránky: {width} × {height} mm ({widthIn} × {heightIn} palce)',
+      previewError: 'Náhled není k dispozici',
+      positionGroup: 'Umístění',
+      onScreen: 'Zadat bod vložení na obrazovce',
+      x: 'X:',
+      y: 'Y:',
+      scale: 'Měřítko:',
+      modeGroup: 'Režim importu',
+      modeRecover: 'Obnovit výkres',
+      recoverHint:
+        'Znovu sestaví kružnice, oblouky, křivky, text, šrafy a bloky',
+      modeVisual: 'Zachovat vzhled PDF',
+      visualHint:
+        'Importuje cesty a text přesně tak, jak jsou nakresleny v PDF',
+      recognizeDimensions: 'Rozpoznat kóty',
+      recognizeDimensionsHint: 'Převede rozložené kóty zpět na objekty kót',
+      recognizeExplodedText: 'Rozpoznat rozložený text',
+      recognizeExplodedTextHint:
+        'Převede SHX / obrysový text ze tahů zpět na textové objekty (místní slovník nebo dostupný poskytovatel OCR)',
+      recognizeExplodedTextOff: 'Vypnuto',
+      recognizeExplodedTextLocal: 'Místní slovník znaků',
+      recognizeExplodedTextOcr: 'OCR',
+      ok: 'OK',
+      cancel: 'Storno'
     }
   },
   pdfdim: {
+    cancelled: 'Obnovení kót bylo zrušeno; nic se nezměnilo.',
     noDimensions:
       'Ve výběru nebyly nalezeny žádné kóty (jsou potřeba šipky nebo značky, kótovací čáry a texty hodnot).',
-    convertAll: 'Nalezeno {count} kót (měřítko výkresu 1:{scale}). Převést je?',
-    convertOne: 'Kóta {index}/{count} "{text}": převést?',
     summary:
-      'Převedeno {count} kót; styl PDF_DIM používá lineární měřítko {scale}.'
+      'Převedeno {count} kót; styl {style} používá lineární měřítko {scale}.',
+    panel: {
+      title: 'Obnovit kóty',
+      style: 'Styl kót',
+      dimStyle: 'Styl',
+      newStyle: 'Nový styl kót…',
+      newStyleName: 'Název nového stylu kót',
+      createStyle: 'Vytvořit',
+      nameEmpty: 'Zadejte název.',
+      nameInvalid: 'Název obsahuje nepovolené znaky.',
+      nameExists: 'Styl kót s tímto názvem už existuje.',
+      scale: 'Měřítko výkresu',
+      stylePreview: 'Náhled vybraného stylu kót s rozpoznanými velikostmi',
+      dimensions: 'Kóty',
+      selectHint:
+        'Vyberte kótu pro přiblížení; před použitím můžete upravit hodnotu.',
+      empty: 'Ve výběru nebyly nalezeny žádné kóty.',
+      include: 'Převést tuto kótu',
+      kindLinear: 'Lineární',
+      kindRadius: 'Poloměr',
+      kindDiameter: 'Průměr',
+      kindAngular: 'Úhlová',
+      kindAligned: 'Zarovnaná',
+      kindArcLength: 'Délka oblouku',
+      kindOrdinate: 'Souřadnicová',
+      textTip: 'Text kóty (přepsání)',
+      measured: 'Naměřeno {value}',
+      hideStrokes: 'Skrýt původní čáry',
+      ready: '{ready} z {count} kót připraveno',
+      cancel: 'Zrušit',
+      apply: 'Použít'
+    }
+  },
+  pdfhatch: {
+    cancelled: 'Obnovení šraf bylo zrušeno; nic se nezměnilo.',
+    pickPoint: 'Určete bod uvnitř oblasti, kterou chcete šrafovat',
+    panel: {
+      title: 'Obnovit šrafy',
+      hatches: 'Šrafy',
+      addArea: 'Přidat oblast',
+      addAreaTip:
+        'Určete bod uvnitř oblasti, kterou rozpoznání vynechalo; na její čáry se použije nejlépe odpovídající vzor.',
+      picking: 'Určete ve výkresu bod uvnitř oblasti…',
+      noBoundary: 'Kolem tohoto bodu nebyla nalezena žádná uzavřená oblast.',
+      noStrokes: 'V této oblasti nebyl nalezen žádný pravidelný vzor.',
+      empty:
+        'Nebyla nalezena žádná šrafa. Oblast vyberte pomocí „Přidat oblast“.',
+      include: 'Převést tuto šrafu',
+      addedTag: 'přidáno',
+      entities: '{count} objektů',
+      selectHint: 'Vyberte šrafu a změňte její vzor, měřítko nebo úhel.',
+      ownGroup: 'Změřený / uživatelský',
+      libraryGroup: 'Předdefinované',
+      pattern: 'Vzor',
+      scale: 'Měřítko',
+      spacing: 'Rozteč',
+      angle: 'Úhel',
+      autoFit: 'Automaticky přizpůsobit',
+      autoFitTip: 'Znovu změřit měřítko, úhel a počátek tohoto vzoru z čar.',
+      match: 'Vzor na čarách: {precision} · překreslené čáry: {recall}',
+      noEntities:
+        'Tento vzor úplně nepřekreslí žádný objekt; nic se nenahradí.',
+      guessed:
+        'V čarách není žádná stopa tohoto vzoru; měřítko a úhel jsou odhadnuté.',
+      poorMatch: 'Slabá shoda: čáry, které šrafa nepřekreslí, zůstanou.',
+      userSingle: 'Uživatelský',
+      userDouble: 'Uživatelský, dvojitý',
+      measured: 'Změřený vzor',
+      hideStrokes: 'Skrýt původní čáry',
+      ready: 'Připraveno {ready} z {count} šraf',
+      cancel: 'Zrušit',
+      apply: 'Použít'
+    },
+    noHatches:
+      'Ve výběru nebyla nalezena žádná šrafa (jsou potřeba pravidelné rovnoběžné čáry a čáry, které je ohraničují).',
+    summary: 'Převedeno {count} šraf ({patterns}), nahrazeno {strokes} objektů.'
   },
   bsearch: {
     unsupported:
@@ -2092,40 +2289,73 @@ export default {
       }
     }
   },
-  pdfblock: {
-    keywords: {
-      yes: {
-        display: 'Ano(Y)',
-        local: 'Ano',
-        global: 'Yes'
-      },
-      no: {
-        display: 'Ne(N)',
-        local: 'Ne',
-        global: 'No'
-      },
-      review: {
-        display: 'Revize(R)',
-        local: 'Revize',
-        global: 'Review'
-      },
-      all: {
-        display: 'Vše(A)',
-        local: 'Vše',
-        global: 'All'
-      },
-      exit: {
-        display: 'Konec(X)',
-        local: 'Konec',
-        global: 'eXit'
-      }
-    }
-  },
   pdftext: {
-    enterText:
-      'Řádek textu {index}/{count}: zadejte zvýrazněný text (prázdné přeskočí, Esc ukončí)',
-    enterTextWithSuggestion:
-      'Řádek textu {index}/{count}: zadejte zvýrazněný text',
+    panel: {
+      title: 'Obnovit text',
+      shxGroup: 'Text SHX (čárová písma)',
+      meshGroup: 'Text TrueType (obrysová písma)',
+      style: 'Styl textu',
+      newStyle: 'Nový styl textu…',
+      newTag: 'nový',
+      newStyleName: 'Název nového stylu textu',
+      create: 'Vytvořit',
+      cancel: 'Zrušit',
+      apply: 'Použít',
+      nameError: {
+        empty: 'Zadejte název.',
+        invalid: 'Název obsahuje nepovolené znaky.',
+        exists: 'Styl textu s tímto názvem již existuje.'
+      },
+      font: 'Písmo',
+      bigFont: 'Velké písmo',
+      noBigFont: '(Žádné)',
+      shxFonts: 'Písma SHX',
+      ttfFonts: 'Písma TrueType',
+      fontsUsed: 'Použito: {fonts}',
+      fontMissing:
+        'Písmo „{font}“ není k dispozici; vykreslí se písmem „{fallback}“.',
+      fontNotShx:
+        'Toto je písmo TrueType: text nebude vypadat jako čárový text SHX.',
+      fontNotTtf:
+        'Toto je písmo SHX: text nebude vypadat jako obrysový text TrueType.',
+      styleChanges:
+        'Změní písma stylu textu „{style}“: změní se i texty, které jej již používají.',
+      heightScale: 'Měřítko výšky',
+      widthFactor: 'Faktor šířky',
+      autoWidth: 'Přizpůsobit původní šířce',
+      lines: 'Řádky textu',
+      include: 'Převést tento řádek',
+      textPlaceholder: 'Zadejte text, nebo jej nechte prázdný pro přeskočení',
+      switchKind: 'Přepnout mezi textem SHX a TrueType',
+      kind: {
+        shx: 'SHX',
+        mesh: 'TrueType'
+      },
+      source: {
+        dictionary: 'Naučeno',
+        ocr: 'OCR',
+        typed: 'Upraveno',
+        unread: 'Nerozpoznáno'
+      },
+      hideStrokes: 'Skrýt původní čáry',
+      ready: 'Připraveno {ready} z {count} řádků',
+      merge: 'Sloučit do víceřádkového textu',
+      mergeTip: 'Sloučí vybrané řádky do jednoho víceřádkového textu (MTEXT)',
+      split: 'Rozdělit',
+      splitTip: 'Rozdělí vybraný sloučený text zpět na řádky',
+      mergeAdjacent: 'Sloučit sousední',
+      mergeAdjacentTip:
+        'Sloučí znaky a slova, která stojí vedle sebe na jednom účaří, do víceřádkového textu',
+      mergedCount: 'Sloučeno do víceřádkových textů: {count}.',
+      selectHint: 'Více řádků vyberete klepnutím s klávesou Ctrl nebo Shift.',
+      mtextTag: 'Víceřádkový text'
+    },
+    cancelled: 'Obnovení textu bylo zrušeno; nic nebylo změněno.',
+    ocrNotConfigured:
+      'Rozpoznávání textu (OCR) je vypnuté: není nakonfigurován žádný model AI s podporou obrázků. Nastavte ho příkazem LLMSETTINGS.',
+    recognizing: 'Rozpoznávání textových řádků: {count}…',
+    ocrFailed:
+      'Rozpoznávání textu (OCR) selhalo: {message}. Zadejte text ručně, nebo zkontrolujte model AI příkazem LLMSETTINGS.',
     noCandidates: 'Ve výběru nebyly nalezeny žádné tahy podobné textu.',
     summary:
       'Převedeno {converted} řádků textu, z toho {automatic} automaticky; přeskočeno {skipped}.'
@@ -2138,5 +2368,11 @@ export default {
       'Zadejte skutečnou délku (změřeno {measured}; texty kót naznačují 1:{scale})',
     zeroDistance: 'Oba body jsou totožné.',
     applied: 'Změněno měřítko {count} objektů faktorem {factor}.'
+  },
+  txt2mtxt: {
+    needTwo: 'Vyberte alespoň dva texty nebo víceřádkové texty ke sloučení.',
+    mergeFailed: 'Vybrané texty nelze sloučit.',
+    eraseFailed:
+      'Nepodařilo se smazat všechny zdrojové texty. Sloučení bylo zrušeno.'
   }
 }

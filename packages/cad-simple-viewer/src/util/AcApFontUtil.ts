@@ -7,8 +7,8 @@ import {
   ShxParserFont
 } from '@mlightcad/mtext-renderer'
 
-import { AcApDocManager } from '../app/AcApDocManager'
-import { acapMeasureTextWidth } from './AcApTextMeasure'
+import { AcApDocManager } from '../app/AcApDocManager.js'
+import { acapMeasureTextWidth } from './AcApTextMeasure.js'
 
 export type {
   FontInfo,
@@ -40,6 +40,17 @@ export class AcApFontUtil {
    */
   static getFontType(fontName: string): FontType | undefined {
     return FontManager.instance.getFontType(fontName)
+  }
+
+  /**
+   * @inheritdoc FontManager.getFontScaleFactor
+   *
+   * TrueType faces map CAD text height to capital-A height (`unitsPerEm /
+   * A.yMax`), so CJK ideographs draw larger than the nominal height. SHX
+   * faces usually return `1`.
+   */
+  static getFontScaleFactor(fontName: string): number {
+    return FontManager.instance.getFontScaleFactor(fontName) || 1
   }
 
   /**

@@ -46,6 +46,11 @@ export interface AcApHtmlSnapshotBuilderOptions {
    */
   exportLayouts?: boolean
   /**
+   * When `true`, empty paper-space layouts are still written into the
+   * snapshot. Defaults to `false`.
+   */
+  exportEmptyLayouts?: boolean
+  /**
    * Initial framing when the exported HTML is opened. Defaults to `'fit'`.
    */
   initialView?: AcExHtmlInitialViewMode
@@ -119,6 +124,7 @@ function toCoreOptions(
     locale: options.locale ?? AcApI18n.currentLocale,
     exportInvisibleLayers: options.exportInvisibleLayers,
     exportLayouts: options.exportLayouts,
+    exportEmptyLayouts: options.exportEmptyLayouts,
     initialView: options.initialView,
     viewState: options.viewState,
     viewerMode: options.viewerMode,
@@ -146,6 +152,9 @@ function mapAcTrSceneToExportInput(scene: AcTrScene): AcExHtmlExportSceneInput {
     color: layer.color.RGB ?? 0xffffff,
     visible: !layer.isOff && !layer.isFrozen
   }))
+  const frozenLayers = [...scene.layers.values()]
+    .filter(layer => layer.isFrozen)
+    .map(layer => layer.name)
 
   const layouts = [...scene.layouts.entries()].map(([btrId, layout]) => ({
     btrId,
@@ -153,11 +162,13 @@ function mapAcTrSceneToExportInput(scene: AcTrScene): AcExHtmlExportSceneInput {
     layers: [...layout.layers.values()].map(layer => ({
       name: layer.name,
       root: layer.internalObject
-    }))
+    })),
+    insertLayerByObjectId: layout.insertLayerByObjectId
   }))
 
   return {
     layers,
+    frozenLayers,
     layouts,
     activeLayoutBtrId: scene.activeLayoutBtrId || scene.modelSpaceBtrId,
     modelSpaceBtrId: scene.modelSpaceBtrId

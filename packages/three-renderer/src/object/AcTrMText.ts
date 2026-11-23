@@ -6,10 +6,10 @@ import {
 import { MTextData, MTextObject } from '@mlightcad/mtext-renderer'
 import * as THREE from 'three'
 
-import { AcTrMTextRenderer } from '../renderer/AcTrMTextRenderer'
-import { AcTrRenderContext } from '../renderer/AcTrRenderContext'
-import { resolveMTextRenderRoot } from '../util/AcTrObjectUserData'
-import { AcTrGlyphEntity } from './AcTrGlyphEntity'
+import { AcTrMTextRenderer } from '../renderer/AcTrMTextRenderer.js'
+import { AcTrRenderContext } from '../renderer/AcTrRenderContext.js'
+import { resolveMTextRenderRoot } from '../util/AcTrObjectUserData.js'
+import { AcTrGlyphEntity } from './AcTrGlyphEntity.js'
 
 /**
  * Display object for a CAD MTEXT entity rendered through the mtext-renderer.

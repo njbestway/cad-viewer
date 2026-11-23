@@ -1,21 +1,24 @@
 import {
+  AcDbBlockReference,
   AcDbEntity,
   AcDbObjectId,
   AcGeBox2d,
-  AcGePoint2dLike
+  AcGePoint2dLike,
+  AcGePoint3dLike
 } from '@mlightcad/data-model'
 
-import { isFiniteSpatialBBox } from '../../view/AcTrGroupWcsBboxAssert'
-import type { AcEdSelectionMode } from './AcEdBaseView'
+import { isFiniteSpatialBBox } from '../../view/AcTrGroupWcsBboxAssert.js'
+import type { AcEdSelectionMode } from './AcEdBaseView.js'
 import {
+  acedBlockReferenceIntersectsSelectionBox,
   acedEntityIntersectsSelectionBox,
   acedNeedsCrossingGeometryRefine
-} from './AcEdSelectionBoxIntersect'
+} from './AcEdSelectionBoxIntersect.js'
 import {
   AcEdSpatialQueryResultItem,
   AcEdSpatialQueryResultItemEx,
   isEffectiveSpatialQueryHit
-} from './AcEdSpatialQueryResult'
+} from './AcEdSpatialQueryResult.js'
 
 /**
  * Paper-space → model-space projection for one paper viewport.
@@ -26,6 +29,11 @@ import {
 export interface AcEdViewportBoxProjection {
   /** Viewport border in paper-space WCS (`AcGiViewport.box`). */
   paperBox: AcGeBox2d
+  /**
+   * Paper-space viewport object id. When set, box-selection callers can
+   * remember which viewport claimed each model entity (grip mapping).
+   */
+  viewportId?: AcDbObjectId
   /** Layer names frozen in this viewport (VPLAYER / DXF group 331). */
   frozenLayers?: readonly string[]
   /** Paper-space WCS → model-space WCS through this viewport. */
@@ -65,6 +73,11 @@ export interface AcEdViewportBoxSelectionArgs {
   ) => readonly AcEdSpatialQueryResultItemEx[]
   /** Entity behind one spatial hit id, or `undefined` when unavailable. */
   entityOf: (id: AcDbObjectId) => AcDbEntity | undefined
+  /**
+   * Invoked once per newly selected model entity with the viewport that
+   * claimed it (first match wins when viewports overlap).
+   */
+  onHit?: (entityId: AcDbObjectId, viewport: AcEdViewportBoxProjection) => void
 }
 
 /**
@@ -95,7 +108,7 @@ export interface AcEdViewportBoxSelectionArgs {
 export function acedCollectViewportBoxSelectionIds(
   args: AcEdViewportBoxSelectionArgs
 ): AcDbObjectId[] {
-  const { selectionBox, mode, viewports, searchModel, entityOf } = args
+  const { selectionBox, mode, viewports, searchModel, entityOf, onHit } = args
   if (selectionBox.isEmpty()) return []
 
   const ids: AcDbObjectId[] = []
@@ -183,19 +196,29 @@ export function acedCollectViewportBoxSelectionIds(
         // against `modelBox` (the rotated rectangle's AABB) would be a
         // superset and select geometry that is not under the pick box.
         const entity = entityOf(item.id)
-        if (
-          entity &&
-          acedNeedsCrossingGeometryRefine(item) &&
-          !acedEntityIntersectsSelectionBox(entity, visibleBox, point =>
-            viewport.modelPointToPaper(point)
+        const toPaper = (point: AcGePoint3dLike) =>
+          viewport.modelPointToPaper(point)
+        if (entity && acedNeedsCrossingGeometryRefine(item)) {
+          if (!acedEntityIntersectsSelectionBox(entity, visibleBox, toPaper)) {
+            continue
+          }
+        } else if (
+          entity instanceof AcDbBlockReference &&
+          !acedBlockReferenceIntersectsSelectionBox(
+            entity,
+            boxes,
+            visibleBox,
+            toPaper
           )
         ) {
+          // Same AutoCAD rule as model space: empty block interior is no hit.
           continue
         }
       }
 
       seen.add(item.id)
       ids.push(item.id)
+      onHit?.(item.id, viewport)
     }
   }
 

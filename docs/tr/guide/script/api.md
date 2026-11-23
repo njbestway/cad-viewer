@@ -289,7 +289,7 @@ cad.file.saveDxf('./plan-out.dxf')
 
 ### `cad.file.savePdf(path?)`
 
-Queues a PDF export after the script succeeds. Pass a path string or `{ path?, fileName?, exportLayouts?, colorMode?, textMode?, modelSpaceFit? }`. `.pdf` is appended when missing. Returns `{ queued: true, index, fileName }`.
+Queues a PDF export after the script succeeds. Pass a path string or `{ path?, fileName?, exportLayouts?, exportEmptyLayouts?, colorMode?, textMode?, modelSpaceFit? }`. `.pdf` is appended when missing. Returns `{ queued: true, index, fileName }`.
 
 ```javascript
 cad.file.savePdf('./plan.pdf')
@@ -297,7 +297,7 @@ cad.file.savePdf('./plan.pdf')
 
 ### `cad.file.saveHtml(path?)`
 
-Queues offline HTML (or a multi-file `.zip`) after success. Pass a path string or `{ path?, fileName?, exportFormat?, exportLayouts?, background? }`. Requires a viewer host (`exportHtml`). Headless sessions skip with a log note.
+Queues offline HTML (or a multi-file `.zip`) after success. Pass a path string or `{ path?, fileName?, exportFormat?, exportLayouts?, exportEmptyLayouts?, background? }`. Requires a viewer host (`exportHtml`). Headless sessions skip with a log note.
 
 ```javascript
 cad.file.saveHtml('./plan.html')
@@ -339,6 +339,51 @@ return {
 }
 ```
 
+## cad.redraw
+
+Bir referans görüntüden (tarama, fotoğraf, ekran görüntüsü) kanıt takibiyle çizim yeniden oluşturma. Betik düz bir spec nesnesi oluşturur; `cad.redraw` bunu doğrular, tek bir geri alma grubunda standart katmanlara (OBJECT, HIDDEN, CENTER, DIM, TEXT, TABLE, BORDER, CONSTRUCTION, ASSUMPTION) çizer ve sonucu denetler. Spec başvurusunun tamamı `CAD_REDRAW_SPEC_SUMMARY` olarak dışa aktarılır ve ajan istemine gömülüdür.
+
+| Yöntem | Açıklama |
+| --- | --- |
+| `cad.redraw.validate(spec, { profile? }?)` | Çizmeden alanları, kimlikleri, birimleri, kalibrasyonu ve kısıtları denetler → `{ status, errors, warnings, evidence, calibrations }` |
+| `cad.redraw.draw(spec, { profile?, omit?, offset?, allowBlocked? }?)` | Spec'i çizer → `{ status, drawn, idMap, entityCount, skipped, checks, dimensionChecks, errors, warnings }` |
+| `cad.redraw.inspect(spec, idMap, { profile? }?)` | Denetimleri yeniden çalıştırır ve ölçü `value` okumalarını çizilen ölçülerin ölçtüğü değerle karşılaştırır |
+| `cad.redraw.compare(spec, { referenceIndex?, calibration?, viewId?, tolerancePx?, maxSide?, images? }?)` | Ekli referans görüntüyle piksel düzeyinde karşılaştırma: çizimi spec kalibrasyonuyla hizalar ve `redrawCompare` (karar, kapsama, kesinlik, mesafeler, `suggestedMove`, sorunlu bölgeler) ile bindirme ve fark görüntülerini döndürür |
+
+- Profiller: `general` (varsayılan), `strict-dimensioned`, `hybrid`, `visual-trace`, `geometry-only` (metin, ölçü, kılavuz çizgisi ve tablo metnini atlar).
+- Değer başına kanıt: `known`, `scaled`, `inferred`, `unreadable`. Birim varsayılanı `unitless`; milimetre asla varsayılmaz.
+- Nesneler varsayılan olarak CAD koordinatlarını kullanır. `coords: 'source'` ile görüntü pikselleridir (sol üst başlangıç, y aşağı) ve bir kalibrasyonla (`dimension-anchor`, `similarity`, `affine`, `homography`, `sheet-scale`) dönüştürülür.
+- Durum: `pass`, `pass_with_warnings`, `needs_review` (ölçü veya kısıt çakışması), `blocked` (katı profilde kanıt eksik), `fail` (geçersiz spec; hiçbir şey çizilmez).
+- Tablolar AcDbTable olarak değil, çizgi ve metin olarak çizilir.
+- Çizim, `units` değerinden `INSUNITS` ayarlar; metin ve ölçü metni CJK destekli `REDRAW_TEXT` stilini (`simsun` + `hztxt.shx`) kullanır. Oluşturulamayan bir ölçü uyarıyla birlikte çizgi ve metin olarak (yarıçap/çap için kılavuz çizgisi) çizilir; `fallbacks` bunları sayar.
+
+```javascript
+const r = cad.redraw.draw({
+  profile: 'general',
+  units: 'mm',
+  entities: [
+    { id: 'plate', type: 'rectangle', x: 0, y: 0, width: 120, height: 80, evidence: 'known' },
+    { id: 'hole', type: 'circle', center: [60, 40], radius: 10, evidence: 'known' },
+    { id: 'w', type: 'linear_dimension', p1: [0, 0], p2: [120, 0], dimLine: [60, -12], value: 120, evidence: 'known' },
+    { id: 'note', type: 'leader', points: [[67, 47], [85, 65], [95, 65]], text: 'THRU' }
+  ],
+  checks: [{ measure: 'radius', entity: 'hole', expected: 10 }]
+})
+return { status: r.status, checks: r.checks, dimensionChecks: r.dimensionChecks }
+```
+
+### Piksel karşılaştırması
+
+`cad.redraw.compare`, çizimi referansın (veya `views[].sourceRoi` bölgesinin) CAD alanında işler, kalibrasyonla (benzerlik, afin veya homografi) görüntü çerçevesine dönüştürür, ikisini de 1 piksellik merkez çizgilerine inceltir ve uzaklık dönüşümleriyle birbirine göre ölçer.
+
+- `coverage`: tolerans içinde çizilmiş geometrisi olan referans çizgilerinin oranı (eksik geometri bunu düşürür).
+- `precision`: tolerans içinde bir referans çizgisi olan çizilmiş çizgilerin oranı (fazla veya yanlış yerdeki geometri bunu düşürür).
+- `meanDistance*` / `p95Distance*`: referans çizgilerinin çizime uzaklığı (referans pikseli ve CAD birimi olarak).
+- `verdict`: `aligned`, `offset` (bir öteleme sorunun çoğunu çözer — bkz. `suggestedMove`), `incomplete`, `cluttered` veya `mismatch`.
+- `hotspots`: en çok uyuşmazlığın olduğu ızgara hücreleri; `sourceRoi` (görüntü pikseli) ve `cadBox` olarak.
+
+Bindirme, soluklaştırılmış referans üzerinde eşleşen çizgileri yeşil, eksik çizgileri kırmızı, fazla çizgileri mavi gösterir. Karşılaştırma bir işleyici ve ekli görüntü gerektirir, bu yüzden uygulama içi ajanda çalışır; arayüzsüz oturumlar `reason: 'no_raster_host'` döndürür. Piksel ölçümleri yalnızca görsel kanıttır ve ölçüleri kanıtlamaz.
+
 ## cad.edit.transaction
 
 Düzenleme işlemlerini gerçekleştirir; tüm değişiklikler tek bir geri alma grubu olarak ele alınır. Teknik resim düzenlenebilir durumda olmalıdır (salt okunur mod değil).
@@ -367,7 +412,7 @@ cad.edit.transaction('Toplu değişiklik', tx => {
 | `tx.drawRay({ start, through, layer? })`                                                                   | `start/through: {x,y}`           | Yeni varlık ID'si |
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | Yeni varlık ID'si |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | Yeni varlık ID'si |
-| `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | Yeni varlık ID'si |
+| `tx.drawText({ position, text, height?, rotationDeg?, width?, layer? })`                                                         | `position: {x,y}`                | Yeni varlık ID'si |
 | `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | noktalar `{x,y}`                 | Yeni varlık ID'si |
 | `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | `rotationDeg` yoksa yerleşime göre Y/D | Yeni varlık ID'si |
 | `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | merkez+yarıçap veya kiriş       | Yeni varlık ID'si |
@@ -375,6 +420,7 @@ cad.edit.transaction('Toplu değişiklik', tx => {
 | `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3 noktalı açı                    | Yeni varlık ID'si |
 | `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | yay uzunluğu                     | Yeni varlık ID'si |
 | `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | ordinat ölçüsü                   | Yeni varlık ID'si |
+| `tx.drawLeader({ points, text?, textPosition?, textHeight?, textLayer?, arrowHead?, styleName?, layer? })` | ok `points[0]` noktasında | Kılavuz çizgisi kimliği (açıklama MTEXT kimliği de oluşturulan kimliklerdedir) |
 
 Ölçüler için `drawDim*` kullanın; çizgi, ok ve metinle ölçü taklidi yapmayın. Varsayılan çizimin `$DIMSTYLE` değeridir; `cad.tables.dimStyleTable` içinden `styleName` geçerek geçersiz kılın.
 

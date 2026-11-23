@@ -2,19 +2,14 @@
 import '@mlightcad/ribbon/style.css'
 
 import {
-  ChatDotRound,
   ChatLineSquare,
   CopyDocument,
   Delete,
-  DocumentCopy,
-  EditPen,
   Hide,
-  RefreshLeft,
   RefreshRight,
   Right,
-  ScaleToOriginal,
+  Scissor,
   Stamp,
-  Upload,
   View
 } from '@element-plus/icons-vue'
 import {
@@ -95,7 +90,12 @@ import {
 } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { store } from '../../app'
+import {
+  mlApplyPluginMenu,
+  mlApplyPluginRibbon,
+  mlRunPluginMenuItem
+} from '../../app/pluginRibbon'
+import { ensurePluginUiBridge, pluginUiRevision } from '../../app/pluginUi'
 import type { LayerStateSnapshot, LayerStateToggleKey } from '../../composable'
 import {
   LAYER_FILTER_ALL,
@@ -133,6 +133,7 @@ import {
   circleTanTanTan,
   circleThreePoints,
   circleTwoPoints,
+  copyBase,
   countlist,
   defineAttribute,
   dimAligned,
@@ -148,6 +149,7 @@ import {
   editAttribute,
   ellipseArc,
   ellipseCenter,
+  explode,
   find,
   group,
   groupEdit,
@@ -167,6 +169,7 @@ import {
   mleader,
   mleaderAdd,
   mleaderRemove,
+  mleaderStyle,
   mline,
   move,
   mtext,
@@ -174,6 +177,9 @@ import {
   namedUcs,
   newView,
   offset,
+  pasteBlock,
+  pasteClip,
+  pasteOrig,
   polygon,
   polyline,
   properties,
@@ -181,8 +187,10 @@ import {
   ray,
   rect,
   revFreeDraw,
+  scale,
   setting,
   splineFitPoints,
+  textStyle,
   ucs,
   ucsObject,
   ucsOrigin,
@@ -212,10 +220,12 @@ import {
   measurementPanel,
   measurePoint,
   pan as panIcon,
+  redo as redoIcon,
   revCircle,
   revCloud,
   revRect,
   revText,
+  undo as undoIcon,
   zoomToBox,
   zoomToExtent
 } from '../../svg/toolbarIcons'
@@ -267,7 +277,9 @@ const isMarkupOverlayVisible = ref(true)
 const isMeasurementOverlayVisible = ref(true)
 const markupDrawColor = shallowRef(defaultMarkupColor())
 const markupDrawColorDisplay = ref(markupColorToCss(markupDrawColor.value))
-const markupTextHeightMode = ref<OverlayTextHeightMode>(getMarkupTextHeightMode())
+const markupTextHeightMode = ref<OverlayTextHeightMode>(
+  getMarkupTextHeightMode()
+)
 const markupTextHeightWcs = ref<number | undefined>(
   getMarkupCustomTextHeightWcs()
 )
@@ -284,7 +296,9 @@ const measurementLunits = ref(AcDbLinearUnits.Decimal)
 const measurementLuprec = ref(4)
 const measurementAunits = ref(AcDbAngleUnits.DecimalDegrees)
 const measurementAuprec = ref(0)
-const measurementLengthUnit = ref<number>(MEASUREMENT_LENGTH_UNIT_FOLLOW_DRAWING)
+const measurementLengthUnit = ref<number>(
+  MEASUREMENT_LENGTH_UNIT_FOLLOW_DRAWING
+)
 const isRibbonDisabled = computed(() => isDocumentOpening.value)
 const ribbonColor = ref<AcCmColor | undefined>(new AcCmColor())
 const ribbonColorDisplay = ref('#7b8794')
@@ -393,7 +407,11 @@ function syncHatchSelectionContext(db = getCurrentDatabase()) {
   const selectedEntities = getSelectedEntities(db)
   const isOnlyHatchSelection =
     selectedEntities.length === selectedEntityIds.value.length &&
-    selectedEntities.every(entity => entity instanceof AcDbHatch)
+    selectedEntities.every(
+      entity =>
+        entity instanceof AcDbHatch &&
+        !AcApLayerService.isEntityOnLockedLayer(db, entity)
+    )
   handleHatchSelectionContextChanged(isOnlyHatchSelection)
 }
 
@@ -539,11 +557,7 @@ const togglePickstyleGroupSelection = () => {
   )
   const current = typeof raw === 'number' ? Math.trunc(raw) : 1
   const next = (current & 1) !== 0 ? current & ~1 : current | 1
-  AcDbSysVarManager.instance().setVar(
-    AcDbSystemVariables.PICKSTYLE,
-    next,
-    db
-  )
+  AcDbSysVarManager.instance().setVar(AcDbSystemVariables.PICKSTYLE, next, db)
   pickstyleGroupOn.value = (next & 1) !== 0
 }
 
@@ -730,7 +744,8 @@ const activateRibbonTabForOverlaySelection = () => {
 
   if (kind === 'measurement') {
     const measurementId = getSelectedMeasurementId()
-    const measurementNewlySelected = measurementId !== lastActivatedMeasurementId
+    const measurementNewlySelected =
+      measurementId !== lastActivatedMeasurementId
     lastActivatedMeasurementId = measurementId
     if (measurementNewlySelected) {
       activeRibbonTabId.value = 'measurement'
@@ -781,6 +796,8 @@ const activateRibbonTabAfterDrawCommand = (args: AcEdCommandEventArgs) => {
   lastActivatedMeasurementId = undefined
   scheduleActivateRibbonTabForOverlaySelection()
 }
+
+ensurePluginUiBridge()
 
 onMounted(() => {
   AcDbSysVarManager.instance().events.sysVarChanged.addEventListener(
@@ -903,9 +920,7 @@ const handleRibbonLineWeightChange = (value: AcGiLineWeight) => {
  */
 const syncMarkupStyleControls = () => {
   const store = getMarkupStore()
-  const selected = store.selectedId
-    ? store.get(store.selectedId)
-    : undefined
+  const selected = store.selectedId ? store.get(store.selectedId) : undefined
   if (selected) {
     const color = cssToMarkupColor(selected.style.color)
     markupDrawColor.value = color
@@ -916,8 +931,7 @@ const syncMarkupStyleControls = () => {
         ? selected.style.fontSize
         : getMarkupFontSize()
     const wcs =
-      selected.style.textHeightWcs != null &&
-      selected.style.textHeightWcs > 0
+      selected.style.textHeightWcs != null && selected.style.textHeightWcs > 0
         ? selected.style.textHeightWcs
         : view
           ? acapScreenPxToWcs(fontSize, view)
@@ -974,9 +988,7 @@ const handleMarkupTextHeightClick = async () => {
   textHeightDialogOpen = true
   try {
     const store = getMarkupStore()
-    const selected = store.selectedId
-      ? store.get(store.selectedId)
-      : undefined
+    const selected = store.selectedId ? store.get(store.selectedId) : undefined
     const hasSelection = selected != null
     const fontSizePx =
       selected?.style.fontSize != null && selected.style.fontSize > 0
@@ -987,9 +999,7 @@ const handleMarkupTextHeightClick = async () => {
       : getMarkupCustomTextHeightWcs()
     const initials = acuiResolveTextHeightDialogInitials({
       hasSelection,
-      sessionMode: hasSelection
-        ? 'custom'
-        : getMarkupTextHeightMode(),
+      sessionMode: hasSelection ? 'custom' : getMarkupTextHeightMode(),
       fontSizePx,
       selectedTextHeightWcs,
       view
@@ -1075,19 +1085,16 @@ const handleMeasurementTextHeightClick = async () => {
     const selected = getActiveMeasurementStyle()
     const hasSelection = selected != null
     const measureId = getSelectedMeasurementId()
-    const fontSizePx =
-      selected?.fontSize ?? acapGetMeasurementFontSize()
+    const fontSizePx = selected?.fontSize ?? acapGetMeasurementFontSize()
     const selectedTextHeightWcs = hasSelection
-      ? selected?.textHeightWcs ??
+      ? (selected?.textHeightWcs ??
         (measureId
           ? getMeasurementSnapshot(measureId)?.style.textHeightWcs
-          : undefined)
+          : undefined))
       : acapGetMeasurementCustomTextHeightWcs()
     const initials = acuiResolveTextHeightDialogInitials({
       hasSelection,
-      sessionMode: hasSelection
-        ? 'custom'
-        : acapGetMeasurementTextHeightMode(),
+      sessionMode: hasSelection ? 'custom' : acapGetMeasurementTextHeightMode(),
       fontSizePx,
       selectedTextHeightWcs,
       view
@@ -1247,8 +1254,9 @@ const handleRibbonLayerStateToggle = (payload: {
 }
 
 /**
- * Read: measurement only. Review: measurement + review. Write: all tabs.
- * Contextual tabs keep the visibility their builders already set.
+ * Read: measurement only. Review: measurement + review. Write: all tabs
+ * (including View). Contextual tabs keep the visibility their builders
+ * already set.
  */
 const applyOpenModeTabVisibility = (
   tabs: RibbonTabModel[],
@@ -1259,7 +1267,7 @@ const applyOpenModeTabVisibility = (
     const visible =
       tab.id === 'measurement'
         ? true
-        : tab.id === 'review' || tab.id === 'view'
+        : tab.id === 'review'
           ? openMode >= AcEdOpenMode.Review
           : openMode === AcEdOpenMode.Write
     return { ...tab, visible }
@@ -1267,24 +1275,11 @@ const applyOpenModeTabVisibility = (
 }
 
 /**
- * AI tab: the CAD Agent (when its plugin is installed), Smart Blocks
- * (`BSEARCH`: find repeated geometry and turn it into blocks) and the PDF to
- * CAD conversion tools from `@mlightcad/cad-pdf-plugin`, which load lazily
- * on first use like their command-line counterparts.
+ * AI tab core groups. Agent, model settings, and PDF tools are plugin
+ * contributions merged in after this tab is built.
  */
 const buildAiTab = (
-  agentPluginEnabled: boolean,
-  ribbonTooltips: Record<
-    | 'agent'
-    | 'searchConvert'
-    | 'detectConvert'
-    | 'importPdf'
-    | 'pdfScale'
-    | 'pdfText'
-    | 'pdfBlock'
-    | 'pdfDim',
-    string
-  >
+  ribbonTooltips: Record<'searchConvert' | 'detectConvert', string>
 ): RibbonTabModel => {
   const largeButton = (
     id: string,
@@ -1303,29 +1298,6 @@ const buildAiTab = (
     id: 'ai',
     title: t('main.ribbon.tab.ai'),
     groups: [
-      ...(agentPluginEnabled
-        ? [
-            {
-              id: 'ai-agent',
-              title: t('main.ribbon.group.agent'),
-              orientation: 'row' as const,
-              collections: [
-                {
-                  id: 'ai-agent-main',
-                  layout: 'row' as const,
-                  items: [
-                    largeButton(
-                      'cmd-agent',
-                      t('main.ribbon.command.agent'),
-                      ribbonTooltips.agent,
-                      ChatDotRound
-                    )
-                  ]
-                }
-              ]
-            }
-          ]
-        : []),
       {
         id: 'ai-smart-blocks',
         title: t('main.ribbon.group.smartBlocks'),
@@ -1350,49 +1322,6 @@ const buildAiTab = (
             ]
           }
         ]
-      },
-      {
-        id: 'ai-pdf',
-        title: t('main.ribbon.group.pdf'),
-        orientation: 'row' as const,
-        collections: [
-          {
-            id: 'ai-pdf-main',
-            layout: 'row' as const,
-            items: [
-              largeButton(
-                'cmd-ipdf',
-                t('main.ribbon.command.importPdf'),
-                ribbonTooltips.importPdf,
-                Upload
-              ),
-              largeButton(
-                'cmd-pdfscale',
-                t('main.ribbon.command.pdfScale'),
-                ribbonTooltips.pdfScale,
-                ScaleToOriginal
-              ),
-              largeButton(
-                'cmd-pdftext',
-                t('main.ribbon.command.pdfText'),
-                ribbonTooltips.pdfText,
-                EditPen
-              ),
-              largeButton(
-                'cmd-pdfblock',
-                t('main.ribbon.command.pdfBlock'),
-                ribbonTooltips.pdfBlock,
-                CopyDocument
-              ),
-              largeButton(
-                'cmd-pdfdim',
-                t('main.ribbon.command.pdfDim'),
-                ribbonTooltips.pdfDim,
-                dimLinear
-              )
-            ]
-          }
-        ]
       }
     ]
   }
@@ -1402,7 +1331,6 @@ const buildBaseTabs = (
   openMode: AcEdOpenMode,
   markupVisible: boolean,
   measurementVisible: boolean,
-  agentPluginEnabled: boolean,
   namedViewNames: string[] = []
 ): RibbonTabModel[] => {
   const ribbonTooltips = {
@@ -1432,14 +1360,23 @@ const buildBaseTabs = (
     dimcontinue: t('main.ribbon.tooltip.dimcontinue'),
     dimbaseline: t('main.ribbon.tooltip.dimbaseline'),
     dimstyle: t('main.ribbon.tooltip.dimstyle'),
+    textStyle: t('main.ribbon.tooltip.textStyle'),
+    mleaderStyle: t('main.ribbon.tooltip.mleaderStyle'),
     mleader: t('main.ribbon.tooltip.mleader'),
     mleaderAdd: t('main.ribbon.tooltip.mleaderAdd'),
     mleaderRemove: t('main.ribbon.tooltip.mleaderRemove'),
     move: t('main.ribbon.tooltip.move'),
     rotate: t('main.ribbon.tooltip.rotate'),
-    copy: t('main.ribbon.tooltip.copy'),
+    scale: t('main.ribbon.tooltip.scale'),
     erase: t('main.ribbon.tooltip.erase'),
+    pasteClip: t('main.ribbon.tooltip.pasteClip'),
+    pasteOrig: t('main.ribbon.tooltip.pasteOrig'),
+    pasteBlock: t('main.ribbon.tooltip.pasteBlock'),
+    cutClip: t('main.ribbon.tooltip.cutClip'),
+    copyClip: t('main.ribbon.tooltip.copyClip'),
+    copyBase: t('main.ribbon.tooltip.copyBase'),
     offset: t('main.ribbon.tooltip.offset'),
+    explode: t('main.ribbon.tooltip.explode'),
     undo: t('main.ribbon.tooltip.undo'),
     redo: t('main.ribbon.tooltip.redo'),
     properties: t('main.ribbon.tooltip.properties'),
@@ -1459,12 +1396,6 @@ const buildBaseTabs = (
     insert: t('main.ribbon.tooltip.insert'),
     editAttributes: t('main.ribbon.tooltip.editAttributes'),
     defineAttribute: t('main.ribbon.tooltip.defineAttribute'),
-    agent: t('main.ribbon.tooltip.agent'),
-    importPdf: t('main.ribbon.tooltip.importPdf'),
-    pdfScale: t('main.ribbon.tooltip.pdfScale'),
-    pdfText: t('main.ribbon.tooltip.pdfText'),
-    pdfBlock: t('main.ribbon.tooltip.pdfBlock'),
-    pdfDim: t('main.ribbon.tooltip.pdfDim'),
     pan: t('main.ribbon.tooltip.pan'),
     zoom: t('main.ribbon.tooltip.zoom'),
     zoomExtents: t('main.ribbon.tooltip.zoomExtents'),
@@ -2323,6 +2254,83 @@ const buildBaseTabs = (
           ]
         },
         {
+          id: 'home-clipboard',
+          title: t('main.ribbon.group.clipboard'),
+          orientation: 'row',
+          collections: [
+            {
+              id: 'home-clipboard-main',
+              layout: 'row',
+              items: [
+                {
+                  id: 'cmd-pasteclip',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.pasteClip'),
+                  tooltip: ribbonTooltips.pasteClip,
+                  size: 'large',
+                  props: {
+                    icon: pasteClip,
+                    options: [
+                      {
+                        value: 'paste-clip',
+                        label: t('main.ribbon.command.pasteClip'),
+                        tooltip: ribbonTooltips.pasteClip,
+                        icon: pasteClip
+                      },
+                      {
+                        value: 'paste-orig',
+                        label: t('main.ribbon.command.pasteOrig'),
+                        tooltip: ribbonTooltips.pasteOrig,
+                        icon: pasteOrig
+                      },
+                      {
+                        value: 'paste-block',
+                        label: t('main.ribbon.command.pasteBlock'),
+                        tooltip: ribbonTooltips.pasteBlock,
+                        icon: pasteBlock
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              id: 'home-clipboard-secondary',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-cutclip',
+                  type: 'button',
+                  label: t('main.ribbon.command.cutClip'),
+                  tooltip: ribbonTooltips.cutClip,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: Scissor }
+                },
+                {
+                  id: 'cmd-copyclip',
+                  type: 'button',
+                  label: t('main.ribbon.command.copyClip'),
+                  tooltip: ribbonTooltips.copyClip,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: CopyDocument }
+                },
+                {
+                  id: 'cmd-copybase',
+                  type: 'button',
+                  label: t('main.ribbon.command.copyBase'),
+                  tooltip: ribbonTooltips.copyBase,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: copyBase }
+                }
+              ]
+            }
+          ]
+        },
+        {
           id: 'home-modify',
           title: t('main.ribbon.group.modify'),
           orientation: 'row',
@@ -2349,12 +2357,12 @@ const buildBaseTabs = (
                   props: { icon: RefreshRight }
                 },
                 {
-                  id: 'cmd-copy',
+                  id: 'cmd-scale',
                   type: 'button',
-                  label: t('main.ribbon.command.copy'),
-                  tooltip: ribbonTooltips.copy,
+                  label: t('main.ribbon.command.scale'),
+                  tooltip: ribbonTooltips.scale,
                   size: 'small',
-                  props: { icon: DocumentCopy }
+                  props: { icon: scale }
                 }
               ]
             },
@@ -2378,6 +2386,14 @@ const buildBaseTabs = (
                   tooltip: ribbonTooltips.offset,
                   size: 'small',
                   props: { icon: offset }
+                },
+                {
+                  id: 'cmd-explode',
+                  type: 'button',
+                  label: t('main.ribbon.command.explode'),
+                  tooltip: ribbonTooltips.explode,
+                  size: 'small',
+                  props: { icon: explode }
                 }
               ]
             }
@@ -2662,6 +2678,29 @@ const buildBaseTabs = (
           id: 'home-annotation',
           title: t('main.ribbon.group.annotation'),
           orientation: 'row',
+          footerMenuItems: [
+            {
+              id: 'cmd-style',
+              type: 'button',
+              label: t('main.ribbon.command.textStyle'),
+              tooltip: ribbonTooltips.textStyle,
+              props: { icon: textStyle }
+            },
+            {
+              id: 'cmd-dimstyle',
+              type: 'button',
+              label: t('main.ribbon.command.dimstyle'),
+              tooltip: ribbonTooltips.dimstyle,
+              props: { icon: dimStyle }
+            },
+            {
+              id: 'cmd-mleaderstyle',
+              type: 'button',
+              label: t('main.ribbon.command.mleaderStyle'),
+              tooltip: ribbonTooltips.mleaderStyle,
+              props: { icon: mleaderStyle }
+            }
+          ],
           collections: [
             {
               id: 'home-annotation-main',
@@ -2682,6 +2721,14 @@ const buildBaseTabs = (
               layout: 'column',
               rows: 3,
               items: [
+                {
+                  id: 'cmd-find',
+                  type: 'button',
+                  label: t('main.ribbon.command.find'),
+                  tooltip: ribbonTooltips.find,
+                  size: 'small',
+                  props: { icon: find }
+                },
                 {
                   id: 'cmd-dimension',
                   type: 'dropdown',
@@ -2779,14 +2826,6 @@ const buildBaseTabs = (
                       }
                     ]
                   }
-                },
-                {
-                  id: 'cmd-dimstyle',
-                  type: 'button',
-                  label: t('main.ribbon.command.dimstyle'),
-                  tooltip: ribbonTooltips.dimstyle,
-                  size: 'small',
-                  props: { icon: dimStyle }
                 }
               ]
             }
@@ -2809,18 +2848,6 @@ const buildBaseTabs = (
                   size: 'large',
                   props: {
                     icon: qselect,
-                    labelWrapLines: 2,
-                    labelWrapWidth: 'max-content'
-                  }
-                },
-                {
-                  id: 'cmd-find',
-                  type: 'button',
-                  label: t('main.ribbon.command.find'),
-                  tooltip: ribbonTooltips.find,
-                  size: 'large',
-                  props: {
-                    icon: find,
                     labelWrapLines: 2,
                     labelWrapWidth: 'max-content'
                   }
@@ -3266,14 +3293,14 @@ const buildBaseTabs = (
     groups: measurementGroups
   })
 
-  tabs.push(buildAiTab(agentPluginEnabled, ribbonTooltips))
+  tabs.push(buildAiTab(ribbonTooltips))
 
   return markComponentConfigRaw(applyOpenModeTabVisibility(tabs, openMode))
 }
 
 const ribbonData = computed(() => {
   locale.value
-  store.features.agentPlugin
+  pluginUiRevision.value
   const openMode = docOpenMode.value
   const markupVisible = isMarkupOverlayVisible.value
   const measurementVisible = isMeasurementOverlayVisible.value
@@ -3350,12 +3377,22 @@ const ribbonData = computed(() => {
   commandByItemId.set('mleader', 'mleader')
   commandByItemId.set('mleader-add', 'mleaderedit')
   commandByItemId.set('mleader-remove', 'mleadereditremove')
+  commandByItemId.set('cmd-style', 'style')
   commandByItemId.set('cmd-dimstyle', 'dimstyle')
+  commandByItemId.set('cmd-mleaderstyle', 'mleaderstyle')
   commandByItemId.set('cmd-move', 'move')
   commandByItemId.set('cmd-rotate', 'rotate')
-  commandByItemId.set('cmd-copy', 'copy')
+  commandByItemId.set('cmd-scale', 'scale')
   commandByItemId.set('cmd-erase', 'erase')
+  commandByItemId.set('cmd-pasteclip', 'pasteclip')
+  commandByItemId.set('paste-clip', 'pasteclip')
+  commandByItemId.set('paste-orig', 'pasteorig')
+  commandByItemId.set('paste-block', 'pasteblock')
+  commandByItemId.set('cmd-cutclip', 'cutclip')
+  commandByItemId.set('cmd-copyclip', 'copyclip')
+  commandByItemId.set('cmd-copybase', 'copybase')
   commandByItemId.set('cmd-offset', 'offset')
+  commandByItemId.set('cmd-explode', 'explode')
   commandByItemId.set('cmd-layer', 'layer')
   commandByItemId.set('cmd-properties', 'properties')
   commandByItemId.set('cmd-group', 'group')
@@ -3374,14 +3411,6 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-ai-bsearch', 'bsearch')
   commandByItemId.set('cmd-bdetect', 'bdetect')
   commandByItemId.set('cmd-ai-bdetect', 'bdetect')
-  if (store.features.agentPlugin) {
-    commandByItemId.set('cmd-agent', 'agent')
-  }
-  commandByItemId.set('cmd-ipdf', 'ipdf')
-  commandByItemId.set('cmd-pdfscale', 'pdfscale')
-  commandByItemId.set('cmd-pdftext', 'pdftext')
-  commandByItemId.set('cmd-pdfblock', 'pdfblock')
-  commandByItemId.set('cmd-pdfdim', 'pdfdim')
   commandByItemId.set('cmd-tool-markup-panel', 'markuppanel')
   commandByItemId.set('cmd-tool-markup-text', 'markuptext')
   commandByItemId.set('cmd-tool-markup-cloud', 'markupcloud')
@@ -3452,12 +3481,18 @@ const ribbonData = computed(() => {
     openMode,
     markupVisible,
     measurementVisible,
-    store.features.agentPlugin,
     namedViewNames
   )
+  const pluginRibbon = mlApplyPluginRibbon(tabs)
+  for (const [id, action] of pluginRibbon.actions) {
+    if (action.command && !action.invoke) {
+      commandByItemId.set(id, action.command)
+    }
+  }
   return {
-    tabs,
-    commandByItemId
+    tabs: pluginRibbon.tabs,
+    commandByItemId,
+    pluginActions: pluginRibbon.actions
   }
 })
 
@@ -3483,6 +3518,7 @@ watch(
 
 const fileMenuItems = computed<FileMenuItemModel[]>(() => {
   locale.value
+  pluginUiRevision.value
   dataSourceMenuItems.value
   isSingleLocalOpen.value
   const openItem: FileMenuItemModel = isSingleLocalOpen.value
@@ -3514,28 +3550,20 @@ const fileMenuItems = computed<FileMenuItemModel[]>(() => {
       id: 'Export',
       label: t('main.mainMenu.exportMenu'),
       divided: true,
-      children: [
-        {
-          id: 'Convert',
-          label: t('main.mainMenu.export')
-        },
-        {
-          id: 'ExportHtml',
-          label: t('main.mainMenu.exportHtml')
-        },
-        {
-          id: 'ExportPdf',
-          label: t('main.mainMenu.exportPdf')
-        },
-        {
-          id: 'ExportSvg',
-          label: t('main.mainMenu.exportSvg')
-        },
-        {
-          id: 'PngOut',
-          label: t('main.mainMenu.exportImage')
-        }
-      ]
+      children: mlApplyPluginMenu(
+        [
+          {
+            id: 'Convert',
+            label: t('main.mainMenu.export')
+          },
+          {
+            id: 'PngOut',
+            label: t('main.mainMenu.exportImage')
+          }
+        ],
+        'file.export',
+        'PngOut'
+      )
     })
   }
   items.push({
@@ -3561,6 +3589,11 @@ const handleRibbonItemClick = (payload: {
   if (isRibbonDisabled.value) return
   if (handleHatchItem(payload.itemId)) return
   if (handleMTextItem(payload.itemId)) return
+  const pluginAction = ribbonData.value.pluginActions.get(payload.itemId)
+  if (pluginAction?.invoke) {
+    void pluginAction.invoke()
+    return
+  }
   if (payload.itemId === 'cmd-group-select') {
     togglePickstyleGroupSelection()
     return
@@ -3595,16 +3628,6 @@ const handleRibbonItemClick = (payload: {
   }
   const command = ribbonData.value.commandByItemId.get(payload.itemId)
   if (!command) return
-  if (command === 'agent') {
-    void runLazyCommand('agent')
-    return
-  }
-  AcApDocManager.instance.sendStringToExecute(command)
-}
-
-const runLazyCommand = async (command: string) => {
-  const pluginManager = AcApDocManager.instance.pluginManager
-  await pluginManager.loadByTrigger(command)
   AcApDocManager.instance.sendStringToExecute(command)
 }
 
@@ -3622,25 +3645,14 @@ const handleFileMenuSelect = async (command: string) => {
   if (isRibbonDisabled.value) return
   if (
     AcApDocManager.instance.disableExport &&
-    (command === 'Convert' ||
-      command === 'ExportHtml' ||
-      command === 'ExportPdf' ||
-      command === 'ExportSvg' ||
-      command === 'PngOut')
+    (command === 'Convert' || command === 'PngOut')
   ) {
     return
   }
+  if (mlRunPluginMenuItem(command)) return
   if (command === 'Convert') {
     const cmd = new AcApConvertToDxfCmd()
     cmd.trigger(AcApDocManager.instance.context)
-  } else if (command === 'ExportHtml') {
-    AcApDocManager.instance.sendStringToExecute('chtml')
-  } else if (command === 'ExportPdf') {
-    // Same path as chtml/csvg: DocManager lazy-loads the plugin then runs cpdf.
-    // Avoid a separate await+execute that raced Vite's first-time pdf-lib optimize.
-    AcApDocManager.instance.sendStringToExecute('cpdf')
-  } else if (command === 'ExportSvg') {
-    AcApDocManager.instance.sendStringToExecute('csvg')
   } else if (command === 'PngOut') {
     AcApDocManager.instance.sendStringToExecute('pngout')
   } else if (command === 'QNew') {
@@ -3693,7 +3705,7 @@ const handleFileMenuSelect = async (command: string) => {
             <el-button
               class="ml-ribbon-tabs-after__button"
               :disabled="disabled || !canUndo"
-              :icon="RefreshLeft"
+              :icon="undoIcon"
               @click="handleHeaderUndo"
             />
           </el-tooltip>
@@ -3705,7 +3717,7 @@ const handleFileMenuSelect = async (command: string) => {
             <el-button
               class="ml-ribbon-tabs-after__button"
               :disabled="disabled || !canRedo"
-              :icon="RefreshRight"
+              :icon="redoIcon"
               @click="handleHeaderRedo"
             />
           </el-tooltip>
@@ -3755,5 +3767,15 @@ const handleFileMenuSelect = async (command: string) => {
   .ml-ribbon-item-host.is-large.type-button.is-label-wrap
   .ml-ribbon-item-host__label {
   white-space: pre-line;
+}
+
+.ml-svg-icon {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.ml-svg-icon svg {
+  width: 1em;
+  height: 1em;
 }
 </style>

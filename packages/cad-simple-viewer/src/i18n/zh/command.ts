@@ -85,6 +85,27 @@ export default {
       description: '通过克隆将所选图元复制到新位置',
       prompt: '选择对象'
     },
+    copybase: {
+      description: '将选定对象与指定的基点一起复制到剪贴板',
+      prompt: '选择对象'
+    },
+    copyclip: {
+      description: '将选定对象复制到剪贴板',
+      prompt: '选择对象'
+    },
+    cutclip: {
+      description: '将选定对象复制到剪贴板并从图形中删除',
+      prompt: '选择对象'
+    },
+    pasteblock: {
+      description: '将剪贴板中的对象作为块粘贴'
+    },
+    pasteclip: {
+      description: '将剪贴板中的对象粘贴到当前图形'
+    },
+    pasteorig: {
+      description: '使用原图形的坐标粘贴剪贴板中的对象'
+    },
     csvg: {
       description: '转换当前图纸为SVG格式'
     },
@@ -127,6 +148,12 @@ export default {
     dwgname: {
       description: '存储当前图形文件的名称（只读）'
     },
+    find: {
+      description: '打开文字查找面板'
+    },
+    layer: {
+      description: '打开或关闭图层管理器停靠面板'
+    },
     loginname: {
       description: '显示当前用户的登录名（只读）'
     },
@@ -142,6 +169,10 @@ export default {
     erase: {
       description: '从图纸中删除所选对象',
       prompt: '选择对象'
+    },
+    explode: {
+      description: '将复合对象分解为其部件对象',
+      prompt: '选择要分解的对象'
     },
     group: {
       description: '创建和管理称为编组的对象集合'
@@ -204,9 +235,9 @@ export default {
       description: '将 PDF 中被打散的标注恢复为标注对象',
       prompt: '选择包含标注的区域'
     },
-    pdfblock: {
-      description: '将 PDF 中重复的图形恢复为块',
-      prompt: '选择一个块实例的对象'
+    pdfhatch: {
+      description: '将 PDF 中被打散成线段的图案填充恢复为图案填充对象',
+      prompt: '选择填充区域及其周围的边界线'
     },
     pdftext: {
       description: '将 PDF 中被打散的文字笔画转换回文字对象',
@@ -216,8 +247,11 @@ export default {
       description: '根据已知距离校准导入的 PDF 图形比例',
       prompt: '选择要缩放的对象'
     },
-    ipdf: {
-      description: '从 PDF 文件导入矢量几何'
+    pdfimport: {
+      description: '通过“输入 PDF”对话框从 PDF 文件导入矢量几何'
+    },
+    '-pdfimport': {
+      description: '使用命令行选项从 PDF 文件导入矢量几何'
     },
     hpang: {
       description: '设置新创建填充图案的默认角度（弧度）'
@@ -389,6 +423,10 @@ export default {
     mtext: {
       description: '创建多行文本'
     },
+    txt2mtxt: {
+      description: '将选定的单行文字和多行文字合并为一个多行文字',
+      prompt: '选择单行文字或多行文字'
+    },
     open: {
       description: '打开图纸'
     },
@@ -502,6 +540,10 @@ export default {
     },
     rotate: {
       description: '绕基点旋转所选图元',
+      prompt: '选择对象'
+    },
+    scale: {
+      description: '按比例放大或缩小选定对象，缩放后对象的比例保持不变',
       prompt: '选择对象'
     },
     select: {

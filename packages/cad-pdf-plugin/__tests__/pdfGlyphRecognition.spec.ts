@@ -1,14 +1,23 @@
 import {
   clusterPdfTextStrokes,
+  clusterPdfTextStrokesMultiScale,
   estimatePdfTextHeight,
+  isImplausiblePdfTextLine,
   type PdfTextStroke
 } from '../src/recognition/pdfGlyphClustering'
 import { PdfGlyphDictionary } from '../src/recognition/pdfGlyphDictionary'
 
 type P = { x: number; y: number }
 
+/** An ellipse filling the 0.6 × 1 cell, as one closed 16-sided stroke. */
+const ROUND: P[] = Array.from({ length: 17 }, (_, i) => {
+  const t = (i / 16) * Math.PI * 2
+  return { x: 0.3 + 0.3 * Math.cos(t), y: 0.5 + 0.5 * Math.sin(t) }
+})
+
 /** Minimal stroke font in a 0.6 × 1 cell (cap height 1). */
 const FONT: Record<string, P[][]> = {
+  O: [ROUND],
   L: [
     [
       { x: 0, y: 1 },
@@ -143,7 +152,164 @@ describe('clusterPdfTextStrokes', () => {
     expect(rejected).toEqual([frame])
     expect(lines).toHaveLength(1)
   })
+
+  it('estimates the height of text exploded into short line segments', () => {
+    // Some PDFs store each glyph stroke as many tiny separate lines, so
+    // single strokes are far smaller than the text.
+    const strokes = explode([
+      ...write('THE HELL', { x: 0, y: 4 }, 1),
+      ...write('LET', { x: 0, y: 2 }, 1)
+    ])
+    expect(estimatePdfTextHeight(strokes)).toBeCloseTo(1, 6)
+    const { lines, rejected } = clusterPdfTextStrokes(strokes)
+    expect(rejected).toHaveLength(0)
+    expect(lines.map(line => line.glyphs.length)).toEqual([7, 3])
+    expect(lines[0].height).toBeCloseTo(1, 6)
+    expect(lines[0].rotation).toBeCloseTo(0, 6)
+  })
+
+  it('multi-scale recovers titles rejected when attachLongStrokes is off', () => {
+    // Whole-page import disables attachLongStrokes so body-height estimation
+    // does not pull dimension lines into text. Titles then look like frames
+    // in the first pass and must be clustered again at their own height.
+    const title = write('LOT', { x: 0, y: 20 }, 4)
+    const body = [10, 8, 6, 4].flatMap(y => write('THE HELL', { x: 0, y }, 1))
+    const strokes = [...title, ...body]
+    const single = clusterPdfTextStrokes(strokes, { attachLongStrokes: false })
+    expect(single.rejected).toEqual(expect.arrayContaining(title))
+    expect(single.lines.every(line => line.height < 2)).toBe(true)
+
+    const multi = clusterPdfTextStrokesMultiScale(strokes, {
+      attachLongStrokes: false
+    })
+    const titleLine = multi.lines.find(line => line.height > 3)
+    expect(titleLine).toBeDefined()
+    expect(titleLine!.glyphs.length).toBe(3)
+    expect(titleLine!.strokes).toEqual(expect.arrayContaining(title))
+  })
+
+  it('multi-scale peels mega-lines glued by dense detail', () => {
+    // A dense hatch-like cloud used to survive as one absurd “text line”
+    // with thousands of strokes. Refine must peel it so OCR never sees it.
+    const noise: PdfTextStroke<number>[] = []
+    for (let i = 0; i < 1500; i++) {
+      const x = 50 + (i % 50) * 0.45
+      const y = 40 + Math.floor(i / 50) * 0.45
+      noise.push({
+        id: 10000 + i,
+        points: [
+          { x, y },
+          { x: x + 0.3, y: y + 0.25 }
+        ]
+      })
+    }
+    const body = [10, 8, 6, 4].flatMap(y => write('THE HELL', { x: 0, y }, 1))
+    const multi = clusterPdfTextStrokesMultiScale([...noise, ...body], {
+      attachLongStrokes: false
+    })
+    expect(multi.lines.every(line => !isImplausiblePdfTextLine(line))).toBe(
+      true
+    )
+    expect(multi.lines.some(line => line.glyphs.length >= 7)).toBe(true)
+  })
+
+  it('keeps the long strokes of a title taller than the body text', () => {
+    // Body text sets the estimated height. As in real PDFs, the title has
+    // round strokes made of short segments, while its straight strokes are
+    // longer than the body text allows (one is even kept as one segment).
+    // Straight strokes are only attached back through the round ones: a
+    // title of nothing but long straight strokes cannot be told from lines.
+    const titleStrokes = write('LOT', { x: 0, y: 14 }, 4)
+    const long = titleStrokes[titleStrokes.length - 1]
+    // A piece hanging below the title, split off from it as its own row.
+    const piece: PdfTextStroke<number> = {
+      id: -3,
+      points: [
+        { x: 5, y: 13.1 },
+        { x: 5, y: 13.4 }
+      ]
+    }
+    const title = [...explode(titleStrokes.slice(0, -1)), long, piece]
+    const underline: PdfTextStroke<number> = {
+      id: -2,
+      points: [
+        { x: 0, y: 13.5 },
+        { x: 9, y: 13.5 }
+      ]
+    }
+    const body = [10, 8, 6, 4].flatMap(y => write('THE HELL', { x: 0, y }, 1))
+    const strokes = [
+      ...title,
+      underline,
+      ...explode([...body, ...write('LET', { x: 0, y: 2 }, 1)])
+    ]
+    // Precondition: title strokes are too long for the estimated height.
+    expect(estimatePdfTextHeight(strokes) * 1.5).toBeLessThan(4)
+    const { lines, rejected } = clusterPdfTextStrokes(strokes)
+    expect(rejected).toEqual([underline])
+    expect(lines.map(line => line.glyphs.length)).toEqual([3, 7, 7, 7, 7, 3])
+    expect(lines[0].strokes).toHaveLength(title.length)
+    expect(lines[0].strokes).toEqual(expect.arrayContaining([long, piece]))
+    expect(lines[0].height).toBeCloseTo(4, 6)
+  })
+
+  it('ignores table grid lines exploded into short segments', () => {
+    // A narrow table column: one cell per row. The PDF splits the grid into
+    // segments shorter than the text, which used to glue the cells into one
+    // tall block read as vertical text, one glyph per line.
+    const rows = 5
+    const cellW = 3.5
+    const cellH = 2.5
+    const segment = (a: P, b: P): PdfTextStroke<number> => ({
+      id: nextId++,
+      points: [a, b]
+    })
+    const grid: PdfTextStroke<number>[] = []
+    for (let x = 0; x <= cellW; x += cellW) {
+      for (let y = 0; y < rows * cellH; y += 0.5) {
+        grid.push(segment({ x, y }, { x, y: y + 0.5 }))
+      }
+    }
+    for (let r = 0; r <= rows; r++) {
+      for (let x = 0; x < cellW; x += 0.5) {
+        const y = r * cellH
+        grid.push(segment({ x, y }, { x: Math.min(x + 0.5, cellW), y }))
+      }
+    }
+    const text = Array.from({ length: rows }, (_, r) =>
+      write('LET', { x: 0.5, y: r * cellH + 0.75 }, 1)
+    ).flat()
+
+    const { lines, rejected } = clusterPdfTextStrokes([...grid, ...text])
+    expect(lines).toHaveLength(rows)
+    lines.forEach(line => {
+      expect(line.rotation).toBeCloseTo(0, 6)
+      expect(line.glyphs).toHaveLength(3)
+      expect(line.height).toBeCloseTo(1, 6)
+    })
+    expect(new Set(rejected)).toEqual(new Set(grid))
+  })
 })
+
+/** Splits every stroke into separate segments about 0.1 long. */
+function explode(strokes: PdfTextStroke<number>[]): PdfTextStroke<number>[] {
+  const out: PdfTextStroke<number>[] = []
+  for (const stroke of strokes) {
+    for (let i = 1; i < stroke.points.length; i++) {
+      const a = stroke.points[i - 1]
+      const b = stroke.points[i]
+      const n = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / 0.1))
+      for (let k = 0; k < n; k++) {
+        const at = (t: number) => ({
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t
+        })
+        out.push({ id: nextId++, points: [at(k / n), at((k + 1) / n)] })
+      }
+    }
+  }
+  return out
+}
 
 describe('PdfGlyphDictionary', () => {
   it('learns glyphs from one line and recognizes them elsewhere', () => {

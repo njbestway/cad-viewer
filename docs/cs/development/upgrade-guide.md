@@ -1,24 +1,103 @@
 ---
-title: "Upgrade cad-simple-viewer a cad-editor"
+title: 'Upgrade cad-simple-viewer a cad-editor'
 ---
 
 # Upgrade cad-simple-viewer a cad-editor
 
 Tato příručka vysvětluje, jak bezpečně upgradovat `@mlightcad/cad-simple-viewer` a `@mlightcad/cad-editor` — proč je nelze navyšovat izolovaně, které související balíčky se musí posunout společně a jaké existují dva spolehlivé způsoby, jak pro dané vydání určit správnou kompatibilní sadu verzí.
 
+::: info UI pluginů přichází z `AcApUiRegistry`
+Od vydání s touto změnou skupiny pásu karet, řádky Soubor → Export, tlačítka panelu jednoduchého UI a karty palety, které patří pluginu, deklaruje modul `/register` toho pluginu přes **`AcApUiRegistry`**. Hostitel kreslí jen to, co je zaregistrováno. Nenainstalovaný balíček nepřidá žádné UI.
+
+Migrace:
+
+- `@mlightcad/cad-editor` už neobsahuje vlastní tlačítka agenta, nastavení modelu, skriptu, PDF, HTML ani SVG. Načítá `@mlightcad/cad-pdf-plugin/register`, `@mlightcad/cad-html-plugin/register` a `@mlightcad/cad-svg-plugin/register` dynamickým `import()`, stejně jako agenta, LLM, skript a PaddleOCR. Při balení editoru nechte tyto specifikátory jako external.
+- Příznaky `store.features` (`agentPlugin`, `llmPlugin`, `paddleOcrPlugin`, `scriptPlugin`) jsou odstraněny.
+- Plugin volá `AcApUiRegistry.register` z `/register` se skupinami pásu, řádky nabídky `file.export`, funkcí `mount` palety a texty locales. Tlačítko existuje hned po běhu `/register`. Těžký modul se načte až při příkazu.
+- Jednoduché UI skládá nabídku exportu a další tlačítka panelu ze stejného registru. Ručně přidaná tlačítka agenta a skriptu odeberte.
+- `setAgentPaletteOpener` a `setCadScriptPaletteOpener` zůstávají pro hostitele, kteří neotevírají id palet z registru. `cad-editor` a jednoduché UI tato id otevírají samy.
+- `chtml` a `cpdf` otevírají dialogy bez UI frameworku v `cad-html-plugin` a `cad-pdf-plugin`. V prohlížeči je registruje modul `/register` a po potvrzení načte plugin přes `-chtml` / `-cpdf`. Bezobslužní hostitelé předají `dialog: false`, takže `chtml` a `cpdf` zůstanou výzvami na příkazovém řádku. Vue dialogy `MlExportHtmlDlg` / `MlExportPdfDlg` a třídy příkazů v editoru jsou odstraněny.
+  :::
+
+::: info Jednoduché UI je součástí `cad-simple-viewer`
+Od vydání s touto změnou je **`@mlightcad/cad-simple-ui-plugin` odstraněn**. Panel nástrojů, dokovací karty a výchozí `AcApPaletteHost` jsou v **`@mlightcad/cad-simple-viewer`**. Zapněte přes `simpleUi` (výchozí zapnuto); pro `cad-editor` / CLI použijte `simpleUi: false`. Subcesta `@mlightcad/cad-simple-viewer/find` je odstraněna — API hledání importujte z `@mlightcad/cad-simple-viewer`. Subcesty `/simple-ui` a `/find` jsou odstraněny.
+:::
+
+::: info Chrome dokovacího panelu se přesouvá do `cad-simple-viewer`
+Plain-DOM **chrome dokovacího panelu** (`AcUiDockPanel`) je v **`@mlightcad/cad-simple-viewer`**. Vestavěné simple UI na tento dock montuje obsah karet (vrstvy / hledání / review / měření) a registruje `AcApPaletteHost`; `cad-editor` registruje svůj Vue hostitel palety.
+
+Migrace:
+
+- Importujte `AcUiDockPanel` / `AcUiDockPanelTab` / `AcUiDockPanelSide` z `@mlightcad/cad-simple-viewer`.
+- i18n klíče jsou pod **`main.dockPanel.*`**.
+- Bez hostitele `AcApPaletteService.open` používá `AcUiDockPanel` (pravý dock / telefonní sheet).
+- Pojmenované karty: `AcApPaletteService.openNamedTab` / `ACAP_PALETTE_NAMED_TAB` — **vyžadují registrovaného hostitele** (bez dock fallbacku). Hostované `HTMLElement` panely dál používají `AcApPaletteService.open`.
+  :::
+
+::: info Místní PaddleOCR (`@mlightcad/cad-paddleocr-plugin`)
+Od vydání, které obsahuje tuto změnu, mohou hostitelé nainstalovat **`@mlightcad/cad-paddleocr-plugin`** pro OCR rozloženého PDF textu v prohlížeči (`pdftext` / OCR při importu PDF). Registruje rozpoznávač `paddleocr` v `AcApTextRecognitionService`; Wasm a ONNX modely se načtou až při prvním OCR. Seznam „Rozpoznat rozložený text“ při importu PDF ukazuje každou _dostupnou_ OCR volbu: místní PaddleOCR a každý nakonfigurovaný vision LLM **model** (např. `kkidc — model-id`), ne jeden řádek na poskytovatele.
+
+Migrace:
+
+- Nainstalujte `@mlightcad/cad-paddleocr-plugin` a volejte `registerLazyPaddleOcrPlugin` **před** `registerLazyLlmPlugin`, aby nepřečtené řádky spadly na vision LLM. Při nainstalovaném balíčku to `@mlightcad/cad-editor` udělá sám.
+- Servírujte wasm soubory ONNX Runtime Web ze stejného původu (dema používají `./vendor/onnxruntime/`) a předejte `wasmPaths`.
+- `AcApTextRecognitionService.has(id)` zjistí, zda je daný rozpoznávač registrován (např. přeskočit nápovědu LLM „OCR není nastaveno“, když je přítomen `paddleocr`).
+
+```ts
+import { registerLazyPaddleOcrPlugin } from '@mlightcad/cad-paddleocr-plugin/register'
+import { registerLazyLlmPlugin } from '@mlightcad/cad-llm-plugin/register'
+
+registerLazyPaddleOcrPlugin(pluginManager, {
+  wasmPaths: './vendor/onnxruntime/'
+})
+registerLazyLlmPlugin(pluginManager)
+```
+
+:::
+
+::: info Sdílené nastavení modelu AI (`@mlightcad/cad-llm-plugin`)
+Od vydání, které obsahuje tuto změnu, se nastavení poskytovatelů LLM přesouvá z `@mlightcad/cad-agent-plugin` do nového balíčku **`@mlightcad/cad-llm-plugin`**, takže CAD agent i rozpoznávání textu `pdftext` (OCR) sdílejí jednu konfiguraci. Nový balíček přidává příkaz **LLMSETTINGS** a dialog nastavení nezávislý na UI frameworku (dostupný i na kartě AI pásu karet v `@mlightcad/cad-editor`) a `@mlightcad/cad-simple-viewer` přidává `AcApLlmSettingsService`, přes který může jakákoli funkce dialog otevřít nebo zjistit, zda je nakonfigurován model s podporou obrázků.
+
+Migrace hostitelských aplikací:
+
+- Nainstalujte `@mlightcad/cad-llm-plugin` (nyní peer závislost `@mlightcad/cad-agent-plugin`) a vedle `registerLazyAgentPlugin` volejte `registerLazyLlmPlugin`. `@mlightcad/cad-editor` to při nainstalovaném balíčku udělá sám.
+- `registerLazyAgentPlugin` už neregistruje rozpoznávač textu. Rozpoznávač má nyní id `cad-llm` (dříve `cad-agent`) a registruje ho `registerLazyLlmPlugin`. Z `acapAgentRecognizeText` / `cleanRecognizedText` jsou nyní `acapLlmRecognizeText` / `acapLlmCleanRecognizedText` v `@mlightcad/cad-llm-plugin`.
+- Vloženou kartu nastavení v panelu agenta nahrazuje dialog; tlačítko s ozubeným kolem otevře LLMSETTINGS.
+- Uložená nastavení zůstávají: klíč `localStorage` `cad-agent-plugin.llm-config` se nemění.
+- Pokud používaný model podporuje jen text, OCR použije první nakonfigurovaný model s podporou obrázků.
+
+```ts
+import { registerLazyAgentPlugin } from '@mlightcad/cad-agent-plugin/register'
+import { registerLazyLlmPlugin } from '@mlightcad/cad-llm-plugin/register'
+
+registerLazyLlmPlugin(pluginManager)
+registerLazyAgentPlugin(pluginManager)
+```
+
+:::
+
+::: info Import PDF: z `ipdf` je `PDFIMPORT` / `-PDFIMPORT`
+Od vydání, které obsahuje tuto změnu (1.8.0), používá příkaz pro import PDF v `@mlightcad/cad-pdf-plugin` názvy z AutoCADu:
+
+- **PDFIMPORT** po výběru souboru otevře dialog **Importovat PDF** (`AcUiPdfImportDialog`): stránka s náhledem, bod vložení (X/Y nebo na obrazovce), měřítko a režim (Obnovit výkres / Zachovat vzhled PDF).
+- **-PDFIMPORT** zachovává výzvy na příkazovém řádku, které mělo `ipdf` (stránka, bod vložení s možnostmi **Měřítko** a **Režim**). Jeho třída je `AcApImportPdfPromptCmd`.
+
+Migrace: `ipdf` již neexistuje. Skripty, které spouštěly `executeCommand('ipdf')` a odpovídaly na výzvy, mají použít `-pdfimport`; hostitelé s vlastním pásem karet mají použít `pdfimport` (ID položky pásu karet v cad-editor je nyní `cmd-pdfimport`). Popisy příkazů se přesouvají z `command.ACAD.ipdf` do `command.ACAD.pdfimport` / `command.ACAD.-pdfimport` a texty výzev z `jig.ipdf` do `jig.pdfimport` (texty dialogu v `jig.pdfimport.dialog`). `AcApPdfImportConvertor.importFromFilePicker` nyní zobrazí dialog; `importFromCommandLine` je postup s výzvami.
+:::
+
 ::: info Chytré bloky: Vyhledat a převést (`BSEARCH`)
-Od vydání, které obsahuje tuto změnu, registruje `@mlightcad/cad-simple-viewer` příkaz **-BSEARCH** a `@mlightcad/cad-editor` přidává **BSEARCH** (alias `BCONVERT`) s panelem pro kontrolu a dialogem Převést na blok (karty Vložit a AI na pásu karet).
+Od vydání, které obsahuje tuto změnu, registruje `@mlightcad/cad-simple-viewer` příkaz **-BSEARCH** a `@mlightcad/cad-editor` přidává **BSEARCH** (alias `BCONVERT`) s kartou Vyhledat a převést v paletě nástrojů (seznam nalezených instancí) a dialogem Převést na blok (karty Vložit a AI na pásu karet).
 
 Porovnávání tvarů se přesunulo z `@mlightcad/cad-pdf-plugin` do `@mlightcad/cad-simple-viewer`. Upravte importy:
 
-| `@mlightcad/cad-pdf-plugin` (zastaralé) | `@mlightcad/cad-simple-viewer` |
-| --- | --- |
-| `findPdfShapeMatches` | `acedFindShapeMatches` |
-| `applyPdfAffine` | `acedApplyAffine2d` |
-| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `@mlightcad/cad-pdf-plugin` (zastaralé)                                    | `@mlightcad/cad-simple-viewer`                                                   |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `findPdfShapeMatches`                                                      | `acedFindShapeMatches`                                                           |
+| `applyPdfAffine`                                                           | `acedApplyAffine2d`                                                              |
+| `pdfEntityToFeature`                                                       | `acedEntityToShapeFeature(entity, id, { matchLayer: false })`                    |
 | `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
 
-Staré názvy fungují dál jako zastaralé aliasy. Text se přesunul z `kind` do `label`. `pdfblock` nyní používá pořadí výzev `-BSEARCH` (Převést → Nový/Existující → název → bod vložení → rozsah); skripty odpovídající na staré výzvy je třeba upravit.
+Staré názvy fungují dál jako zastaralé aliasy. Text se přesunul z `kind` do `label`. Příkaz `pdfblock` z `@mlightcad/cad-pdf-plugin` byl odstraněn; použijte `BSEARCH` / `-BSEARCH` (po importu PDF vypněte shodu hladin — hladiny PDF jsou podle barvy).
 :::
 
 ::: info AutoCAD skupiny (`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`)
@@ -140,15 +219,21 @@ Od vydání s touto změnou `cad.blocks` poskytuje u každého bloku `entityCoun
 Od verze **1.8.0** lze `.svg` otevřít jako výkres přes File → Open / `openDocument` / `openUrl`. Konverze je v novém balíčku [`@mlightcad/cad-svg-converter`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-converter). `initializeCadViewer` v `cad-editor` jej registruje automaticky; při samotném `cad-simple-viewer` zavolejte jednou `registerSvgConverter()`. Export zůstává `csvg` v `cad-svg-plugin`.
 :::
 
+::: info Export HTML/PDF ve výchozím nastavení přeskakuje prázdná rozvržení
+Od vydání, které obsahuje tuto změnu, mají export HTML a PDF novou volbu **`exportEmptyLayouts`** (výchozí **`false`**). Rozvržení výkresového prostoru, která obsahují jen výchozí AutoCAD viewport `*Paper_Space`, se vynechají, dokud volbu nenastavíte na `true`. Modelový prostor se při exportu rozvržení vždy zachová.
+
+Migrace: pokud v výstupu potřebujete prázdné karty papíru, předejte `exportEmptyLayouts: true` (přepínač v dialogu exportu, výzva `-chtml` / `-cpdf`, skript `cad.file.saveHtml` / `savePdf` nebo CLI příznak exporteru `--export-empty-layouts`).
+:::
+
 ::: info Export PDF rozdělen do sdíleného jádra (prohlížeč + Node)
 Od verze **1.8.0** používá export PDF stejné vrstvení jako export HTML. Sdílená logika je v `@mlightcad/cad-pdf-core` (model voleb a pipeline database → PDF, **bez** závislosti na `cad-simple-viewer` / DOM). Spotřebovávají ji dvě frontendy:
 
-| Balíček | Role |
-| --- | --- |
-| `@mlightcad/cad-pdf-plugin` | Prohlížečové `cpdf` / `-cpdf` / `ipdf` (a Vue dialog exportu) |
-| `@mlightcad/cad-pdf-exporter` | Headless Node DXF/DWG → PDF — **bez prohlížeče** |
+| Balíček                       | Role                                                               |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `@mlightcad/cad-pdf-plugin`   | Prohlížečové `cpdf` / `-cpdf` / `pdfimport` (a Vue dialog exportu) |
+| `@mlightcad/cad-pdf-exporter` | Headless Node DXF/DWG → PDF — **bez prohlížeče**                   |
 
-**Integrátoři v prohlížeči — většinou beze změny.** Nadále používejte `cpdf` / `-cpdf` / `ipdf`, `AcApPdfConvertor`, `AcApPdfExportOptions` a `resolveAcApPdfExportOptions`. Nainstalujte nový peer `@mlightcad/cad-pdf-core` vedle pluginu (stejná verze jako `cad-simple-viewer`).
+**Integrátoři v prohlížeči — většinou beze změny.** Nadále používejte `cpdf` / `-cpdf` / `pdfimport`, `AcApPdfConvertor`, `AcApPdfExportOptions` a `resolveAcApPdfExportOptions`. Nainstalujte nový peer `@mlightcad/cad-pdf-core` vedle pluginu (stejná verze jako `cad-simple-viewer`).
 
 **API / chování, které se uživatelů týkají:**
 
@@ -200,71 +285,71 @@ Před upgradem pomůže vědět, které balíčky patří ke koordinovanému vyd
 
 ### Základní balíčky prohlížeče
 
-| Balíček | Role |
-| --- | --- |
+| Balíček                        | Role                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
 | `@mlightcad/cad-simple-viewer` | Jádro nezávislé na frameworku (správa dokumentů, zásobník příkazů, propojení vykreslování) |
-| `@mlightcad/cad-editor` | Obal uživatelského rozhraní Vue 3 + Element Plus postavený nad cad-simple-viewer |
+| `@mlightcad/cad-editor`        | Obal uživatelského rozhraní Vue 3 + Element Plus postavený nad cad-simple-viewer           |
 
 ### Pluginy — **musí přesně odpovídat verzi cad-simple-viewer**
 
-| Balíček | Účel |
-| --- | --- |
-| `@mlightcad/cad-html-plugin` | Export samostatného HTML jedním kliknutím |
-| `@mlightcad/cad-pdf-plugin` | Prohlížečový export PDF a import PDF do CAD |
-| `@mlightcad/cad-svg-plugin` | Export SVG |
-| `@mlightcad/cad-simple-ui-plugin` | Panel nástrojů v čistém DOM, správce hladin, dokovací panel |
-| `@mlightcad/cad-agent-plugin` | Interakce poháněná AI agentem |
-| `@mlightcad/cad-onedrive-plugin` | Integrace OneDrive |
-| `@mlightcad/cad-google-drive-plugin` | Integrace Google Drive |
+| Balíček                                     | Účel                                                |
+| ------------------------------------------- | --------------------------------------------------- |
+| `@mlightcad/cad-html-plugin`                | Export samostatného HTML jedním kliknutím           |
+| `@mlightcad/cad-pdf-plugin`                 | Prohlížečový export PDF a import PDF do CAD         |
+| `@mlightcad/cad-svg-plugin`                 | Export SVG                                          |
+| `@mlightcad/cad-simple-viewer` (`simpleUi`) | Built-in plain-DOM toolbar / dock tabs (`simpleUi`) |
+| `@mlightcad/cad-agent-plugin`               | Interakce poháněná AI agentem                       |
+| `@mlightcad/cad-onedrive-plugin`            | Integrace OneDrive                                  |
+| `@mlightcad/cad-google-drive-plugin`        | Integrace Google Drive                              |
 
 > **Základní pravidlo:** každý plugin ve výše uvedeném seznamu by měl být připnut k **přesně stejnému číslu verze** jako `cad-simple-viewer`, na který upgradujete (například `1.7.5`).
 
 ### Sdílená exportní jádra a headless exportéry (stejná verze jako jádro)
 
-| Balíček | Účel |
-| --- | --- |
-| `@mlightcad/cad-html-core` | Sdílená pipeline HTML snapshot / balení (bez prohlížeče / DOM) |
-| `@mlightcad/cad-html-exporter` | Headless Node export HTML |
-| `@mlightcad/cad-pdf-core` | Sdílený model voleb PDF a pipeline database → PDF (bez prohlížeče / DOM) |
-| `@mlightcad/cad-pdf-exporter` | Headless Node DXF/DWG → PDF (bez prohlížeče) |
+| Balíček                        | Účel                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `@mlightcad/cad-html-core`     | Sdílená pipeline HTML snapshot / balení (bez prohlížeče / DOM)           |
+| `@mlightcad/cad-html-exporter` | Headless Node export HTML                                                |
+| `@mlightcad/cad-pdf-core`      | Sdílený model voleb PDF a pipeline database → PDF (bez prohlížeče / DOM) |
+| `@mlightcad/cad-pdf-exporter`  | Headless Node DXF/DWG → PDF (bez prohlížeče)                             |
 
 ### Interní vrstva rendereru (stejná verze jako jádro, publikováno samostatně)
 
-| Balíček | Účel |
-| --- | --- |
+| Balíček                     | Účel                                           |
+| --------------------------- | ---------------------------------------------- |
 | `@mlightcad/three-renderer` | Vykreslovací engine 2D/3D založený na THREE.js |
-| `@mlightcad/pdf-renderer` | Backend obsahu PDF používaný `cad-pdf-core` |
+| `@mlightcad/pdf-renderer`   | Backend obsahu PDF používaný `cad-pdf-core`    |
 
 Tyto jsou interně spotřebovávány pluginy a cad-simple-viewer. Obvykle je **neinstalujete** přímo, ale jejich verze musí být kompatibilní s pluginy, které instalujete.
 
 ### Nízkourovňová datová a textová vrstva — **musí odpovídat verzím z vydání**
 
-| Balíček | Poznámky |
-| --- | --- |
-| `@mlightcad/data-model` | Základní typy entit/databáze; každé vydání je navyšuje společně s prohlížečem |
-| `@mlightcad/libredwg-converter` | WebAssembly obal pro parsování DWG — podpora DWG na něm závisí |
-| `@mlightcad/mtext-parser` | Parser obsahu MTEXT |
-| `@mlightcad/mtext-renderer` | Renderer geometrie MTEXT → THREE |
-| `@mlightcad/mtext-input-box` | Widget editoru MTEXT na plátně |
+| Balíček                         | Poznámky                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `@mlightcad/data-model`         | Základní typy entit/databáze; každé vydání je navyšuje společně s prohlížečem |
+| `@mlightcad/libredwg-converter` | WebAssembly obal pro parsování DWG — podpora DWG na něm závisí                |
+| `@mlightcad/mtext-parser`       | Parser obsahu MTEXT                                                           |
+| `@mlightcad/mtext-renderer`     | Renderer geometrie MTEXT → THREE                                              |
+| `@mlightcad/mtext-input-box`    | Widget editoru MTEXT na plátně                                                |
 
 ### Vue UI závislosti pouze pro cad-editor
 
 Tyto se objevují v overrides v `pnpm-workspace.yaml`, ale jsou potřeba pouze při použití `@mlightcad/cad-editor` (plné Vue 3 UI). Integrace cad-simple-viewer je přímo neinstalují.
 
-| Balíček | Účel |
-| --- | --- |
-| `@mlightcad/ribbon` | Komponenta uživatelského rozhraní ribbon |
-| `@mlightcad/ui-components` | Sdílené primitivy Vue UI |
+| Balíček                    | Účel                                     |
+| -------------------------- | ---------------------------------------- |
+| `@mlightcad/ribbon`        | Komponenta uživatelského rozhraní ribbon |
+| `@mlightcad/ui-components` | Sdílené primitivy Vue UI                 |
 
 ### Peer závislosti třetích stran (ponechte verze tak, jak jsou připnuty ve vydání)
 
-| Balíček |
-| --- |
-| `three` |
-| `vue` (pouze pro cad-editor) |
+| Balíček                               |
+| ------------------------------------- |
+| `three`                               |
+| `vue` (pouze pro cad-editor)          |
 | `element-plus` (pouze pro cad-editor) |
-| `vue-i18n` (pouze pro cad-editor) |
-| `lodash-es` |
+| `vue-i18n` (pouze pro cad-editor)     |
+| `lodash-es`                           |
 
 ---
 
@@ -417,7 +502,7 @@ A: Stále potřebujete `data-model` a (pokud načítáte soubory DWG) `libredwg-
 
 **Q: Chrání mě sémantické verzování?**
 
-A: Semver rozsahy (`^`, `~`) fungují dobře pro navyšování na úrovni patch *v rámci* jedné série vydání (například `^1.7.0` automaticky zvolí `1.7.5`), ale **koordinované verze pluginů/data-model/libredwg-converter** nejsou ze samotného semveru zjistitelné — nastavují je správci vydání. Pro jakékoli navyšování menší verze stále potřebujete jednu ze dvou výše uvedených metod, abyste věděli, které verze k sobě patří.
+A: Semver rozsahy (`^`, `~`) fungují dobře pro navyšování na úrovni patch _v rámci_ jedné série vydání (například `^1.7.0` automaticky zvolí `1.7.5`), ale **koordinované verze pluginů/data-model/libredwg-converter** nejsou ze samotného semveru zjistitelné — nastavují je správci vydání. Pro jakékoli navyšování menší verze stále potřebujete jednu ze dvou výše uvedených metod, abyste věděli, které verze k sobě patří.
 
 **Q: Používám npm/yarn místo pnpm. Platí to stále?**
 

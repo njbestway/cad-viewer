@@ -5,9 +5,6 @@ export default {
     drawingUnits: 'Çizim Birimleri',
     exportMenu: 'Dışa Aktar',
     export: 'DXF\'e Dışa Aktar',
-    exportHtml: 'HTML\'e Dışa Aktar',
-    exportPdf: 'PDF\'e Dışa Aktar',
-    exportSvg: 'SVG\'e Dışa Aktar',
     exportImage: 'Görüntüye Dışa Aktar',
     about: 'Hakkında'
   },
@@ -212,11 +209,10 @@ export default {
     },
     group: {
       smartBlocks: 'Akıllı Bloklar',
-      agent: 'Ajan',
-      pdf: 'PDF',
       draw: 'Çiz',
       dimension: 'Ölçü',
       modify: 'Düzenle',
+      clipboard: 'Pano',
       layer: 'Katman',
       properties: 'Özellikler',
       groups: 'Gruplar',
@@ -285,16 +281,6 @@ export default {
         'Seçili nesnelerin tüm kopyalarını bulur ve bloklara dönüştürür (BSEARCH).',
       detectConvert:
         'Çizimin her yerindeki yinelenen nesneleri bulur ve bloklara dönüştürür (BDETECT).',
-      importPdf:
-        'PDF dosyasından vektör geometriyi içe aktarır; daireleri, yayları ve eğrileri yeniden oluşturur (IPDF).',
-      pdfScale:
-        'İçe aktarılan PDF geometrisini bilinen bir mesafenin iki noktasına göre ölçekler (PDFSCALE).',
-      pdfDim:
-        'Patlatılmış PDF ölçülerini (oklar veya işaretler, çizgiler, uzatma çizgileri ve metinler) ölçü nesnelerine geri dönüştürür (PDFDIM).',
-      pdfBlock:
-        'PDF içindeki tekrarlanan geometriyi bloğa dönüştürür ve her kopyayı blok referansıyla değiştirir (PDFBLOCK).',
-      pdfText:
-        'Patlatılmış PDF metin çizgilerini metin nesnelerine geri dönüştürür (PDFTEXT).',
       line: 'Tek bir düz çizgi parçası çizin.',
       polyline:
         'Bağlı bir dizi çizgi veya yay parçasını tek bir nesne olarak çizin.',
@@ -325,13 +311,26 @@ export default {
       dimcontinue: 'Önceki ölçüden sürekli ölçü oluşturun.',
       dimbaseline: 'Önceki ölçüden taban çizgisi ölçüsü oluşturun.',
       dimstyle: 'Ölçü stili yöneticisini açın.',
+      textStyle: 'Yazı stili yöneticisini açın.',
+      mleaderStyle: 'Çoklu önder stili yöneticisini açın.',
       mleader: 'Çoklu önder oluşturun.',
       mleaderAdd: 'Mevcut çoklu öndere bir önder çizgisi ekleyin.',
       mleaderRemove: 'Mevcut çoklu önderden bir önder çizgisini kaldırın.',
       move: 'Seçili nesneleri yeni bir konuma taşıyın.',
       rotate: 'Seçili nesneleri bir taban noktası etrafında döndürün.',
-      copy: 'Seçili nesneleri yeni bir konuma kopyalayın.',
+      scale:
+        'Seçili nesneleri, ölçeklemeden sonra oranlarını koruyarak büyütün veya küçültün.',
       erase: 'Seçili nesneleri çizimden silin.',
+      pasteClip: 'Panodaki nesneleri geçerli çizime yapıştırır (PASTECLIP).',
+      pasteOrig:
+        'Panodaki nesneleri özgün çizimdeki koordinatlarla yapıştırır (PASTEORIG).',
+      pasteBlock:
+        'Panodaki nesneleri geçerli çizime blok olarak yapıştırır (PASTEBLOCK).',
+      cutClip: 'Seçili nesneleri kaldırır ve panoya kopyalar (CUTCLIP).',
+      copyClip: 'Seçili nesneleri panoya kopyalar (COPYCLIP).',
+      copyBase:
+        'Seçili nesneleri belirtilen bir temel noktayla panoya kopyalar (COPYBASE).',
+      explode: 'Bileşik bir nesneyi bileşen nesnelerine ayırır.',
       offset:
         'Bir nesnenin belirtilen mesafede paralel bir kopyasını oluşturun.',
       undo: 'Son düzenleme işlemini geri alın.',
@@ -362,8 +361,6 @@ export default {
         'Blok öznitelik değerlerini ve görüntü özelliklerini düzenlemek için Gelişmiş Öznitelik Düzenleyiciyi açın (ATTEDIT).',
       defineAttribute:
         'Bir blokta kullanılacak öznitelik tanımı oluşturun (ATTDEF).',
-      agent:
-        'Doğal dil kullanarak geometri çizmek için CAD Ajanı panel sekmesini açın.',
       pan: 'Büyütmeyi değiştirmeden çizimin görünümünü taşır.',
       zoom: 'Çizim görüntüsünü yakınlaştırır veya uzaklaştırır.',
       zoomExtents:
@@ -458,11 +455,6 @@ export default {
     command: {
       searchConvert: 'Ara ve\nDönüştür',
       detectConvert: 'Algıla ve\nDönüştür',
-      importPdf: 'PDF\nİçe Aktar',
-      pdfScale: 'Ölçeği\nKalibre Et',
-      pdfDim: 'Ölçüleri\nKurtar',
-      pdfBlock: 'Blok\nOluştur',
-      pdfText: 'Metni\nKurtar',
       line: 'Çizgi',
       polyline: 'Çoklu Çizgi',
       circle: 'Daire',
@@ -493,13 +485,22 @@ export default {
       dimcontinue: 'Sürekli',
       dimbaseline: 'Taban',
       dimstyle: 'Ölçü Stili',
+      textStyle: 'Yazı Stili',
+      mleaderStyle: 'Çoklu Önder Stili',
       mleader: 'Çoklu Önder',
       mleaderAdd: 'Önder Ekle',
       mleaderRemove: 'Önder Kaldır',
       move: 'Taşı',
       rotate: 'Döndür',
-      copy: 'Kopyala',
+      scale: 'Ölçekle',
       erase: 'Sil',
+      pasteClip: 'Yapıştır',
+      pasteOrig: 'Orijinal Koordinatlara Yapıştır',
+      pasteBlock: 'Blok Olarak Yapıştır',
+      cutClip: 'Kes',
+      copyClip: 'Kopyala',
+      copyBase: 'Temel Noktayla Kopyala',
+      explode: 'Patlat',
       offset: 'Ötele',
       undo: 'Geri Al',
       redo: 'Yinele',
@@ -518,7 +519,6 @@ export default {
       insert: 'Ekle',
       editAttributes: 'Öznitelikleri\nDüzenle',
       defineAttribute: 'Öznitelik\nTanımla',
-      agent: 'CAD\nAjanı',
       pan: 'Kaydır',
       zoom: 'Yakınlaştır',
       zoomExtents: 'Sınırlar',
@@ -542,12 +542,9 @@ export default {
     }
   },
   bsearch: {
-    title: 'Ara ve Dönüştür',
     found: '{count} örnek bulundu, {included} tanesi dahil',
-    position: '{index}/{count}',
     previous: 'Önceki örnek',
     next: 'Sonraki örnek',
-    includeCurrent: 'Bu örneği dahil et',
     convert: 'Bloğa dönüştür…',
     cancel: 'İptal',
     rotation: 'Döndürülmüş',
@@ -556,12 +553,54 @@ export default {
     sameLayer: 'Aynı katman',
     existingBlocks: 'Mevcut bloklar',
     textVariations: 'Metin farkları',
-    pickPrompt: 'Dahil etmek veya hariç tutmak için bir örneğe tıklayın ya da'
+    pickPrompt: 'Dahil etmek veya hariç tutmak için bir örneğe tıklayın ya da',
+    source: 'Seçili nesneler: {count}',
+    options: 'Arama seçenekleri',
+    none: 'Başka örnek bulunamadı. Arama seçeneklerini değiştirin veya yalnızca seçimi dönüştürün.',
+    includeAll: 'Tümünü dahil et',
+    include: 'Bu örneği dahil et',
+    instance: 'Örnek {index}',
+    blockReference: 'Blok referansı',
+    rotatedBy: '{angle}° döndürülmüş',
+    mirrored: 'Aynalanmış',
+    scaledBy: 'Ölçek {scale}',
+    hint: 'Örneğe yakınlaştırmak için bir satıra tıklayın. Dahil etmek veya hariç tutmak için çizimde bir örneğe tıklayın.'
   },
   bdetect: {
     detecting: 'Çizimde yinelenen nesneler aranıyor…',
     foundSoFar: 'Şu ana kadar {count} grup bulundu',
     stop: 'Durdur',
+    ready: 'Seçenekleri ayarlayın, ardından Algıla’ya tıklayın.',
+    detect: 'Algıla',
+    detectAgain: 'Yeniden algıla',
+    options: 'Algılama seçenekleri',
+    explain: '{option} açıklaması',
+    rotation: 'Döndürülmüş',
+    mirror: 'Aynalanmış',
+    scale: 'Ölçeklenmiş',
+    sameLayer: 'Aynı katman',
+    textVariations: 'Metin farklılıkları',
+    minInstances: 'En az örnek',
+    minSavings: 'En az tasarruf',
+    maxEntities: 'En fazla nesne',
+    help: {
+      rotation:
+        'Herhangi bir açıyla döndürülmüş kopyalar aynı nesne sayılır. Kapatırsanız yalnızca aynı yöne bakan kopyalar gruplanır.',
+      mirror:
+        'Ters çevrilmiş kopyalar da aynı nesne sayılır; örneğin diğer yana açılan bir kapı. Kapatırsanız aynalanmış kopyalar gruba alınmaz.',
+      scale:
+        'Oran korunarak büyütülmüş veya küçültülmüş kopyalar aynı nesne sayılır. Kapatırsanız yalnızca aynı boyuttaki kopyalar gruplanır. Gerilmiş veya ezilmiş şekiller hiç eşleşmez.',
+      sameLayer:
+        'Bir kopyadaki her şekil, karşılık gelen şekille aynı katmanda olmalıdır. PDF’den gelen çizimlerde katmanlar çoğu zaman renge göre ayrılır ve bir simge birkaç katmana dağılır. Bu durumda kapatın.',
+      textVariations:
+        'Oda numarası gibi, kopyalar arasında farklı tek satırlık metinlere izin verilir. Grup dönüştürülünce bu metinler blok özniteliği olur. Kapatırsanız metnin harfi harfine aynı olması gerekir. Çok satırlı metin her zaman birebir aynı olmalıdır ve öznitelik olmaz.',
+      minInstances:
+        'Özgün nesne dahil en az bu kadar kopya bulunursa grup listelenir. En küçük değer 2’dir. Yükseltirseniz yalnızca ikili tekrarlar yok sayılır ve daha sık tekrarlanan nesneler kalır.',
+      minSavings:
+        'Bir grup, bloğa dönüştürünce en az bu kadar nesne kaldırılacaksa tutulur. Tasarruf, kopya sayısı çarpı (bir kopyadaki nesne sayısı eksi 1) kadardır: bir kopya blok olur, diğer her kopya tek bir blok referansıyla değiştirilir. Örneğin 3 nesneli 5 kopya 10 nesne kazandırır. Yükseltirseniz küçük gruplar gizlenir; 0 yaparsanız her tekrar listelenir.',
+      maxEntities:
+        'Bir kopyanın içerebileceği en fazla nesne sayısıdır. Algılama bu boyuta ulaşınca parça eklemeyi durdurur; daha çok parçadan oluşan bir simge yalnızca kısmen alınır. Büyük ve karmaşık tekrarları atlamak için düşürün; aradığınız simgenin daha çok parçası varsa yükseltin. Varsayılan 64’tür.'
+    },
     groups: '{count} yinelenen nesne grubu',
     none: 'Yinelenen nesne bulunamadı.',
     selectAll: 'Tümünü seç',
@@ -933,6 +972,10 @@ export default {
     bdetect: {
       tab: 'Algılama',
       title: 'Algıla ve Dönüştür'
+    },
+    bsearch: {
+      tab: 'Arama',
+      title: 'Ara ve Dönüştür'
     },
     countList: {
       tab: 'Sayım',

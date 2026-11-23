@@ -11,6 +11,7 @@ import {
 import { FontManager } from '@mlightcad/mtext-renderer'
 import { AcTrMTextRenderer } from '@mlightcad/three-renderer'
 
+import { acapGetDrawStyleSessionAccessory } from '../command/AcApDrawStyleSession.js'
 import {
   AcApAboutCmd,
   AcApArcCmd,
@@ -22,7 +23,10 @@ import {
   AcApConvertToDxfCmd,
   AcApConvertToJpgCmd,
   AcApConvertToPngCmd,
+  AcApCopyBaseCmd,
+  AcApCopyClipCmd,
   AcApCopyCmd,
+  AcApCutClipCmd,
   AcApDashBSearchCmd,
   AcApDashGroupCmd,
   AcApDimAlignedCmd,
@@ -38,12 +42,14 @@ import {
   AcApEllipseCmd,
   AcApEntityPreviewCmd,
   AcApEraseCmd,
+  AcApExplodeCmd,
   AcApGroupCmd,
   AcApGroupEditCmd,
   AcApHatchCmd,
   AcApHideObjectsCmd,
   AcApImageAttachCmd,
   AcApInsertCmd,
+  acapInstallMarkupSessionBootstrap,
   AcApLayerCloseCmd,
   AcApLayerCmd,
   AcApLayerCurCmd,
@@ -69,6 +75,9 @@ import {
   AcApOffsetCmd,
   AcApOpenCmd,
   AcApPanCmd,
+  AcApPasteBlockCmd,
+  AcApPasteClipCmd,
+  AcApPasteOrigCmd,
   AcApPointCmd,
   AcApPolygonCmd,
   AcApPolylineCmd,
@@ -80,6 +89,7 @@ import {
   AcApRegenCmd,
   AcApRevCloudCmd,
   AcApRotateCmd,
+  AcApScaleCmd,
   AcApSelectCmd,
   AcApSketchCmd,
   AcApSplineCmd,
@@ -95,12 +105,10 @@ import {
   AcApZoomCmd,
   resetMarkupSession,
   resetMeasurementSession
-} from '../command'
-import {
-  acapGetDrawStyleSessionAccessory
-} from '../command/AcApDrawStyleSession'
-import { registerMarkupCommands } from '../command/markup/AcApRegisterMarkupCommands'
-import { registerMeasureCommands } from '../command/measure/AcApRegisterMeasureCommands'
+} from '../command/index.js'
+import { registerMarkupCommands } from '../command/markup/AcApRegisterMarkupCommands.js'
+import { registerMeasureCommands } from '../command/measure/AcApRegisterMeasureCommands.js'
+import { AcApTxt2MtxtCmd } from '../command/modify/AcApTxt2MtxtCmd.js'
 import {
   AcEdCalculateSizeCallback,
   AcEdCommand,
@@ -109,60 +117,58 @@ import {
   AcEdOpenMode,
   AcEdViewMode,
   eventBus
-} from '../editor'
-import { AcApPluginManager } from '../plugin/AcApPluginManager'
+} from '../editor/index.js'
+import { AcApPluginManager } from '../plugin/AcApPluginManager.js'
 import {
   acapCollectPaperViewportsBox,
   acapResolveLayoutFrameBox
-} from '../util/AcApLayoutViewFraming'
-import { acapResolveOpenFileType } from '../util/acapResolveOpenFileType'
-import { isScriptQuitCommand, parseScriptLines } from '../util/AcApScriptParser'
-import { acapWithSecondaryDatabase } from '../util/AcApSecondaryDatabase'
-import { AcTrView2d } from '../view'
-import type { AcApCompareDisplayOptions } from '../view/AcApCompareDisplay'
-import type { AcTrLayout } from '../view/AcTrLayout'
-import { AcApBusyIndicator } from './AcApBusyIndicator'
-import { acapBindCommandServices } from './AcApCommandServices'
-import { AcApContext } from './AcApContext'
-import { AcApDocSession } from './AcApDocSession'
-import {
-  ACAP_DEFAULT_DOCS_BASE_URL,
-  acapSetDocsBaseUrl
-} from './AcApDocsUrl'
-import { AcApDocument } from './AcApDocument'
-import { AcApFontLoader } from './AcApFontLoader'
-import { acapHealModelLayoutLink } from './acapHealModelLayoutLink'
+} from '../util/AcApLayoutViewFraming.js'
+import { acapResolveOpenFileType } from '../util/acapResolveOpenFileType.js'
+import { isScriptQuitCommand, parseScriptLines } from '../util/AcApScriptParser.js'
+import { acapWithSecondaryDatabase } from '../util/AcApSecondaryDatabase.js'
+import type { AcApCompareDisplayOptions } from '../view/AcApCompareDisplay.js'
+import type { AcTrLayout } from '../view/AcTrLayout.js'
+import { AcTrView2d } from '../view/index.js'
+import { AcApBusyIndicator } from './AcApBusyIndicator.js'
+import { AcApClipboard } from './AcApClipboard.js'
+import { acapBindCommandServices } from './AcApCommandServices.js'
+import { AcApContext } from './AcApContext.js'
+import { AcApDocSession } from './AcApDocSession.js'
+import { ACAP_DEFAULT_DOCS_BASE_URL, acapSetDocsBaseUrl } from './AcApDocsUrl.js'
+import { AcApDocument } from './AcApDocument.js'
+import { AcApFontLoader } from './AcApFontLoader.js'
+import { acapHealModelLayoutLink } from './acapHealModelLayoutLink.js'
 import {
   AcApOpenDatabaseOptions,
   AcApOpenViewMode
-} from './AcApOpenDatabaseOptions'
+} from './AcApOpenDatabaseOptions.js'
 import {
   acapInstallOpenFileDialog,
   type AcApOpenDocumentDefaultsResolver,
   acapUninstallOpenFileDialog,
   acapUpdateOpenFileDialogOptions
-} from './AcApOpenFileDialog'
-import { AcApOpenFileProfiler } from './AcApOpenFileProfiler'
-import { AcApOpenFileProgressController } from './AcApOpenFileProgressController'
+} from './AcApOpenFileDialog.js'
+import { AcApOpenFileProfiler } from './AcApOpenFileProfiler.js'
+import { AcApOpenFileProgressController } from './AcApOpenFileProgressController.js'
 import {
   checkWebworkerReadiness,
   DEFAULT_WEBWORKER_FILE_URLS,
   resetWebworkerReadinessCache
-} from './AcApWebworkerReadiness'
-import { AcApXrefManager } from './AcApXrefManager'
+} from './AcApWebworkerReadiness.js'
+import { AcApXrefManager } from './AcApXrefManager.js'
 import {
   AcApDataSourceManager,
   AcApLocalDataSource,
   AcApUrlDataSource
-} from './dataSource'
+} from './dataSource/index.js'
 import {
   acapDisposeNotificationService,
   acapInstallNotificationService,
   type AcUiNotificationBellPlacement
-} from './notification'
-import { syncCurrentSpaceFromTileMode } from './syncCurrentSpaceFromTileMode'
+} from './notification/index.js'
+import { syncCurrentSpaceFromTileMode } from './syncCurrentSpaceFromTileMode.js'
 
-const DEFAULT_BASE_URL = 'https://cdn.jsdelivr.net/gh/mlightcad/cad-data'
+const DEFAULT_BASE_URL = 'https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main'
 /** Default ISO drawing template loaded by {@link AcApDocManager.newDocument}. */
 const DEFAULT_NEW_DRAWING_TEMPLATE = 'templates/acadiso.dxf'
 /**
@@ -183,6 +189,7 @@ const DEFAULT_COMMAND_ALIASES: Record<string, string[]> = {
   CIRCLE: ['C'],
   ELLIPSE: ['EL'],
   ERASE: ['E'],
+  EXPLODE: ['X'],
   DIMLINEAR: ['DLI'],
   DIMALIGNED: ['DAL', 'DIMALI'],
   DIMRADIUS: ['DRA', 'DIMRAD'],
@@ -205,10 +212,12 @@ const DEFAULT_COMMAND_ALIASES: Record<string, string[]> = {
   MLINE: ['ML'],
   MLEADEREDIT: ['MLE'],
   MTEXT: ['T'],
+  TXT2MTXT: ['T2M'],
   MOVE: ['M'],
   OFFSET: ['O'],
   COPY: ['CO'],
   ROTATE: ['RO'],
+  SCALE: ['SC'],
   OPEN: ['OP'],
   PAN: ['P'],
   POINT: ['PO'],
@@ -360,8 +369,8 @@ export interface AcApDocManagerOptions {
      * Each item can be a plugin instance or a factory function that returns a plugin.
      */
     fromConfig?: Array<
-      | import('../plugin/AcApPlugin').AcApPlugin
-      | (() => import('../plugin/AcApPlugin').AcApPlugin)
+      | import('../plugin/AcApPlugin.js').AcApPlugin
+      | (() => import('../plugin/AcApPlugin.js').AcApPlugin)
     >
     /**
      * Load plugins from a folder using dynamic imports.
@@ -458,6 +467,16 @@ export interface AcApDocManagerOptions {
          */
         placement?: AcUiNotificationBellPlacement
       }
+
+  /**
+   * Built-in plain-DOM toolbar + dock palette chrome (formerly
+   * Built-in plain-DOM chrome (toolbar + dock palettes).
+   *
+   * - omitted / `true`: enable with default toolbar/dock options
+   * - `false`: do not load (use for `cad-editor`, CLI, headless)
+   * - object: enable with those {@link AcUiSimpleUiOptions}
+   */
+  simpleUi?: boolean | import('../ui/AcUiSimpleUiOptions.js').AcUiSimpleUiOptions
 }
 
 /**
@@ -475,6 +494,8 @@ export interface AcApDocManagerOptions {
 export class AcApDocManager {
   /** Open document sessions (MDI). The shared view shows {@link _activeSession}. */
   private _sessions: AcApDocSession[] = []
+  /** Drawing clipboard shared by every open document (COPYCLIP / PASTECLIP). */
+  private readonly _clipboard = new AcApClipboard()
   /** Session currently bound to the shared view and working database. */
   private _activeSession!: AcApDocSession
   /** View created at construct time (left pane in split layout). */
@@ -514,6 +535,12 @@ export class AcApDocManager {
   private _commandManager: AcEdCommandStack
   /** Plugin manager */
   private _pluginManager: AcApPluginManager
+  /** Resolved when built-in simple UI chrome finishes loading (or skipped). */
+  private _simpleUiReady: Promise<
+    import('../ui/AcApSimpleUiChrome.js').AcApSimpleUiChrome | undefined
+  > = Promise.resolve(undefined)
+  /** Built-in simple UI chrome when {@link simpleUi} is enabled. */
+  private _simpleUiChrome?: import('../ui/AcApSimpleUiChrome.js').AcApSimpleUiChrome
   /** Data source manager (local, URL, cloud plugins) */
   private _dataSourceManager: AcApDataSourceManager
   /**
@@ -630,6 +657,8 @@ export class AcApDocManager {
       context
     )
     this._sessions = [this._activeSession]
+    // Hard value import keeps the factory alive under narrow package sideEffects.
+    acapInstallMarkupSessionBootstrap()
     acapBindMarkupSession(this._activeSession.id)
 
     this._fontLoader = new AcApFontLoader()
@@ -728,6 +757,12 @@ export class AcApDocManager {
         enableBridge: true
       })
     }
+
+    if (options.simpleUi !== false) {
+      const simpleUiOptions =
+        typeof options.simpleUi === 'object' ? options.simpleUi : {}
+      this._simpleUiReady = this.loadSimpleUi(simpleUiOptions)
+    }
   }
 
   /**
@@ -805,6 +840,12 @@ export class AcApDocManager {
     // entity commits do not read a torn-down singleton.
     this._mainView.abortConversion()
     this._splitView?.abortConversion()
+
+    // Chrome is no longer an AcApPlugin; tear it down before plugins/docs.
+    const chrome = await this._simpleUiReady.catch(() => undefined)
+    chrome?.dispose(this._commandManager)
+    this._simpleUiChrome = undefined
+    this._simpleUiReady = Promise.resolve(undefined)
 
     await this._pluginManager.unloadAllPlugins()
     for (const session of [...this._sessions]) {
@@ -914,6 +955,17 @@ export class AcApDocManager {
    */
   sessionFor(doc: AcApDocument): AcApDocSession | undefined {
     return this._sessions.find(session => session.doc === doc)
+  }
+
+  /**
+   * Gets the drawing clipboard used by COPYCLIP, CUTCLIP, COPYBASE and the
+   * PASTE* commands.
+   *
+   * It is shared by every open document so objects can be pasted into another
+   * drawing.
+   */
+  get clipboard() {
+    return this._clipboard
   }
 
   /**
@@ -1169,6 +1221,22 @@ export class AcApDocManager {
    */
   get pluginManager() {
     return this._pluginManager
+  }
+
+  /**
+   * Built-in simple UI chrome when {@link AcApDocManagerOptions.simpleUi} is
+   * enabled; `undefined` until {@link simpleUiReady} resolves or when opted out.
+   */
+  get simpleUi() {
+    return this._simpleUiChrome
+  }
+
+  /**
+   * Resolves when built-in simple UI chrome has finished loading, or with
+   * `undefined` when {@link AcApDocManagerOptions.simpleUi} is `false`.
+   */
+  get simpleUiReady() {
+    return this._simpleUiReady
   }
 
   /**
@@ -1799,7 +1867,7 @@ export class AcApDocManager {
    * for missed fonts so that the drawing can apply new fonts.
    */
   regen() {
-    this.curView.clear()
+    this.curView.clearForRegen()
     this.context.doc.database.regen()
   }
 
@@ -2023,6 +2091,7 @@ export class AcApDocManager {
     addSystemCommand('entout', 'entout', new AcApEntityPreviewCmd())
     addSystemCommand('ellipse', 'ellipse', new AcApEllipseCmd())
     addSystemCommand('erase', 'erase', new AcApEraseCmd())
+    addSystemCommand('explode', 'explode', new AcApExplodeCmd())
     addSystemCommand('group', 'group', new AcApGroupCmd())
     addSystemCommand('-bsearch', '-bsearch', new AcApDashBSearchCmd())
     addSystemCommand('-group', '-group', new AcApDashGroupCmd())
@@ -2074,10 +2143,20 @@ export class AcApDocManager {
     )
     addSystemCommand('mline', 'mline', new AcApMLineCmd())
     addSystemCommand('mtext', 'mtext', new AcApMTextCmd())
+    // Leaf import (not command/modify barrel): avoids a CJS cycle that left
+    // AcApTxt2MtxtCmd undefined, and stays browser-safe (no require()).
+    addSystemCommand('txt2mtxt', 'txt2mtxt', new AcApTxt2MtxtCmd())
     addSystemCommand('copy', 'copy', new AcApCopyCmd())
+    addSystemCommand('copyclip', 'copyclip', new AcApCopyClipCmd())
+    addSystemCommand('copybase', 'copybase', new AcApCopyBaseCmd())
+    addSystemCommand('cutclip', 'cutclip', new AcApCutClipCmd())
+    addSystemCommand('pasteclip', 'pasteclip', new AcApPasteClipCmd())
+    addSystemCommand('pasteorig', 'pasteorig', new AcApPasteOrigCmd())
+    addSystemCommand('pasteblock', 'pasteblock', new AcApPasteBlockCmd())
     addSystemCommand('move', 'move', new AcApMoveCmd())
     addSystemCommand('offset', 'offset', new AcApOffsetCmd())
     addSystemCommand('rotate', 'rotate', new AcApRotateCmd())
+    addSystemCommand('scale', 'scale', new AcApScaleCmd())
     addSystemCommand('log', 'log', new AcApLogCmd())
     addSystemCommand('objectscale', 'objectscale', new AcApObjectScaleCmd())
     addSystemCommand('open', 'open', new AcApOpenCmd())
@@ -2401,8 +2480,9 @@ export class AcApDocManager {
   setActiveLayout(view?: AcTrView2d, database?: AcDbDatabase) {
     const currentView = view ?? (this.curView as AcTrView2d)
     const db = database ?? this.curDocument.database
-    // Heal Model layout → *Model_Space before activating. Stale layout BTR
-    // ids leave `activeLayoutView` undefined (blank canvas + zoomTo crash).
+    // Heal Model / paper layout → BTR links before activating. Stale or empty
+    // layout BTR ids leave `activeLayoutView` undefined (blank canvas + zoomTo
+    // crash) and hide paper tabs (R14 DWGs with empty BLOCK_RECORD.layout).
     const modelSpaceId = acapHealModelLayoutLink(db)
     const activeSpaceId = db.currentSpaceId || modelSpaceId
     currentView.ensureLayoutView(activeSpaceId)
@@ -2512,12 +2592,26 @@ export class AcApDocManager {
       session.doc.destroy()
       const doc = session.doc
       const db = doc.database
+      // Heal layout→BTR links before `$TILEMODE` sync / tab snapshot so paper
+      // layouts with an empty blockTableRecordId (R14 LibreDWG) are visible and
+      // selectable. setActiveLayout heals again (idempotent) before activate.
+      acapHealModelLayoutLink(db)
       // Header parsing stores `$TILEMODE` but leaves currentSpaceId on model.
       // Sync once at open (not in setActiveLayout) so later Model-tab visits
       // survive session reactivation. Do this before documentActivated so
       // layout tabs snapshot the correct active layout.
       syncCurrentSpaceFromTileMode(db)
       this.setActiveLayout(view, db)
+      // Open-into-paper does not fire `layoutSwitched`, and model entities may
+      // land under a remapped *Model_Space id. Load both spaces from the BTR
+      // here — not inside setActiveLayout, which also runs during
+      // createInstance before the DocManager singleton exists.
+      const modelSpaceIdForLoad = db.tables.blockTable.modelSpace.objectId
+      const activeSpaceIdForLoad = db.currentSpaceId || modelSpaceIdForLoad
+      view.ensureLayoutEntitiesLoaded(activeSpaceIdForLoad)
+      if (modelSpaceIdForLoad !== activeSpaceIdForLoad) {
+        view.ensureLayoutEntitiesLoaded(modelSpaceIdForLoad)
+      }
       // A freshly opened drawing always starts in selection mode. The canvas
       // element (and its CSS cursor) is reused across opens, so a grab cursor
       // left over from PAN mode on the previous drawing would otherwise hover
@@ -2563,10 +2657,7 @@ export class AcApDocManager {
         view.requestOpenLineworkFrame()
       }
 
-      if (
-        isPaperSpaceActive &&
-        openViewMode === AcApOpenViewMode.Saved
-      ) {
+      if (isPaperSpaceActive && openViewMode === AcApOpenViewMode.Saved) {
         const layoutExtents = activeLayout?.extents
         const paperFrame = acapResolveLayoutFrameBox({
           limits: layoutLimits,
@@ -2617,6 +2708,34 @@ export class AcApDocManager {
       if (framedSynchronously) {
         AcApZoomCmd.rememberOriginalView(view, db.currentSpaceId)
       }
+      // R14 / remapped-handle opens can leave the active sheet with `isLoaded`
+      // set but zero scene entities. After the open drain, force a BTR reload
+      // and re-fit when the canvas would otherwise stay blank.
+      void view.waitUntilIdle(120_000).then(async idle => {
+        if (!idle) return
+        const activeId = db.currentSpaceId
+        const modelId = db.tables.blockTable.modelSpace.objectId
+        const activeLayout = view.cadScene?.layouts.get(activeId)
+        const dbBlock = db.tables.blockTable.getIdAt(activeId)
+        let dbEntityCount = 0
+        if (dbBlock?.newIterator) {
+          for (const _ of dbBlock.newIterator()) dbEntityCount++
+        }
+        const sceneEmpty = !activeLayout || activeLayout.entityCount === 0
+        if (!(dbEntityCount > 0 && sceneEmpty)) return
+
+        view.ensureLayoutEntitiesLoaded(activeId, { forceIfEmpty: true })
+        if (modelId !== activeId) {
+          view.ensureLayoutEntitiesLoaded(modelId, { forceIfEmpty: true })
+        }
+        const reloaded = await view.waitUntilIdle(60_000)
+        if (!reloaded) return
+        const box = view.getDrawingExtents()
+        if (box) {
+          view.zoomTo(box)
+          AcApZoomCmd.rememberOriginalView(view, activeId)
+        }
+      })
       // Headless multi-layout export: convert paper tabs the open stream did
       // not already claim. `ensureEntitiesConvertedForExport` waits for the
       // open drain first, so this must not be a second full pass over
@@ -2880,9 +2999,25 @@ export class AcApDocManager {
     mtextRenderer.initialize(
       webworkerFileUrls?.mtextRender ?? DEFAULT_WEBWORKER_FILE_URLS.mtextRender
     )
-    void mtextRenderer.setDefaultFonts([
-      ...FontManager.instance.defaultFonts
-    ])
+    void mtextRenderer.setDefaultFonts([...FontManager.instance.defaultFonts])
+  }
+
+  /**
+   * Dynamically loads built-in simple UI chrome (`toolbar` + dock palettes).
+   */
+  private async loadSimpleUi(
+    options: import('../ui/AcUiSimpleUiOptions.js').AcUiSimpleUiOptions
+  ) {
+    try {
+      const { AcApSimpleUiChrome } = await import('../ui/AcApSimpleUiChrome.js')
+      const chrome = new AcApSimpleUiChrome(options)
+      chrome.start(this.commandManager)
+      this._simpleUiChrome = chrome
+      return chrome
+    } catch (error) {
+      log.error('[AcApDocManager] Error loading simple UI chrome:', error)
+      return undefined
+    }
   }
 
   /**
@@ -2987,6 +3122,11 @@ export class AcApDocManager {
       view.ltscale = doc.database.ltscale
       view.celtscale = doc.database.celtscale
       view.renderer.showLineWeight = doc.database.lwdisplay
+      // Open-with-LWDISPLAY-on converts fat geometry up front; later toggles
+      // can flip linewidth without another upgrade regen.
+      if (doc.database.lwdisplay) {
+        view.markLineWeightGeometryReady()
+      }
     })
   }
 

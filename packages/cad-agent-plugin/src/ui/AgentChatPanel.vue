@@ -1,15 +1,31 @@
 <script setup lang="ts">
 import '../ui/agent-panel.css'
 
+import {
+  acapLlmActiveModelSupportsVision,
+  type AcApLlmConfig,
+  acapLlmCreateDefaultConfig,
+  acapLlmEffectiveModels,
+  acapLlmFindProvider,
+  acapLlmLoadConfig,
+  acapLlmModelChoices,
+  acapLlmOnConfigChange,
+  acapLlmResolveActiveSettings,
+  acapLlmSaveConfig,
+  AcUiLlmSettingsDialog
+} from '@mlightcad/cad-llm-plugin'
+import { AcApLlmSettingsService } from '@mlightcad/cad-simple-viewer'
 import type { FileUIPart, UIMessage } from 'ai'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import {
   type AgentContextUsage,
   type AgentContextUsageCategoryId,
   contextUsagePercent,
+  contextUsageRingPercent,
+  formatContextUsagePercent,
   formatTokenCount,
-  resolveContextWindow
+  resolveContextWindowInfo
 } from '../agent/contextUsage'
 import type { AgentChatLabelKey } from '../i18n'
 import { agentT } from '../i18n'
@@ -19,22 +35,9 @@ import {
   loadAgentMode,
   saveAgentMode
 } from '../storage/AgentModeStore'
-import {
-  activeModelSupportsVision,
-  createDefaultLlmConfig,
-  effectiveModels,
-  findProvider,
-  type LlmConfig,
-  loadLlmConfig,
-  resolveActiveSettings,
-  saveLlmConfig
-} from '../storage/LlmSettingsStore'
-import { modelLabel } from '../storage/modelCatalog'
-import AgentModelSettings from './AgentModelSettings.vue'
 import { formatChatError } from './formatChatError'
 import { formatRelativeTime } from './formatRelativeTime'
 import { prepareImageAttachments } from './prepareImageAttachments'
-import { providerLabel } from './providerLabels'
 import {
   AGENT_TASK_CATEGORY_LABEL_KEYS,
   AGENT_TASK_CATEGORY_ORDER,
@@ -95,15 +98,15 @@ const emit = defineEmits<{
 
 const { labels } = useAgentI18n()
 
-/** Saved provider configuration; the settings card edits a copy. */
-const config = ref<LlmConfig>(createDefaultLlmConfig())
-const activeSettings = computed(() => resolveActiveSettings(config.value))
+/** Saved provider configuration, kept in sync with the settings dialog. */
+const config = ref<AcApLlmConfig>(acapLlmCreateDefaultConfig())
+const activeSettings = computed(() =>
+  acapLlmResolveActiveSettings(config.value)
+)
 const settingsReady = ref(false)
-const showSettings = ref(false)
-/** Whether the open settings card holds unsaved edits. */
-const settingsDirty = ref(false)
 const input = ref('')
 const inputRef = ref<HTMLTextAreaElement | null>(null)
+const messagesRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const pendingImages = ref<File[]>([])
 const pendingPreviewUrls = ref<string[]>([])
@@ -114,10 +117,6 @@ const contextUsage = ref<AgentContextUsage | null>(null)
 const showContextUsage = ref(false)
 /** Whether the suggested-task prompt picker is open. */
 const showTaskPrompts = ref(false)
-
-watch(showSettings, open => {
-  if (!open) settingsDirty.value = false
-})
 
 /** Recently copied tool row keys for brief “copied” feedback. */
 const copiedToolKeys = ref(new Set<string>())
@@ -163,8 +162,29 @@ const { chat, resetChat } = useAgentChatRef(() => ({
   }
 }))
 
-const contextWindowTokens = computed(() =>
-  resolveContextWindow(activeSettings.value.model)
+const activeModelContextWindow = computed(() => {
+  const provider = acapLlmFindProvider(
+    config.value,
+    config.value.activeProviderId
+  )
+  if (!provider) return undefined
+  const entry = acapLlmEffectiveModels(provider).find(
+    model => model.id === config.value.activeModel
+  )
+  return entry?.contextWindow
+})
+
+const resolvedContextWindow = computed(() =>
+  resolveContextWindowInfo(
+    activeSettings.value.model,
+    activeModelContextWindow.value
+  )
+)
+
+const contextWindowTokens = computed(() => resolvedContextWindow.value.tokens)
+
+const contextWindowEstimated = computed(
+  () => resolvedContextWindow.value.estimated
 )
 
 const usedContextTokens = computed(() => contextUsage.value?.usedTokens ?? 0)
@@ -173,12 +193,18 @@ const contextUsagePct = computed(() =>
   contextUsagePercent(usedContextTokens.value, contextWindowTokens.value)
 )
 
+const contextUsagePctLabel = computed(() =>
+  formatContextUsagePercent(contextUsagePct.value)
+)
+
 /** SVG ring geometry matching Cursor's compact context meter. */
 const CONTEXT_RING_RADIUS = 6
 const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS
 
 const contextRingDashOffset = computed(
-  () => CONTEXT_RING_CIRCUMFERENCE * (1 - contextUsagePct.value / 100)
+  () =>
+    CONTEXT_RING_CIRCUMFERENCE *
+    (1 - contextUsageRingPercent(contextUsagePct.value) / 100)
 )
 
 const contextUsageLevel = computed(() => {
@@ -190,16 +216,13 @@ const contextUsageLevel = computed(() => {
 
 const contextUsageDetailText = computed(() =>
   labels.value.contextUsageDetail
-    .replace('{percent}', String(Math.round(contextUsagePct.value)))
+    .replace('{percent}', contextUsagePctLabel.value)
     .replace('{used}', formatTokenCount(usedContextTokens.value))
     .replace('{limit}', formatTokenCount(contextWindowTokens.value))
 )
 
 const contextUsageFullText = computed(() =>
-  labels.value.contextUsageFull.replace(
-    '{percent}',
-    String(Math.round(contextUsagePct.value))
-  )
+  labels.value.contextUsageFull.replace('{percent}', contextUsagePctLabel.value)
 )
 
 const contextUsageTokensText = computed(() =>
@@ -250,15 +273,40 @@ function toggleTaskPrompts() {
   showTaskPrompts.value = !showTaskPrompts.value
   if (showTaskPrompts.value) {
     showContextUsage.value = false
-    showSettings.value = false
   }
 }
 
-/** Toggles the settings card and closes the task picker when opening settings. */
-function toggleSettings() {
-  showSettings.value = !showSettings.value
-  if (showSettings.value) showTaskPrompts.value = false
+/**
+ * Opens the shared AI model settings dialog (from `@mlightcad/cad-llm-plugin`)
+ * over the drawing. Saved changes reach this panel through
+ * {@link acapLlmOnConfigChange}.
+ */
+async function openSettings() {
+  showTaskPrompts.value = false
+  showContextUsage.value = false
+  // The registered service centers the dialog over the canvas; fall back to
+  // the page when the host did not register the LLM plugin.
+  if (!(await AcApLlmSettingsService.open())) {
+    await AcUiLlmSettingsDialog.open()
+  }
 }
+
+/** Applies a config saved anywhere in the page (dialog or input bar). */
+function onConfigSaved(next: AcApLlmConfig) {
+  const previous = acapLlmResolveActiveSettings(config.value)
+  config.value = next
+  const current = acapLlmResolveActiveSettings(next)
+  if (
+    previous.provider !== current.provider ||
+    previous.model !== current.model
+  ) {
+    // Drop prior step usage so the ring doesn't mix old tokens with the new window.
+    showContextUsage.value = false
+    contextUsage.value = null
+  }
+}
+
+let stopConfigSync: (() => void) | undefined
 
 /**
  * Task groups for the picker, with localized category / title / prompt text.
@@ -282,7 +330,6 @@ function applyTaskPrompt(task: AgentTaskDef) {
   const prompt = labels.value[task.promptKey]
   input.value = prompt
   showTaskPrompts.value = false
-  showSettings.value = false
   // Next tick isn’t needed for focus; textarea exists whenever the composer does.
   requestAnimationFrame(() => {
     const el = inputRef.value
@@ -317,7 +364,8 @@ onMounted(async () => {
   relativeTimeTimer = setInterval(() => {
     nowTick.value = Date.now()
   }, 15_000)
-  config.value = await loadLlmConfig()
+  stopConfigSync = acapLlmOnConfigChange(onConfigSaved)
+  config.value = await acapLlmLoadConfig()
   agentMode.value = loadAgentMode()
   // Do not resetChat() here: getConfig() is live, and replacing the Chat while
   // a first Enter send is in flight orphans that request (no UI response).
@@ -325,6 +373,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopConfigSync?.()
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   if (relativeTimeTimer) clearInterval(relativeTimeTimer)
   pendingPreviewUrls.value.forEach(url => URL.revokeObjectURL(url))
@@ -368,38 +417,19 @@ interface ModelOptionGroup {
 
 /**
  * Input-bar model choices: every model of every provider that has a key, plus
- * the active provider, grouped by provider. The active model is listed even
- * when its catalog no longer names it.
+ * the active provider, grouped by provider (see {@link acapLlmModelChoices}).
  */
 const modelOptionGroups = computed<ModelOptionGroup[]>(() => {
-  const { activeProviderId, activeModel } = config.value
-  const ids = config.value.providers
-    .filter(provider => provider.apiKey.trim())
-    .map(provider => provider.id)
-  if (!ids.includes(activeProviderId)) ids.unshift(activeProviderId)
-
-  return ids.flatMap(id => {
-    const provider = findProvider(config.value, id)
-    if (!provider) return []
-    const models = [...effectiveModels(provider)]
-    if (
-      id === activeProviderId &&
-      activeModel &&
-      !models.some(model => model.id === activeModel)
-    ) {
-      models.push({ id: activeModel, vision: false })
-    }
-    return [
-      {
-        providerId: id,
-        label: providerDisplayName(id),
-        options: models.map(model => ({
-          value: `${id}${MODEL_VALUE_SEPARATOR}${model.id}`,
-          label: modelLabel(model)
-        }))
-      }
-    ]
-  })
+  // Provider names are localized; re-evaluate when the locale changes.
+  void labels.value
+  return acapLlmModelChoices(config.value).map(group => ({
+    providerId: group.providerId,
+    label: group.label,
+    options: group.options.map(option => ({
+      value: `${option.providerId}${MODEL_VALUE_SEPARATOR}${option.modelId}`,
+      label: option.label
+    }))
+  }))
 })
 
 const activeModelValue = computed(
@@ -407,7 +437,9 @@ const activeModelValue = computed(
     `${config.value.activeProviderId}${MODEL_VALUE_SEPARATOR}${config.value.activeModel}`
 )
 
-const supportsVision = computed(() => activeModelSupportsVision(config.value))
+const supportsVision = computed(() =>
+  acapLlmActiveModelSupportsVision(config.value)
+)
 
 const highInferenceActive = computed(() => agentMode.value === 'high-inference')
 
@@ -429,21 +461,16 @@ const isBusy = computed(
   () => status.value === 'streaming' || status.value === 'submitted'
 )
 
-const modelSelectDisabled = computed(
-  () => !settingsReady.value || isBusy.value || settingsDirty.value
-)
+const modelSelectDisabled = computed(() => !settingsReady.value || isBusy.value)
 
 const agentModeSelectDisabled = computed(() => modelSelectDisabled.value)
 
-const modelSelectTitle = computed(() =>
-  settingsDirty.value ? labels.value.unsavedSettings : labels.value.model
-)
+const modelSelectTitle = computed(() => labels.value.model)
 
 /** Shared gates for send / queue besides busy state and draft content. */
 const canCompose = computed(
   () =>
     settingsReady.value &&
-    !settingsDirty.value &&
     !highInferenceBlocked.value &&
     activeSettings.value.apiKey.trim().length > 0
 )
@@ -467,9 +494,6 @@ const inputHint = computed(() => {
   if (!settingsReady.value) {
     return ''
   }
-  if (settingsDirty.value) {
-    return labels.value.unsavedSettings
-  }
   if (highInferenceBlocked.value) {
     return labels.value.highInferenceRequiresVision
   }
@@ -479,26 +503,10 @@ const inputHint = computed(() => {
   return ''
 })
 
-/** Returns the label of a provider for the input-bar model groups. */
-function providerDisplayName(id: string): string {
-  const provider = findProvider(config.value, id)
-  return provider ? providerLabel(provider, labels.value) : id
-}
-
 /** Clears the current chat error state without removing messages. */
 function dismissError() {
   sendPrepError.value = ''
   chat.value.clearError()
-}
-
-/** Persists the config saved by the settings card and resets the chat. */
-async function applySettings(next: LlmConfig) {
-  config.value = next
-  showSettings.value = false
-  showContextUsage.value = false
-  contextUsage.value = null
-  await saveLlmConfig(next)
-  resetChat()
 }
 
 /** Switches the active provider/model from the input bar and persists it. */
@@ -514,7 +522,7 @@ async function onInputModelChange(event: Event) {
   // Drop prior step usage so the ring doesn't mix old tokens with the new window.
   showContextUsage.value = false
   contextUsage.value = null
-  await saveLlmConfig(config.value)
+  await acapLlmSaveConfig(config.value)
 }
 
 /** Persists agent mode when the input bar dropdown changes. */
@@ -628,8 +636,7 @@ async function prepareOutgoingDraft(
   }
 
   const requestText =
-    text.trim() ||
-    (fileParts.length > 0 ? labels.value.imageOnlyRequest : '')
+    text.trim() || (fileParts.length > 0 ? labels.value.imageOnlyRequest : '')
   if (!requestText && fileParts.length === 0) return null
 
   return {
@@ -881,11 +888,11 @@ function clearChat() {
   cancelMessageEdit()
   queuedDraft.value = null
   dismissError()
-  showSettings.value = false
   showTaskPrompts.value = false
   showContextUsage.value = false
   contextUsage.value = null
   toolGroupOverrides.value = new Map()
+  reasoningGroupOverrides.value = new Map()
   messageTimes.value = new Map()
   resetChat()
 }
@@ -897,6 +904,31 @@ function partText(message: UIMessage): string {
     .filter(part => part?.type === 'text')
     .map(part => (part.type === 'text' ? part.text : ''))
     .join('')
+}
+
+/** Concatenates reasoning parts (kept separate from the visible reply text). */
+function reasoningText(message: UIMessage): string {
+  if (!message.parts?.length) return ''
+  return message.parts
+    .filter(part => part?.type === 'reasoning')
+    .map(part =>
+      part.type === 'reasoning' && 'text' in part ? String(part.text ?? '') : ''
+    )
+    .join('')
+}
+
+/** Whether a message's reasoning block is expanded. */
+function isReasoningOpen(message: UIMessage): boolean {
+  return (
+    reasoningGroupOverrides.value.get(message.id) ?? isMessageInFlight(message)
+  )
+}
+
+/** Expands or collapses a message's reasoning block. */
+function toggleReasoningGroup(message: UIMessage) {
+  const next = new Map(reasoningGroupOverrides.value)
+  next.set(message.id, !isReasoningOpen(message))
+  reasoningGroupOverrides.value = next
 }
 
 /** Extracts image file parts from a UI message for inline preview. */
@@ -1141,6 +1173,11 @@ function messageRelativeTime(messageId: string): string {
  * streams so progress stays visible, collapsed once the turn completes.
  */
 const toolGroupOverrides = ref(new Map<string, boolean>())
+/**
+ * Reasoning groups the user opened or closed by hand. Default: open while the
+ * assistant turn is in flight, collapsed once it finishes.
+ */
+const reasoningGroupOverrides = ref(new Map<string, boolean>())
 
 /** True for the assistant message the agent is still producing. */
 function isMessageInFlight(message: UIMessage): boolean {
@@ -1156,6 +1193,44 @@ function isMessageInFlight(message: UIMessage): boolean {
 function canEditMessage(message: UIMessage): boolean {
   return message.role === 'user' && !isBusy.value
 }
+
+/** Visible assistant reply content (text or tool calls), excluding reasoning. */
+function hasVisibleAssistantContent(message: UIMessage): boolean {
+  return partText(message).trim().length > 0 || toolParts(message).length > 0
+}
+
+/**
+ * Show the Working… row when busy and the in-flight assistant bubble has no
+ * text, tools, or reasoning yet (pre-first-token wait).
+ */
+const showWorkingStatus = computed(() => {
+  if (!isBusy.value) return false
+  const last = messages.value[messages.value.length - 1]
+  if (!last || last.role !== 'assistant') return true
+  if (hasVisibleAssistantContent(last)) return false
+  if (reasoningText(last).trim()) return false
+  return true
+})
+
+/**
+ * Hide the empty in-flight assistant shell while the dedicated Working… row
+ * is visible, so users do not see two waiting indicators.
+ */
+function shouldShowMessage(message: UIMessage): boolean {
+  if (!showWorkingStatus.value || message.role !== 'assistant') return true
+  const last = messages.value[messages.value.length - 1]
+  if (message !== last) return true
+  return (
+    hasVisibleAssistantContent(message) || !!reasoningText(message).trim()
+  )
+}
+
+watch(showWorkingStatus, async visible => {
+  if (!visible) return
+  await nextTick()
+  const scroller = messagesRef.value
+  if (scroller) scroller.scrollTop = scroller.scrollHeight
+})
 
 watch(
   messages,
@@ -1258,10 +1333,9 @@ function isVerificationMessage(message: UIMessage): boolean {
         <button
           type="button"
           class="cad-agent-icon-btn"
-          :class="{ 'is-active': showSettings }"
           :title="labels.settings"
           :aria-label="labels.settings"
-          @click="toggleSettings"
+          @click="openSettings"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -1342,10 +1416,9 @@ function isVerificationMessage(message: UIMessage): boolean {
       <button
         type="button"
         class="cad-agent-icon-btn"
-        :class="{ 'is-active': showSettings }"
         :title="labels.settings"
         :aria-label="labels.settings"
-        @click="toggleSettings"
+        @click="openSettings"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -1397,15 +1470,7 @@ function isVerificationMessage(message: UIMessage): boolean {
       </div>
     </div>
 
-    <AgentModelSettings
-      v-if="showSettings && settingsReady"
-      :config="config"
-      @save="applySettings"
-      @cancel="showSettings = false"
-      @dirty-change="settingsDirty = $event"
-    />
-
-    <div v-show="!showSettings" class="cad-agent-panel-messages">
+    <div ref="messagesRef" class="cad-agent-panel-messages">
       <div
         v-if="messages.length === 0 && !hasDisplayError"
         class="cad-agent-panel-empty"
@@ -1415,6 +1480,7 @@ function isVerificationMessage(message: UIMessage): boolean {
       <div
         v-for="message in messages"
         :key="message.id"
+        v-show="shouldShowMessage(message)"
         class="cad-agent-msg"
         :class="[
           message.role,
@@ -1433,10 +1499,7 @@ function isVerificationMessage(message: UIMessage): boolean {
             @keydown.enter.exact.prevent="resendEditedMessage"
             @keydown.escape.prevent="cancelMessageEdit"
           />
-          <div
-            v-if="imageParts(message).length"
-            class="cad-agent-msg-images"
-          >
+          <div v-if="imageParts(message).length" class="cad-agent-msg-images">
             <figure
               v-for="(part, index) in imageParts(message)"
               :key="`${message.id}-img-${index}`"
@@ -1468,7 +1531,46 @@ function isVerificationMessage(message: UIMessage): boolean {
           </div>
         </template>
         <template v-else>
-          <div class="cad-agent-msg-text">{{ partText(message) }}</div>
+          <div
+            v-if="reasoningText(message).trim()"
+            class="cad-agent-reasoning"
+            :class="{ 'is-open': isReasoningOpen(message) }"
+          >
+            <button
+              type="button"
+              class="cad-agent-reasoning-summary"
+              :aria-expanded="isReasoningOpen(message)"
+              @click="toggleReasoningGroup(message)"
+            >
+              <svg
+                class="cad-agent-reasoning-chevron"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"
+                />
+              </svg>
+              <span
+                v-if="isMessageInFlight(message)"
+                class="cad-agent-working-dots"
+                aria-hidden="true"
+              />
+              <span class="cad-agent-reasoning-summary-text">
+                {{ labels.thinking }}
+              </span>
+            </button>
+            <div
+              v-if="isReasoningOpen(message)"
+              class="cad-agent-reasoning-body"
+            >
+              {{ reasoningText(message) }}
+            </div>
+          </div>
+          <div v-if="partText(message)" class="cad-agent-msg-text">
+            {{ partText(message) }}
+          </div>
           <div
             v-if="imageParts(message).length"
             class="cad-agent-msg-images"
@@ -1523,7 +1625,9 @@ function isVerificationMessage(message: UIMessage): boolean {
                 <div class="cad-agent-tool-body">
                   {{ `${labels.toolPrefix}: ${toolCall.name}` }}
                   <span
-                    v-if="toolCall.state && toolCall.state !== 'output-available'"
+                    v-if="
+                      toolCall.state && toolCall.state !== 'output-available'
+                    "
                     class="cad-agent-tool-detail"
                   >
                     {{ toolCall.state }}
@@ -1627,6 +1731,16 @@ function isVerificationMessage(message: UIMessage): boolean {
           </div>
         </template>
       </div>
+      <div
+        v-if="showWorkingStatus"
+        class="cad-agent-msg assistant cad-agent-msg--status"
+        aria-live="polite"
+      >
+        <div class="cad-agent-working">
+          <span class="cad-agent-working-dots" aria-hidden="true" />
+          <span>{{ labels.working }}</span>
+        </div>
+      </div>
       <div v-if="hasDisplayError" class="cad-agent-msg error">
         <div class="cad-agent-error-card">
           <svg
@@ -1707,7 +1821,19 @@ function isVerificationMessage(message: UIMessage): boolean {
           <span class="cad-agent-context-usage-popover-tokens">
             {{ contextUsageTokensText }}
           </span>
+          <span
+            v-if="contextWindowEstimated"
+            class="cad-agent-context-usage-popover-estimated"
+          >
+            {{ labels.contextUsageEstimated }}
+          </span>
         </div>
+        <p
+          v-if="contextWindowEstimated"
+          class="cad-agent-context-usage-popover-note"
+        >
+          {{ labels.contextUsageEstimateNote }}
+        </p>
         <div class="cad-agent-context-usage-popover-bar">
           <div
             v-for="category in contextUsageCategories"

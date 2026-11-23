@@ -39,6 +39,9 @@ export default {
     exportingPdf: 'Exporting PDF ...',
     exportingSvg: 'Exporting SVG ...',
     calculatingSmartExtents: 'Calculating smart extents ...',
+    copyingToClipboard: 'Copying to clipboard ...',
+    cuttingToClipboard: 'Cutting ...',
+    pastingFromClipboard: 'Pasting ...',
     importingPdf: 'Importing PDF ...',
     exportingEntityPreview: 'Exporting image ...',
     collectingMemoryProfile: 'Analyzing memory ...',
@@ -140,6 +143,9 @@ export default {
     undo: 'Undo',
     redo: 'Redo',
     erase: 'Delete',
+    copy: 'Copy',
+    cut: 'Cut',
+    paste: 'Paste',
     collapse: 'Collapse toolbar',
     expand: 'Expand toolbar'
   },
@@ -203,5 +209,21 @@ export default {
     selectFile: 'Select file',
     signInRequired: 'Sign in first to select a file.',
     downloading: 'Downloading file ...'
+  },
+  dockPanel: {
+    close: 'Close panel',
+    dockSide: 'Dock side',
+    dockTop: 'Dock to top',
+    dockBottom: 'Dock to bottom',
+    dockLeft: 'Dock to left',
+    dockRight: 'Dock to right',
+    moreTabs: 'More tabs',
+    resize: 'Resize panel',
+    tab: {
+      layers: 'Layers',
+      review: 'Review',
+      find: 'Find',
+      measurements: 'Measurements'
+    }
   }
 }

@@ -1,19 +1,20 @@
 import { AcGeBox2d, AcGeMatrix3d } from '@mlightcad/data-model'
 import { PDFDocument, PDFImage } from 'pdf-lib'
 
-import type { AcPdfEntity } from '../renderer/AcPdfEntity'
-import type { AcPdfColorMode } from '../renderer/AcPdfStyle'
-import type { AcPdfFormRegistry } from './AcPdfContentWriter'
-import { AcPdfContentWriter } from './AcPdfContentWriter'
-import type { AcPdfFontManager } from './AcPdfFontManager'
-import { AcPdfOcgManager } from './AcPdfOcgManager'
+import type { AcPdfEntity } from '../renderer/AcPdfEntity.js'
+import type { AcPdfColorMode } from '../renderer/AcPdfStyle.js'
+import { acPdfRevealFrozenLayersForOcg } from '../viewport/AcPdfLayerVisibility.js'
+import type { AcPdfFormRegistry } from './AcPdfContentWriter.js'
+import { AcPdfContentWriter } from './AcPdfContentWriter.js'
+import type { AcPdfFontManager } from './AcPdfFontManager.js'
+import { AcPdfOcgManager } from './AcPdfOcgManager.js'
 import {
   type AcPdfPageLayoutInput,
   computePageLayout,
   PDF_MIN_STROKE_PT,
   pdfCoordinateDecimals,
   pdfRebaseOrigin
-} from './AcPdfPageLayout'
+} from './AcPdfPageLayout.js'
 
 export interface AcPdfWriteOptions extends AcPdfPageLayoutInput {
   background: 'none' | number
@@ -34,6 +35,12 @@ export interface AcPdfWriteOptions extends AcPdfPageLayoutInput {
    * afterwards by parsing finished page bytes.
    */
   ocg?: AcPdfOcgManager
+  /**
+   * Globally frozen layer names. After page extents are computed from the
+   * visibility-hidden tree, these entities are re-shown so their geometry can
+   * be painted into OCGs that start OFF in Acrobat's Layers panel.
+   */
+  revealFrozenLayersForOcg?: ReadonlySet<string>
   /**
    * Shared embedded-image cache across pages of one document. Keyed by the
    * image byte buffer so transformed paint copies still resolve, and an
@@ -99,6 +106,11 @@ export class AcPdfDocumentWriter {
       ? boxFromFit(options.fitBox)
       : unionBbox
     const layout = computePageLayout(bbox, options)
+    // Extents already exclude frozen geometry. Re-show it so OCG layers that
+    // start OFF still contain paint operators Acrobat can toggle back on.
+    if (options.revealFrozenLayersForOcg?.size) {
+      acPdfRevealFrozenLayersForOcg(entities, options.revealFrozenLayersForOcg)
+    }
     const page = doc.addPage([layout.pageWidth, layout.pageHeight])
 
     if (typeof options.background === 'number') {

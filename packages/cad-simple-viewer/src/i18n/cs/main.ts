@@ -39,6 +39,9 @@ export default {
     exportingPdf: 'Exportuji PDF…',
     exportingSvg: 'Exportuji SVG…',
     calculatingSmartExtents: 'Počítám chytrý rozsah…',
+    copyingToClipboard: 'Kopíruji do schránky…',
+    cuttingToClipboard: 'Vystřihuji…',
+    pastingFromClipboard: 'Vkládám…',
     importingPdf: 'Importuji PDF…',
     exportingEntityPreview: 'Exportuji obrázek…',
     collectingMemoryProfile: 'Analyzuji paměť…',
@@ -139,6 +142,9 @@ export default {
     undo: 'Zpět',
     redo: 'Znovu',
     erase: 'Smazat',
+    copy: 'Kopírovat',
+    cut: 'Vyjmout',
+    paste: 'Vložit',
     collapse: 'Sbalit panel nástrojů',
     expand: 'Rozbalit panel nástrojů'
   },
@@ -202,5 +208,21 @@ export default {
     selectFile: 'Vybrat soubor',
     signInRequired: 'Nejprve se přihlaste a pak vyberte soubor.',
     downloading: 'Stahuji soubor ...'
+  },
+  dockPanel: {
+    close: 'Zavřít panel',
+    dockSide: 'Strana ukotvení',
+    dockTop: 'Ukotvit nahoře',
+    dockBottom: 'Ukotvit dole',
+    dockLeft: 'Ukotvit vlevo',
+    dockRight: 'Ukotvit vpravo',
+    moreTabs: 'Další karty',
+    resize: 'Změnit velikost panelu',
+    tab: {
+      layers: 'Hladiny',
+      review: 'Kontrola',
+      find: 'Hledat',
+      measurements: 'Měření'
+    }
   }
 }

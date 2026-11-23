@@ -5,9 +5,6 @@ export default {
     drawingUnits: '図面単位',
     exportMenu: '書き出し',
     export: 'DXF に書き出し',
-    exportHtml: 'HTML に書き出し',
-    exportPdf: 'PDF に書き出し',
-    exportSvg: 'SVG に書き出し',
     exportImage: 'イメージに書き出し',
     about: 'バージョン情報'
   },
@@ -210,11 +207,10 @@ export default {
     },
     group: {
       smartBlocks: 'スマート ブロック',
-      agent: 'エージェント',
-      pdf: 'PDF',
       draw: '作成',
       dimension: '寸法',
       modify: '修正',
+      clipboard: 'クリップボード',
       layer: '画層',
       properties: 'プロパティ',
       groups: 'グループ',
@@ -281,17 +277,8 @@ export default {
     tooltip: {
       searchConvert:
         '選択したオブジェクトのすべてのコピーを検索してブロックに変換します（BSEARCH）。',
-      detectConvert: '図面全体から繰り返しオブジェクトを検出してブロックに変換します（BDETECT）。',
-      importPdf:
-        'PDF ファイルからベクトル図形を読み込み、円・円弧・曲線を復元します (IPDF)。',
-      pdfScale:
-        '既知の距離の 2 点から読み込んだ PDF 図形の尺度を変更します (PDFSCALE)。',
-      pdfDim:
-        'PDF で分解された寸法（矢印または斜線、寸法線、寸法補助線、文字）を寸法オブジェクトに戻します (PDFDIM)。',
-      pdfBlock:
-        'PDF の繰り返し図形をブロックにし、各コピーをブロック参照に置き換えます (PDFBLOCK)。',
-      pdfText:
-        'PDF で分解された文字のストロークを文字オブジェクトに戻します (PDFTEXT)。',
+      detectConvert:
+        '図面全体から繰り返しオブジェクトを検出してブロックに変換します（BDETECT）。',
       line: '1 本の直線セグメントを作成します。',
       polyline:
         '連続した線分または円弧セグメントを 1 つのオブジェクトとして作成します。',
@@ -320,13 +307,28 @@ export default {
       dimcontinue: '直前の寸法から直列寸法を作成します。',
       dimbaseline: '直前の寸法から並列寸法を作成します。',
       dimstyle: '寸法スタイル管理を開きます。',
+      textStyle: '文字スタイル管理を開きます。',
+      mleaderStyle: 'マルチ引出線スタイル管理を開きます。',
       mleader: 'マルチ引出線の注釈を作成します。',
       mleaderAdd: '既存のマルチ引出線に引出線を追加します。',
       mleaderRemove: '既存のマルチ引出線から引出線を削除します。',
       move: '選択したオブジェクトを新しい位置に移動します。',
       rotate: '選択したオブジェクトを基点を中心に回転します。',
-      copy: '選択したオブジェクトを新しい位置に複写します。',
+      scale: '選択したオブジェクトを縦横比を保ったまま拡大または縮小します。',
       erase: '選択したオブジェクトを図面から削除します。',
+      pasteClip:
+        'クリップボードのオブジェクトを現在の図面に貼り付けます (PASTECLIP)。',
+      pasteOrig:
+        '元の図面の座標を使用してクリップボードのオブジェクトを貼り付けます (PASTEORIG)。',
+      pasteBlock:
+        'クリップボードのオブジェクトをブロックとして現在の図面に貼り付けます (PASTEBLOCK)。',
+      cutClip:
+        '選択したオブジェクトを削除してクリップボードにコピーします (CUTCLIP)。',
+      copyClip:
+        '選択したオブジェクトをクリップボードにコピーします (COPYCLIP)。',
+      copyBase:
+        '指定した基点で選択したオブジェクトをクリップボードにコピーします (COPYBASE)。',
+      explode: '複合オブジェクトを構成要素のオブジェクトに分解します。',
       offset: '指定した距離にオブジェクトの平行コピーを作成します。',
       undo: '直前の編集操作を元に戻します。',
       redo: '元に戻した直前の編集操作をやり直します。',
@@ -354,8 +356,6 @@ export default {
       editAttributes:
         '拡張属性編集を開き、ブロックの属性値と表示プロパティを編集します (ATTEDIT)。',
       defineAttribute: 'ブロックで使用する属性定義を作成します (ATTDEF)。',
-      agent:
-        'CAD エージェント パレット タブを開き、自然言語で図形を作成します。',
       pan: '表示倍率を変更せずに図面の表示を移動します。',
       zoom: '図面の表示をズームします。',
       zoomExtents:
@@ -436,11 +436,6 @@ export default {
     command: {
       searchConvert: '検索して\n変換',
       detectConvert: '検出して\n変換',
-      importPdf: 'PDF\n読み込み',
-      pdfScale: '尺度\n校正',
-      pdfDim: '寸法\n認識',
-      pdfBlock: 'ブロック\n作成',
-      pdfText: '文字\n認識',
       line: '線分',
       polyline: 'ポリライン',
       circle: '円',
@@ -471,13 +466,22 @@ export default {
       dimcontinue: '直列',
       dimbaseline: '並列',
       dimstyle: '寸法スタイル',
+      textStyle: '文字スタイル',
+      mleaderStyle: 'マルチ引出線スタイル',
       mleader: 'マルチ引出線',
       mleaderAdd: '引出線を追加',
       mleaderRemove: '引出線を削除',
       move: '移動',
       rotate: '回転',
-      copy: '複写',
+      scale: '尺度変更',
       erase: '削除',
+      pasteClip: '貼り付け',
+      pasteOrig: '元の座標に貼り付け',
+      pasteBlock: 'ブロックとして貼り付け',
+      cutClip: '切り取り',
+      copyClip: 'コピー',
+      copyBase: '基点コピー',
+      explode: '分解',
       offset: 'オフセット',
       undo: '元に戻す',
       redo: 'やり直し',
@@ -496,7 +500,6 @@ export default {
       insert: '挿入',
       editAttributes: '属性\n編集',
       defineAttribute: '属性\n定義',
-      agent: 'CAD\nエージェント',
       pan: '画面移動',
       zoom: 'ズーム',
       zoomExtents: 'オブジェクト範囲',
@@ -520,12 +523,9 @@ export default {
     }
   },
   bsearch: {
-    title: '検索して変換',
     found: '{count} 個のインスタンス、{included} 個を含める',
-    position: '{index}/{count}',
     previous: '前のインスタンス',
     next: '次のインスタンス',
-    includeCurrent: 'このインスタンスを含める',
     convert: 'ブロックに変換…',
     cancel: 'キャンセル',
     rotation: '回転',
@@ -534,12 +534,54 @@ export default {
     sameLayer: '同一画層',
     existingBlocks: '既存ブロック',
     textVariations: '文字の違い',
-    pickPrompt: 'インスタンスをクリックして含める/除外する、または'
+    pickPrompt: 'インスタンスをクリックして含める/除外する、または',
+    source: '選択オブジェクト: {count} 個',
+    options: '検索オプション',
+    none: '他のインスタンスは見つかりませんでした。検索オプションを変更するか、選択したオブジェクトだけを変換してください。',
+    includeAll: 'すべて含める',
+    include: 'このインスタンスを含める',
+    instance: 'インスタンス {index}',
+    blockReference: 'ブロック参照',
+    rotatedBy: '回転 {angle}°',
+    mirrored: '鏡像',
+    scaledBy: '尺度 {scale}',
+    hint: '行をクリックするとインスタンスにズームします。図面でインスタンスをクリックすると、含めるか除外するかを切り替えます。'
   },
   bdetect: {
     detecting: '図面内の繰り返しオブジェクトを検索しています…',
     foundSoFar: 'これまでに {count} グループを検出',
     stop: '停止',
+    ready: 'オプションを調整してから［検出］をクリックしてください。',
+    detect: '検出',
+    detectAgain: '再検出',
+    options: '検出オプション',
+    explain: '{option} の説明',
+    rotation: '回転',
+    mirror: '鏡像',
+    scale: '尺度',
+    sameLayer: '同一画層',
+    textVariations: '文字の相違',
+    minInstances: '最小インスタンス数',
+    minSavings: '最小削減数',
+    maxEntities: '最大オブジェクト数',
+    help: {
+      rotation:
+        '任意の角度で回転したコピーも同じオブジェクトとして扱います。オフにすると、向きが同じコピーだけがグループになります。',
+      mirror:
+        '反転したコピーも同じオブジェクトとして扱います。例えば開き方向が逆のドアです。オフにすると、鏡像のコピーはグループに入りません。',
+      scale:
+        '縦横を同じ比率で拡大または縮小したコピーも同じオブジェクトとして扱います。オフにすると、大きさが同じコピーだけがグループになります。引き伸ばしたり潰したりした形状は一致しません。',
+      sameLayer:
+        'コピー内の各図形は、対応する図形と同じ画層にある必要があります。PDF から読み込んだ図面では色ごとに画層が分かれることが多く、一つの記号が複数の画層に散らばります。その場合はオフにしてください。',
+      textVariations:
+        '部屋番号のように、コピーごとに異なる一行文字を含められます。グループを変換すると、これらの文字はブロックの属性になります。オフにすると、文字が完全に同じコピーだけがグループになります。マルチテキストは常に一字一句一致する必要があり、属性にはなりません。',
+      minInstances:
+        '元のオブジェクトを含めて、少なくともこの数のコピーが見つかったときだけグループとして表示します。最小値は 2 です。大きくすると、2 つだけの繰り返しは無視され、より多く繰り返すオブジェクトだけが残ります。',
+      minSavings:
+        'ブロックに変換したとき、少なくともこの数のオブジェクトを減らせるグループだけを残します。削減数はコピー数 ×（1 コピーのオブジェクト数 − 1）です。1 つはブロックになり、残りのコピーはそれぞれ 1 つのブロック参照に置き換わります。例えば、3 つのオブジェクトからなるコピーが 5 個あると 10 個減らせます。大きくすると小さなグループは隠れ、0 にするとすべての繰り返しが表示されます。',
+      maxEntities:
+        '1 つのコピーに含められるオブジェクトの上限です。検出はこの数までしかグループを広げないため、これより多くの部品からなる記号は一部だけが含まれます。小さくすると大きく複雑な繰り返しを飛ばせます。探している記号の部品が多いときは大きくしてください。既定値は 64 です。'
+    },
     groups: '繰り返しオブジェクトのグループ {count} 個',
     none: '繰り返しオブジェクトは見つかりませんでした。',
     selectAll: 'すべて選択',
@@ -553,7 +595,8 @@ export default {
     close: '閉じる',
     pickPrompt: 'オブジェクトをクリックしてグループを表示、または',
     summary: '{groups} 個のグループを {count} 個のブロック参照に変換しました',
-    nameDuplicate: 'ブロック名「{name}」は選択した別のグループで使用されています'
+    nameDuplicate:
+      'ブロック名「{name}」は選択した別のグループで使用されています'
   },
   verticalToolbar: {
     measure: {
@@ -908,6 +951,10 @@ export default {
     bdetect: {
       tab: '検出',
       title: '検出して変換'
+    },
+    bsearch: {
+      tab: '検索',
+      title: '検索して変換'
     },
     countList: {
       tab: '集計',

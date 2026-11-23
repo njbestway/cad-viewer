@@ -1,15 +1,11 @@
-import {
-  type AcApHtmlPluginOptions,
-  registerLazyHtmlPlugin
-} from '@mlightcad/cad-html-plugin/register'
-import { registerLazyPdfPlugin } from '@mlightcad/cad-pdf-plugin/register'
+import type { AcApHtmlPluginOptions } from '@mlightcad/cad-html-plugin/register'
 import {
   AcApDocManager,
+  AcApPaletteService,
   type AcApPluginManager,
   AcEdCommandStack,
   AcEdMTextEditor
 } from '@mlightcad/cad-simple-viewer'
-import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
 import { markRaw } from 'vue'
 
 import {
@@ -21,8 +17,6 @@ import {
   AcApCountListCmd,
   AcApDimStyleCmd,
   AcApDrawingUnitsCmd,
-  AcApExportHtmlDlgCmd,
-  AcApExportPdfDlgCmd,
   AcApFindCmd,
   AcApInsertPaletteCmd,
   AcApLayerStateCmd,
@@ -50,8 +44,6 @@ import {
   MlClassicGroupDlg,
   MlDimStyleDlg,
   MlDrawingUnitsDlg,
-  MlExportHtmlDlg,
-  MlExportPdfDlg,
   MlMLeaderStyleDlg,
   MlNewViewDlg,
   MlPointStyleDlg,
@@ -61,14 +53,13 @@ import {
   MlViewManagerDlg
 } from '../component'
 import { useDialogManager } from '../composable'
-import { i18n } from '../locale'
-import { store } from './store'
+import { mlPaletteHost } from './paletteHost'
+import { ensurePluginUiBridge } from './pluginUi'
 
 let isCommandRegistered = false
 export const registerCmds = () => {
   if (!isCommandRegistered) {
     const register = AcApDocManager.instance.commandManager
-    const disableExport = AcApDocManager.instance.disableExport
     register.addCommand(
       AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
       'layer',
@@ -105,20 +96,6 @@ export const registerCmds = () => {
       'qselect',
       new AcApQSelectCmd()
     )
-    if (!disableExport) {
-      register.addCommand(
-        AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
-        'chtml',
-        'chtml',
-        new AcApExportHtmlDlgCmd()
-      )
-      register.addCommand(
-        AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
-        'cpdf',
-        'cpdf',
-        new AcApExportPdfDlgCmd()
-      )
-    }
     register.addCommand(
       AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
       'units',
@@ -261,7 +238,7 @@ let isDialogRegistered = false
 export const registerDialogs = () => {
   if (!isDialogRegistered) {
     const { registerDialog } = useDialogManager()
-    const disableExport = AcApDocManager.instance.disableExport
+    AcApPaletteService.setHost(mlPaletteHost)
     registerDialog({
       name: 'PointStyleDlg',
       component: markRaw(MlPointStyleDlg),
@@ -272,18 +249,6 @@ export const registerDialogs = () => {
       component: markRaw(MlQuickSelectDlg),
       props: {}
     })
-    if (!disableExport) {
-      registerDialog({
-        name: 'ExportHtmlDlg',
-        component: markRaw(MlExportHtmlDlg),
-        props: {}
-      })
-      registerDialog({
-        name: 'ExportPdfDlg',
-        component: markRaw(MlExportPdfDlg),
-        props: {}
-      })
-    }
     registerDialog({
       name: 'DrawingUnitsDlg',
       component: markRaw(MlDrawingUnitsDlg),
@@ -354,33 +319,49 @@ export const registerMTextColorPicker = () => {
 }
 
 let isLazyPluginRegistered = false
+let isPaddleOcrIntegrationStarted = false
+let isLlmIntegrationStarted = false
 let isAgentIntegrationStarted = false
 let isScriptIntegrationStarted = false
+
+/**
+ * Registers the local PaddleOCR text recognizer when the optional
+ * `@mlightcad/cad-paddleocr-plugin` peer is installed. Must run before the
+ * LLM recognizer so unread lines fall back to the vision model.
+ */
+const registerPaddleOcrIntegration = async (
+  pluginManager: AcApPluginManager
+) => {
+  try {
+    const paddleRegister =
+      await import('@mlightcad/cad-paddleocr-plugin/register')
+    paddleRegister.registerLazyPaddleOcrPlugin(pluginManager, {
+      wasmPaths: './vendor/onnxruntime/'
+    })
+  } catch {
+    // Optional peer `@mlightcad/cad-paddleocr-plugin` is not installed.
+  }
+}
+
+/**
+ * Registers the shared AI model settings (`llmsettings`, LLM text
+ * recognition for `pdftext`) when the optional `@mlightcad/cad-llm-plugin`
+ * peer is installed. The CAD Agent reads its model from these settings.
+ */
+const registerLlmIntegration = async (pluginManager: AcApPluginManager) => {
+  try {
+    const llmRegister = await import('@mlightcad/cad-llm-plugin/register')
+    llmRegister.registerLazyLlmPlugin(pluginManager)
+  } catch {
+    // Optional peer `@mlightcad/cad-llm-plugin` is not installed.
+  }
+}
 
 const registerAgentIntegration = async (pluginManager: AcApPluginManager) => {
   try {
     await import('@mlightcad/cad-agent-plugin/style.css')
     const agentRegister = await import('@mlightcad/cad-agent-plugin/register')
-
-    agentRegister.setAgentPaletteOpener(() => {
-      if (
-        store.dialogs.layerManager &&
-        store.dialogs.activePaletteTab === 'agent'
-      ) {
-        store.dialogs.layerManager = false
-        return
-      }
-
-      store.dialogs.activePaletteTab = 'agent'
-      store.dialogs.layerManager = true
-    })
-
-    agentRegister.mergeAgentI18nIntoVueI18n((locale, messages) => {
-      i18n.global.mergeLocaleMessage(locale, messages)
-    })
-
     agentRegister.registerLazyAgentPlugin(pluginManager)
-    store.features.agentPlugin = true
   } catch {
     // Optional peer `@mlightcad/cad-agent-plugin` is not installed.
   }
@@ -392,28 +373,48 @@ const registerCadScriptIntegration = async (
   try {
     await import('@mlightcad/cad-script-plugin/style.css')
     const scriptRegister = await import('@mlightcad/cad-script-plugin/register')
-
-    scriptRegister.setCadScriptPaletteOpener(() => {
-      if (
-        store.dialogs.layerManager &&
-        store.dialogs.activePaletteTab === 'cadScript'
-      ) {
-        store.dialogs.layerManager = false
-        return
-      }
-
-      store.dialogs.activePaletteTab = 'cadScript'
-      store.dialogs.layerManager = true
-    })
-
-    scriptRegister.mergeScriptI18nIntoVueI18n((locale, messages) => {
-      i18n.global.mergeLocaleMessage(locale, messages)
-    })
-
     scriptRegister.registerLazyCadScriptPlugin(pluginManager)
-    store.features.scriptPlugin = true
   } catch {
     // Optional peer `@mlightcad/cad-script-plugin` is not installed.
+  }
+}
+
+/**
+ * Loads the PDF plugin. Ribbon, export menu, and the `cpdf` dialog command
+ * are registered by the plugin. A missing package hides all of them.
+ */
+const registerPdfIntegration = async (
+  pluginManager: AcApPluginManager,
+  disableExport: boolean
+) => {
+  try {
+    const pdfRegister = await import('@mlightcad/cad-pdf-plugin/register')
+    pdfRegister.registerLazyPdfPlugin(pluginManager, { disableExport })
+  } catch {
+    // Optional peer `@mlightcad/cad-pdf-plugin` is not installed.
+  }
+}
+
+/** Loads the HTML export plugin. The plugin owns the `chtml` dialog command. */
+const registerHtmlIntegration = async (
+  pluginManager: AcApPluginManager,
+  htmlPlugin?: AcApHtmlPluginOptions
+) => {
+  try {
+    const htmlRegister = await import('@mlightcad/cad-html-plugin/register')
+    htmlRegister.registerLazyHtmlPlugin(pluginManager, htmlPlugin)
+  } catch {
+    // Optional peer `@mlightcad/cad-html-plugin` is not installed.
+  }
+}
+
+/** Loads the SVG export plugin. The plugin owns the `csvg` command. */
+const registerSvgIntegration = async (pluginManager: AcApPluginManager) => {
+  try {
+    const svgRegister = await import('@mlightcad/cad-svg-plugin/register')
+    svgRegister.registerLazySvgPlugin(pluginManager)
+  } catch {
+    // Optional peer `@mlightcad/cad-svg-plugin` is not installed.
   }
 }
 
@@ -428,13 +429,17 @@ export interface RegisterLazyPluginsOptions {
 /**
  * Registers lazy plugins that load on first use of their trigger commands.
  *
- * Currently registers the PDF plugin (`-cpdf`, `ipdf`), the HTML export
- * plugin (`-chtml`), the SVG export plugin (`csvg`), and optionally the CAD
- * Agent plugin (`agent`) when `@mlightcad/cad-agent-plugin` is installed, and the
- * script console (`cadscript`) when `@mlightcad/cad-script-plugin` is installed.
+ * Currently registers the PDF plugin (`-cpdf`, `pdfimport`), the HTML export
+ * plugin (`-chtml`), the SVG export plugin (`csvg`), and optionally local
+ * PaddleOCR text recognition when `@mlightcad/cad-paddleocr-plugin` is
+ * installed, the AI model settings (`llmsettings`) when
+ * `@mlightcad/cad-llm-plugin` is installed, the CAD Agent plugin (`agent`)
+ * when `@mlightcad/cad-agent-plugin` is installed, and the script console
+ * (`cadscript`) when `@mlightcad/cad-script-plugin` is installed.
  * When {@link AcApDocManager.disableExport} is true, HTML/SVG export plugins
- * are skipped and the PDF plugin only exposes `ipdf`. Host UI commands
- * `chtml` / `cpdf` open export dialogs and load the plugins on confirm.
+ * are skipped and the PDF plugin only exposes `pdfimport`. Host dialog
+ * commands `chtml` / `cpdf` are registered only after the matching plugin
+ * import succeeds.
  * Safe to call multiple times; registration runs once per application lifetime.
  *
  * @param options - Optional HTML plugin settings such as `viewerRuntimeUrl`
@@ -446,14 +451,31 @@ export const registerLazyPlugins = (
     return
   }
 
+  ensurePluginUiBridge()
   const pluginManager = AcApDocManager.instance.pluginManager
   const disableExport = AcApDocManager.instance.disableExport
-  registerLazyPdfPlugin(pluginManager, { disableExport })
+  void registerPdfIntegration(pluginManager, disableExport)
   if (!disableExport) {
-    registerLazyHtmlPlugin(pluginManager, options.htmlPlugin)
-    registerLazySvgPlugin(pluginManager)
+    void registerHtmlIntegration(pluginManager, options.htmlPlugin)
+    void registerSvgIntegration(pluginManager)
   }
 
+  if (!isPaddleOcrIntegrationStarted) {
+    isPaddleOcrIntegrationStarted = true
+    // Await Paddle before LLM so registration order is paddleocr → cad-llm.
+    // Both stay async (optional peers), but OCR pickers listen to
+    // AcApTextRecognitionService.events.changed so the UI catches up.
+    void (async () => {
+      await registerPaddleOcrIntegration(pluginManager)
+      if (!isLlmIntegrationStarted) {
+        isLlmIntegrationStarted = true
+        await registerLlmIntegration(pluginManager)
+      }
+    })()
+  } else if (!isLlmIntegrationStarted) {
+    isLlmIntegrationStarted = true
+    void registerLlmIntegration(pluginManager)
+  }
   if (!isAgentIntegrationStarted) {
     isAgentIntegrationStarted = true
     void registerAgentIntegration(pluginManager)

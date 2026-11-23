@@ -5,16 +5,17 @@ import {
 } from '@mlightcad/cad-simple-viewer'
 
 import packageJson from '../package.json'
-import { AcApConvertToPdfCmd } from './AcApConvertToPdfCmd'
-import { AcApImportPdfCmd } from './AcApImportPdfCmd'
-import { AcApPdfBlockCmd } from './AcApPdfBlockCmd'
-import { AcApPdfDimCmd } from './AcApPdfDimCmd'
-import { AcApPdfScaleCmd } from './AcApPdfScaleCmd'
-import { AcApPdfTextCmd } from './AcApPdfTextCmd'
+import { AcApConvertToPdfCmd } from './AcApConvertToPdfCmd.js'
+import { AcApImportPdfCmd } from './AcApImportPdfCmd.js'
+import { AcApImportPdfPromptCmd } from './AcApImportPdfPromptCmd.js'
+import { AcApPdfDimCmd } from './AcApPdfDimCmd.js'
+import { AcApPdfHatchCmd } from './AcApPdfHatchCmd.js'
+import { AcApPdfScaleCmd } from './AcApPdfScaleCmd.js'
+import { AcApPdfTextCmd } from './AcApPdfTextCmd.js'
 
 export interface AcApPdfPluginOptions {
   /**
-   * When true, only `ipdf` is registered. Defaults to false.
+   * When true, only the import and clean-up commands (`pdfimport`, `-pdfimport`, `pdfscale`, `pdftext`, `pdfdim`, `pdfhatch`) are registered. Defaults to false.
    */
   disableExport?: boolean
 }
@@ -22,7 +23,7 @@ export interface AcApPdfPluginOptions {
 /**
  * PDF export/import plugin for cad-simple-viewer.
  *
- * Registers `-cpdf`, `ipdf`, `pdfscale`, `pdftext`, `pdfblock` and `pdfdim` when loaded. Also registers `cpdf` when no UI
+ * Registers `-cpdf`, `pdfimport`, `-pdfimport`, `pdfscale`, `pdftext`, `pdfdim` and `pdfhatch` when loaded. Also registers `cpdf` when no UI
  * dialog command is already present. Register this plugin lazily via
  * {@link registerLazyPdfPlugin} so the PDF renderer is fetched on demand.
  */
@@ -33,7 +34,7 @@ export class AcApPdfPlugin implements AcApPlugin {
   version = packageJson.version
   /** @inheritdoc */
   description =
-    'PDF export (-cpdf / cpdf), import (ipdf) and PDF clean-up (pdfscale, pdftext, pdfblock, pdfdim) commands'
+    'PDF export (-cpdf / cpdf), import (pdfimport / -pdfimport) and PDF clean-up (pdfscale, pdftext, pdfdim, pdfhatch) commands'
 
   private readonly _disableExport: boolean
 
@@ -45,7 +46,7 @@ export class AcApPdfPlugin implements AcApPlugin {
   }
 
   /**
-   * Registers `-cpdf` (when export is enabled) and `ipdf` system commands.
+   * Registers `-cpdf` (when export is enabled), `pdfimport` / `-pdfimport` and the PDF clean-up system commands.
    * Registers `cpdf` only when a host UI has not already claimed that name.
    *
    * @param _context - Application context (unused)
@@ -62,8 +63,20 @@ export class AcApPdfPlugin implements AcApPlugin {
         this.registeredCommands.push({ group, name: 'cpdf' })
       }
     }
-    commandManager.addCommand(group, 'ipdf', 'ipdf', new AcApImportPdfCmd())
-    this.registeredCommands.push({ group, name: 'ipdf' })
+    commandManager.addCommand(
+      group,
+      'pdfimport',
+      'pdfimport',
+      new AcApImportPdfCmd()
+    )
+    this.registeredCommands.push({ group, name: 'pdfimport' })
+    commandManager.addCommand(
+      group,
+      '-pdfimport',
+      '-pdfimport',
+      new AcApImportPdfPromptCmd()
+    )
+    this.registeredCommands.push({ group, name: '-pdfimport' })
     commandManager.addCommand(
       group,
       'pdfscale',
@@ -73,15 +86,15 @@ export class AcApPdfPlugin implements AcApPlugin {
     this.registeredCommands.push({ group, name: 'pdfscale' })
     commandManager.addCommand(group, 'pdftext', 'pdftext', new AcApPdfTextCmd())
     this.registeredCommands.push({ group, name: 'pdftext' })
-    commandManager.addCommand(
-      group,
-      'pdfblock',
-      'pdfblock',
-      new AcApPdfBlockCmd()
-    )
-    this.registeredCommands.push({ group, name: 'pdfblock' })
     commandManager.addCommand(group, 'pdfdim', 'pdfdim', new AcApPdfDimCmd())
     this.registeredCommands.push({ group, name: 'pdfdim' })
+    commandManager.addCommand(
+      group,
+      'pdfhatch',
+      'pdfhatch',
+      new AcApPdfHatchCmd()
+    )
+    this.registeredCommands.push({ group, name: 'pdfhatch' })
   }
 
   /**

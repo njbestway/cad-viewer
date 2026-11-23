@@ -1,11 +1,8 @@
 export default {
   bsearch: {
-    title: 'Vyhledat a převést',
     found: 'Nalezeno {count} instancí, zahrnuto {included}',
-    position: '{index} z {count}',
     previous: 'Předchozí instance',
     next: 'Další instance',
-    includeCurrent: 'Zahrnout tuto instanci',
     convert: 'Převést na blok…',
     cancel: 'Zrušit',
     rotation: 'Otočené',
@@ -14,12 +11,54 @@ export default {
     sameLayer: 'Stejná hladina',
     existingBlocks: 'Existující bloky',
     textVariations: 'Rozdílný text',
-    pickPrompt: 'Klepnutím na instanci ji zahrňte nebo vylučte, nebo'
+    pickPrompt: 'Klepnutím na instanci ji zahrňte nebo vylučte, nebo',
+    source: 'Vybrané objekty: {count}',
+    options: 'Možnosti hledání',
+    none: 'Žádné další instance nebyly nalezeny. Změňte možnosti hledání, nebo převeďte pouze výběr.',
+    includeAll: 'Zahrnout vše',
+    include: 'Zahrnout tuto instanci',
+    instance: 'Instance č. {index}',
+    blockReference: 'Reference bloku',
+    rotatedBy: 'Otočeno o {angle}°',
+    mirrored: 'Zrcadleno',
+    scaledBy: 'Měřítko {scale}',
+    hint: 'Klepnutím na řádek přiblížíte instanci. Klepnutím na instanci ve výkresu ji zahrnete nebo vyloučíte.'
   },
   bdetect: {
     detecting: 'Vyhledávání opakujících se objektů ve výkresu…',
     foundSoFar: 'Zatím nalezeno skupin: {count}',
     stop: 'Zastavit',
+    ready: 'Upravte možnosti a klepněte na Detekovat.',
+    detect: 'Detekovat',
+    detectAgain: 'Detekovat znovu',
+    options: 'Možnosti detekce',
+    explain: 'Vysvětlení: {option}',
+    rotation: 'Otočené',
+    mirror: 'Zrcadlené',
+    scale: 'Měřítko',
+    sameLayer: 'Stejná hladina',
+    textVariations: 'Odlišné texty',
+    minInstances: 'Min. počet instancí',
+    minSavings: 'Min. úspora',
+    maxEntities: 'Max. počet objektů',
+    help: {
+      rotation:
+        'Kopie otočené o libovolný úhel se stále počítají jako stejný objekt. Vypnutím se seskupí jen kopie se stejnou orientací.',
+      mirror:
+        'Zrcadlené kopie se stále počítají jako stejný objekt, například dveře otevírané na druhou stranu. Vypnutím se zrcadlené kopie do skupiny nezařadí.',
+      scale:
+        'Kopie rovnoměrně zvětšené nebo zmenšené se stále počítají jako stejný objekt. Vypnutím se seskupí jen kopie stejné velikosti. Natažené nebo zploštělé tvary se neshodují.',
+      sameLayer:
+        'Každý tvar v kopii musí ležet na stejné hladině jako odpovídající tvar. Po importu z PDF se hladiny často dělí podle barvy a jeden symbol je rozprostřen na několik hladin. V tom případě volbu vypněte.',
+      textVariations:
+        'Kopie mohou obsahovat různý jednořádkový text, například čísla místností. Při převodu se z těchto textů stanou atributy bloku. Vypnutím musí text znít úplně stejně. Víceřádkový text se musí vždy shodovat doslova a atributem se nestane.',
+      minInstances:
+        'Skupina se zobrazí, jen když se najde alespoň tolik kopií včetně původního objektu. Nejmenší hodnota je 2. Zvýšením se ignorují pouhé dvojice a zůstanou objekty, které se opakují častěji.',
+      minSavings:
+        'Skupina zůstane, jen když by její převod odebral alespoň tolik objektů. Úspora je počet kopií krát (objekty v jedné kopii minus 1): jedna kopie se stane blokem a každá další se nahradí jedním odkazem na blok. Například 5 kopií symbolu ze 3 objektů ušetří 10 objektů. Zvýšením se skryjí malé skupiny; hodnota 0 vypíše každé opakování.',
+      maxEntities:
+        'Nejvyšší počet objektů v jedné kopii. Detekce přestane přidávat díly na této velikosti, takže symbol z více dílů se zahrne jen zčásti. Snížením se přeskočí velké a složité opakování; zvyšte hodnotu, má-li hledaný symbol více dílů. Výchozí hodnota je 64.'
+    },
     groups: 'Skupiny opakujících se objektů: {count}',
     none: 'Nebyly nalezeny žádné opakující se objekty.',
     selectAll: 'Vybrat vše',
@@ -41,9 +80,6 @@ export default {
     drawingUnits: 'Jednotky výkresu',
     exportMenu: 'Exportovat',
     export: 'Exportovat do DXF',
-    exportHtml: 'Exportovat do HTML',
-    exportPdf: 'Exportovat do PDF',
-    exportSvg: 'Exportovat do SVG',
     exportImage: 'Exportovat do obrázku',
     about: 'O aplikaci'
   },
@@ -247,11 +283,10 @@ export default {
     },
     group: {
       smartBlocks: 'Chytré bloky',
-      agent: 'Agent AI',
-      pdf: 'PDF',
       draw: 'Kreslení',
       dimension: 'Kóty',
       modify: 'Úpravy',
+      clipboard: 'Schránka',
       layer: 'Hladiny',
       properties: 'Vlastnosti',
       groups: 'Skupiny',
@@ -320,16 +355,6 @@ export default {
         'Vyhledá všechny kopie vybraných objektů a převede je na bloky (BSEARCH).',
       detectConvert:
         'Vyhledá opakující se objekty v celém výkresu a převede je na bloky (BDETECT).',
-      importPdf:
-        'Importuje vektorovou geometrii ze souboru PDF a obnoví kružnice, oblouky a křivky (IPDF).',
-      pdfScale:
-        'Změní měřítko importované geometrie PDF podle dvou bodů známé vzdálenosti (PDFSCALE).',
-      pdfDim:
-        'Převede rozložené kóty z PDF (šipky nebo značky, čáry, vynášecí čáry a texty) zpět na kótovací objekty (PDFDIM).',
-      pdfBlock:
-        'Převede opakovanou geometrii z PDF na blok a každou kopii nahradí referencí bloku (PDFBLOCK).',
-      pdfText:
-        'Převede rozložené tahy textu z PDF zpět na textové objekty (PDFTEXT).',
       line: 'Nakreslí jednu úsečku.',
       polyline: 'Nakreslí spojenou řadu úseček nebo oblouků jako jeden objekt.',
       spline: 'Nakreslí hladkou křivku splajn proložením nebo řídicími body.',
@@ -356,6 +381,8 @@ export default {
       dimcontinue: 'Vytvoří řetězovou kótu z předchozí.',
       dimbaseline: 'Vytvoří základnovou kótu z předchozí.',
       dimstyle: 'Otevře správce stylů kót.',
+      textStyle: 'Otevře správce textových stylů.',
+      mleaderStyle: 'Otevře správce stylů vícenásobných odkazových čar.',
       mleader: 'Vytvoří vícenásobnou odkazovou čáru.',
       mleaderAdd:
         'Přidá odkazovou čáru k existující vícenásobné odkazové čáře.',
@@ -363,8 +390,19 @@ export default {
         'Odebere odkazovou čáru z existující vícenásobné odkazové čáry.',
       move: 'Posune vybrané objekty na novou pozici.',
       rotate: 'Otočí vybrané objekty kolem základního bodu.',
-      copy: 'Zkopíruje vybrané objekty na nové místo.',
+      scale:
+        'Zvětší nebo zmenší vybrané objekty se zachováním jejich proporcí.',
       erase: 'Odstraní vybrané objekty z výkresu.',
+      pasteClip: 'Vloží objekty ze schránky do aktuálního výkresu (PASTECLIP).',
+      pasteOrig:
+        'Vloží objekty ze schránky se souřadnicemi z původního výkresu (PASTEORIG).',
+      pasteBlock:
+        'Vloží objekty ze schránky do aktuálního výkresu jako blok (PASTEBLOCK).',
+      cutClip: 'Odstraní vybrané objekty a zkopíruje je do schránky (CUTCLIP).',
+      copyClip: 'Zkopíruje vybrané objekty do schránky (COPYCLIP).',
+      copyBase:
+        'Zkopíruje vybrané objekty do schránky se zadaným základním bodem (COPYBASE).',
+      explode: 'Rozloží složený objekt na jednotlivé objekty.',
       offset: 'Vytvoří rovnoběžnou kopii objektu v zadané vzdálenosti.',
       undo: 'Vrátí zpět poslední úpravu.',
       redo: 'Zopakuje poslední vrácenou úpravu.',
@@ -392,8 +430,6 @@ export default {
         'Otevře Rozšířený editor atributů pro úpravu hodnot a zobrazovacích vlastností atributů bloku (ATTEDIT).',
       defineAttribute:
         'Vytvoří definici atributu pro použití v bloku (ATTDEF).',
-      agent:
-        'Otevře kartu palety CAD Agent pro kreslení geometrie přirozeným jazykem.',
       pan: 'Posune pohled na výkres beze změny zvětšení.',
       zoom: 'Zvětší nebo zmenší zobrazení výkresu.',
       zoomExtents: 'Zobrazí maximální rozsah všech objektů.',
@@ -483,11 +519,6 @@ export default {
     command: {
       searchConvert: 'Vyhledat a\npřevést',
       detectConvert: 'Detekovat a\npřevést',
-      importPdf: 'Importovat\nPDF',
-      pdfScale: 'Kalibrovat\nměřítko',
-      pdfDim: 'Obnovit\nkóty',
-      pdfBlock: 'Vytvořit\nblok',
-      pdfText: 'Obnovit\ntext',
       line: 'Úsečka',
       polyline: 'Křivka',
       circle: 'Kružnice',
@@ -518,13 +549,22 @@ export default {
       dimcontinue: 'Řetězová',
       dimbaseline: 'Základna',
       dimstyle: 'Styl kót',
+      textStyle: 'Textový styl',
+      mleaderStyle: 'Styl vícenásobné odkazové čáry',
       mleader: 'Vícenásobná odkazová čára',
       mleaderAdd: 'Přidat odkaz',
       mleaderRemove: 'Odebrat odkaz',
       move: 'Posunout',
       rotate: 'Otočit',
-      copy: 'Kopírovat',
+      scale: 'Měřítko',
       erase: 'Vymazat',
+      pasteClip: 'Vložit',
+      pasteOrig: 'Vložit do původních souřadnic',
+      pasteBlock: 'Vložit jako blok',
+      cutClip: 'Vyjmout',
+      copyClip: 'Kopírovat',
+      copyBase: 'Kopírovat se základním bodem',
+      explode: 'Rozložit',
       offset: 'Ekvidistanta',
       undo: 'Zpět',
       redo: 'Znovu',
@@ -543,7 +583,6 @@ export default {
       insert: 'Vložit',
       editAttributes: 'Upravit\natributy',
       defineAttribute: 'Definovat\natribut',
-      agent: 'CAD\nagent',
       pan: 'Posun',
       zoom: 'Zoom',
       zoomExtents: 'Rozsah',
@@ -918,6 +957,10 @@ export default {
     bdetect: {
       tab: 'Detekce',
       title: 'Detekovat a převést'
+    },
+    bsearch: {
+      tab: 'Hledání',
+      title: 'Vyhledat a převést'
     },
     countList: {
       tab: 'Počet',

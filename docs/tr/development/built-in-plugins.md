@@ -12,11 +12,10 @@ Eklenti mekanizmasının kendisi için (`AcApPlugin`, eklenti yöneticisi, tembe
 
 | Paket | Rol | Komutlar / yetenekler |
 |---------|------|-------------------------|
-| [`@mlightcad/cad-simple-ui-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-ui-plugin) | `cad-simple-viewer` için **araç çubuğu, katman yöneticisi ve inceleme paleti arayüzü** (saf DOM, Vue/React yok) | `layer`, `markuppanel`, varsayılan araç çubuğu (görünüm, ölçüm, dışa aktarma, inceleme, tema, yerel ayar) |
 | [`@mlightcad/cad-agent-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-agent-plugin) | **Doğal dil CAD ajanı** (yapay zekâ sohbet paneli + çizim araç çağrıları) | `agent` |
 | [`@mlightcad/cad-script-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-script-plugin) | **Manuel CAD betik konsolu** (çizime karşı denetlenmiş betikler çalıştırır, LLM / API anahtarı gerekmez) | `cadscript` |
 | [`@mlightcad/cad-html-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-html-plugin) | Çizimleri **bağımsız çevrimdışı HTML** olarak dışa aktarma | `chtml` (`cad-editor` içinde iletişim kutusu), `-chtml` (komut satırı) |
-| [`@mlightcad/cad-pdf-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-pdf-plugin) | **PDF dışa aktarma ve içe aktarma** (vektör hattı) | `cpdf`, `ipdf` |
+| [`@mlightcad/cad-pdf-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-pdf-plugin) | **PDF dışa aktarma ve içe aktarma** (vektör hattı) | `cpdf`, `pdfimport`, `-pdfimport` |
 | [`@mlightcad/cad-svg-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-svg-plugin) | **SVG dışa aktarma** ve paylaşılan vektör işleyici (PDF dışa aktarma tarafından da kullanılır) | `csvg` |
 | [`@mlightcad/cad-onedrive-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-onedrive-plugin) | **OneDrive veri kaynağı** — OneDrive / SharePoint üzerinden DWG/DXF açma | `AcApDataSource` kaydeder (`onedrive`); iki adımlı Oturum aç → Aç (açılır pencere engelleyiciye uyumlu) |
 | [`@mlightcad/cad-google-drive-plugin`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-google-drive-plugin) | **Google Drive veri kaynağı** — Google Drive üzerinden DWG/DXF açma | `AcApDataSource` kaydeder (`googledrive`); iki adımlı Oturum aç → Aç (açılır pencere engelleyiciye uyumlu) |
@@ -29,18 +28,38 @@ Komutla tetiklenen tüm eklentiler **tembel yüklenir**: başlangıçta küçük
 
 ### `@mlightcad/cad-simple-ui-plugin` — Basit görüntüleyici için arayüz bileşenleri
 
-[`cad-simple-viewer`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-viewer) kasıtlı olarak **uygulama arayüzü olmadan** gelir — yalnızca tuval ve CAD çekirdeği. Basit görüntüleyiciyi kendi web uygulamanıza gömerken tam Vue tabanlı [`cad-editor`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-editor) kabuğunu benimsemeden hazır arayüz bileşenleri istiyorsanız, **`cad-simple-ui-plugin` amaçlanan arayüz katmanıdır**.
+[`cad-simple-viewer`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-viewer) tuval, CAD çekirdeği ve **`AcUiDockPanel`** gibi paylaşılan düz DOM chrome’u sunar (uygulama UI’si yokken `AcApPaletteService` varsayılan host’u). Basit görüntüleyiciyi gömerken tam Vue [`cad-editor`](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-editor) kabuğu olmadan araç çubuğu / palet istiyorsanız, **`cad-simple-ui-plugin` eski amaçlanan arayüz katmanıydı**.
 
 Şunları sağlar:
 
 - Yapılandırılabilir bir **araç çubuğu** (herhangi bir kenara yerleştirme, varsayılan CAD komutları, iç içe menüler, özel öğeler)
-- **Katman yöneticisi** sekmesi (katman aç/kapat, ACI renk seçici, çift tıklamada katmana yakınlaştırma) ve **inceleme paleti** sekmesi (işaretleme listesi, durum, yorumlar) içeren bir **dock paneli**
+- **Dock sekme içeriği** (katmanlar, bul, inceleme, ölçümler); paylaşılan `AcUiDockPanel` chrome (`cad-simple-viewer`) üzerinde; `AcApPaletteHost` ile `cad-editor` Vue paleti ve `AcApPaletteService` paylaşılır
 - Ana öğenizdeki `COLORTHEME` sistem değişkeni ve `--ml-ui-*` CSS belirteçleriyle **tema eşitleme**
 - `AcApI18n` ile **yerel ayar eşitleme** (İngilizce / Çince / Çekçe / Türkçe)
 
 Tüm bileşenler çerçeveden bağımsızdır (saf DOM). Tam Vue `cad-editor` uygulamasının kendi Element Plus arayüzü vardır ve bu eklentiyi gerektirmez; doğrudan `cad-simple-viewer` üzerine geliştirme yapıyorsanız `cad-simple-ui-plugin` kullanın.
 
-→ **Hızlı başlangıç, araç çubuğu özelleştirme ve seçenekler:** [packages/cad-simple-ui-plugin/README.md](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-simple-ui-plugin/README.md)
+→ **1.8.0 sonrası kullanım ve geçiş:** [yükseltme kılavuzu](./upgrade-guide)
+
+::: tip 1.8.0’dan itibaren — `cad-simple-viewer` içine alındı
+**1.8.0**’dan itibaren ayrı npm paketi **`@mlightcad/cad-simple-ui-plugin` kaldırıldı**. Aynı araç çubuğu / dock sekmeleri / palet host’u artık **`@mlightcad/cad-simple-viewer`** içinde `@mlightcad/cad-simple-viewer` (`/simple-ui` alt yolu yok) olarak bulunur.
+
+- **Varsayılan açık:** `AcApDocManager.createInstance({ simpleUi: { … } })` ile seçenekleri geçin (veya varsayılanlar için `simpleUi`’yi atlayın). Chunk tembel yüklenir; `simpleUi: false` kullanan host’lar (`cad-editor`, CLI, MCP, …) indirmez.
+- **Türler / yardımcılar:** `@mlightcad/cad-simple-viewer` üzerinden import edin.
+- **Hazır olmayı bekleyin:** `pluginManager.getPlugin('SimpleUiPlugin')` yerine `simpleUiReady` / `simpleUi` kullanın.
+
+```ts
+AcApDocManager.createInstance({
+  container,
+  simpleUi: {
+    toolbar: { placement: 'right', items: 'default' }
+  }
+})
+// Kapatmak için: simpleUi: false
+```
+
+Tam geçiş için [yükseltme kılavuzuna](./upgrade-guide) bakın.
+:::
 
 ### `@mlightcad/cad-agent-plugin` — Yapay zekâ çizim asistanı
 
@@ -54,7 +73,7 @@ Tüm bileşenler çerçeveden bağımsızdır (saf DOM). Tam Vue `cad-editor` uy
 - **Aşama 1 CAD araçları** — `get_drawing_context`; `draw_line`, `draw_circle`, `draw_arc`, `draw_rectangle`, `draw_polyline`, `draw_text`; `set_current_layer`, `create_layer`, `zoom_extents`
 - Eklenti i18n katmanı aracılığıyla **İngilizce / Çince / Türkçe / Çekçe** arayüz metinleri
 
-Tam Vue `cad-editor` uygulaması, paket kurulduğunda ajanı otomatik olarak kaydeder (palet sekmesi). `cad-simple-viewer-demo`, `cad-simple-ui-plugin` aracılığıyla bunu bir dock sekmesine bağlar. Ana uygulamalar, paneli istedikleri yere monte etmek için `registerLazyAgentPlugin` ve `setAgentPaletteOpener` çağırır.
+Tam Vue `cad-editor` uygulaması, paket kurulduğunda ajanı otomatik olarak kaydeder (palet sekmesi). `cad-simple-viewer-demo`, `simpleUi` aracılığıyla bunu bir dock sekmesine bağlar. Ana uygulamalar, paneli istedikleri yere monte etmek için `registerLazyAgentPlugin` ve `setAgentPaletteOpener` çağırır.
 
 → **Kurulum, kayıt ve araç listesi:** [packages/cad-agent-plugin/README.md](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-agent-plugin/README.md)
 
@@ -93,7 +112,7 @@ Paylaşım ve arşivleme için tek dosyalık **çevrimdışı görüntüleyici**
 
 | Öğe | Değer |
 |------|-------|
-| Komutlar | `cpdf` (dışa aktarma), `ipdf` (içe aktarma) |
+| Komutlar | `cpdf` (dışa aktarma), `pdfimport` (içe aktarma) |
 | Genel API | `registerLazyPdfPlugin`, `createPdfPlugin`, `AcApPdfConvertor`, `resolveAcApPdfExportOptions` |
 
 → **Derleme çıktısı ve entegrasyon:** [packages/cad-pdf-plugin/README.md](https://github.com/mlightcad/cad-viewer/tree/main/packages/cad-pdf-plugin/README.md)
@@ -152,7 +171,7 @@ await registerGoogleDrivePlugin(AcApDocManager.instance.pluginManager, {
 | Uygulama | Kayıtlı eklentiler |
 |-----|--------------------|
 | `cad-simple-viewer` | Yok — yalnızca çekirdek, eklentiler isteğe bağlıdır |
-| `cad-simple-viewer-demo` | Dışa aktarma eklentileri (HTML/PDF/SVG), `cad-simple-ui-plugin`, `cad-agent-plugin`, `cad-script-plugin` |
+| `cad-simple-viewer-demo` | Dışa aktarma eklentileri (HTML/PDF/SVG), yerleşik simple UI (`simpleUi`, eski `cad-simple-ui-plugin`), `cad-agent-plugin`, `cad-script-plugin` |
 | `cad-editor` (Vue) | Dışa aktarma eklentileri (HTML/PDF/SVG); ajan ve betik eklentileri, **kurulmuşsa** otomatik olarak kaydedilir (isteğe bağlı peer bağımlılıklar) |
 
 ---

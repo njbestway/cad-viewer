@@ -110,6 +110,10 @@ describe('AcTrView2d convert claims after an erase', () => {
     ids.forEach(id => {
       expect(internals._claimedConvertObjectIds.has(id)).toBe(false)
     })
+    // One bulk scene removal, so batches are compacted once.
+    expect(internals._scene.removeEntities).toHaveBeenCalledTimes(1)
+    expect(internals._scene.removeEntities).toHaveBeenCalledWith(ids)
+    expect(internals._scene.removeEntity).not.toHaveBeenCalled()
   })
 
   it('releases claims only for entities that leave the scene', () => {

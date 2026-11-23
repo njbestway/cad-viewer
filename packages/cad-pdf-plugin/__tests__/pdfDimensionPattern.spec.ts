@@ -85,7 +85,15 @@ describe('parsePdfDimensionValue', () => {
     ['12,5', 12.5],
     ['Ø25', 25],
     ['R 10.5', 10.5],
-    ['2x Ø6', 2]
+    // Multiplicity prefixes are not the value.
+    ['2x Ø6', 6],
+    ['4X R3', 3],
+    ['1/2', 0.5],
+    ['1 1/2', 1.5],
+    ['3\'-6"', 42],
+    ['25±0.1', 25],
+    ['%%c12', 12],
+    ['45°', 45]
   ])('%s → %d', (input, expected) => {
     expect(parsePdfDimensionValue(input)).toBe(expected)
   })
@@ -106,6 +114,55 @@ describe('recognizePdfDimensions', () => {
     expect(dim.text.text).toBe('50')
     // 2 arrows + text + dim line + 2 extension lines.
     expect(dim.consumed).toHaveLength(6)
+  })
+
+  it('prefers tip-near stubs over long wrong-side continuations', () => {
+    const input = empty()
+    // True stubs: object at y=40, dim line at y=0, small beyond below.
+    input.segments.push(seg({ x: 0, y: 40 }, { x: 0, y: -1 }))
+    input.segments.push(seg({ x: 55, y: 40 }, { x: 55, y: -1 }))
+    input.segments.push(seg({ x: 0, y: 0 }, { x: 55, y: 0 }))
+    // Long drawing edges through each tip — farther on the wrong side.
+    input.segments.push(seg({ x: 0, y: 40 }, { x: 0, y: -200 }))
+    input.segments.push(seg({ x: 55, y: 40 }, { x: 55, y: -200 }))
+    input.polygons.push(arrow({ x: 0, y: 0 }, { x: -1, y: 0 }))
+    input.polygons.push(arrow({ x: 55, y: 0 }, { x: 1, y: 0 }))
+    input.texts.push(text('55', { x: 27.5, y: 3 }))
+    const [dim] = recognizePdfDimensions(input) as PdfLinearDimension<string>[]
+    expect(dim.xLine1).toEqual({ x: 0, y: 40 })
+    expect(dim.xLine2).toEqual({ x: 55, y: 40 })
+    expect(dim.extensionBeyond).toBeCloseTo(1, 9)
+  })
+
+  it('keeps object-side length when only a long mid-crossing edge exists', () => {
+    const input = empty()
+    input.segments.push(seg({ x: 0, y: 0 }, { x: 55, y: 0 }))
+    // Object at y=40; line continues far past the tip on the wrong side.
+    input.segments.push(seg({ x: 0, y: 40 }, { x: 0, y: -200 }))
+    input.segments.push(seg({ x: 55, y: 40 }, { x: 55, y: -200 }))
+    input.polygons.push(arrow({ x: 0, y: 0 }, { x: -1, y: 0 }))
+    input.polygons.push(arrow({ x: 55, y: 0 }, { x: 1, y: 0 }))
+    input.texts.push(text('55', { x: 27.5, y: 3 }))
+    const [dim] = recognizePdfDimensions(input) as PdfLinearDimension<string>[]
+    expect(dim.xLine1).toEqual({ x: 0, y: 40 })
+    expect(dim.xLine2).toEqual({ x: 55, y: 40 })
+  })
+
+  it('does not let a tiny tip overhang beat the object-side extension', () => {
+    const input = empty()
+    input.segments.push(seg({ x: 0, y: 0 }, { x: 55, y: 0 }))
+    // Short beyond-only stubs through each tip (would yield ~1-unit origins).
+    input.segments.push(seg({ x: 0, y: 1 }, { x: 0, y: -1 }))
+    input.segments.push(seg({ x: 55, y: 1 }, { x: 55, y: -1 }))
+    // Real object-side edges (tip mid-segment if merged with wrong-side tail).
+    input.segments.push(seg({ x: 0, y: 40 }, { x: 0, y: -200 }))
+    input.segments.push(seg({ x: 55, y: 40 }, { x: 55, y: -200 }))
+    input.polygons.push(arrow({ x: 0, y: 0 }, { x: -1, y: 0 }))
+    input.polygons.push(arrow({ x: 55, y: 0 }, { x: 1, y: 0 }))
+    input.texts.push(text('55', { x: 27.5, y: 3 }))
+    const [dim] = recognizePdfDimensions(input) as PdfLinearDimension<string>[]
+    expect(dim.xLine1).toEqual({ x: 0, y: 40 })
+    expect(dim.xLine2).toEqual({ x: 55, y: 40 })
   })
 
   it('keeps chained dimensions sharing an extension line apart', () => {
@@ -282,6 +339,47 @@ describe('recognizePdfDimensions', () => {
     addHorizontal(input, 0, 50, '50')
     input.texts = []
     expect(recognizePdfDimensions(input)).toHaveLength(0)
+  })
+
+  it('uses unread stroke text with the measured length as the value', () => {
+    const input = empty()
+    addHorizontal(input, 0, 55, '55')
+    const label = input.texts[0]
+    input.texts = []
+    // Exploded "55": strokes are gone from segments already in addHorizontal;
+    // only the unread placeholder remains, as pdfdim attaches them.
+    input.unreadTexts = [
+      {
+        id: label.id,
+        extraIds: ['stroke-a', 'stroke-b'],
+        center: label.center,
+        height: label.height
+      }
+    ]
+    const [dim] = recognizePdfDimensions(input) as PdfLinearDimension<string>[]
+    expect(dim.kind).toBe('linear')
+    expect(dim.measured).toBeCloseTo(55, 9)
+    expect(dim.text.text).toBe('55')
+    expect(dim.consumed).toEqual(
+      expect.arrayContaining([label.id, 'stroke-a', 'stroke-b'])
+    )
+  })
+
+  it('replaces a stroke misreading of "111" with the measured length', () => {
+    const input = empty()
+    addHorizontal(input, 0, 55, '111')
+    const [dim] = recognizePdfDimensions(input) as PdfLinearDimension<string>[]
+    expect(dim.text.text).toBe('55')
+    expect(dim.arrowsOut).toBe(false)
+  })
+
+  it('consumes extra stroke ids of a recognized exploded text', () => {
+    const input = empty()
+    addHorizontal(input, 0, 50, '50')
+    const label = input.texts[0]
+    label.extraIds = ['g1', 'g2', 'g3']
+    const [dim] = recognizePdfDimensions(input) as PdfLinearDimension<string>[]
+    expect(dim.consumed).toEqual(expect.arrayContaining(['g1', 'g2', 'g3']))
   })
 
   it('suggests the drawing scale from text values', () => {

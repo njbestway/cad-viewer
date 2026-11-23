@@ -1,14 +1,19 @@
 import {
   AcDbDatabase,
+  AcDbDimension,
   AcDbEntity,
+  AcDbEntityRuntimeProperty,
   AcDbObjectId,
   AcGeMatrix3d,
   AcGePoint3dLike
 } from '@mlightcad/data-model'
 
-import { createRotationMatrix } from '../util/AcApGeTransform'
-import { isEntityOnLockedLayer } from './AcApLockedLayer'
-import { acapRunServiceEdit, ENTITY_EDIT_LABEL } from './AcApServiceEdit'
+import {
+  createRotationMatrix,
+  createScaleMatrix
+} from '../util/AcApGeTransform.js'
+import { isEntityOnLockedLayer } from './AcApLockedLayer.js'
+import { acapRunServiceEdit, ENTITY_EDIT_LABEL } from './AcApServiceEdit.js'
 
 /**
  * Options for {@link AcApEntityService.cloneAndTransform}.
@@ -16,6 +21,47 @@ import { acapRunServiceEdit, ENTITY_EDIT_LABEL } from './AcApServiceEdit'
 export interface AcApCloneAndTransformOptions {
   /** Append clones to model space. Default `true`. */
   append?: boolean
+  /**
+   * Regenerate the anonymous blocks of transformed dimensions. Default `false`.
+   * See {@link AcApTransformOptions.regenerateDimensions}.
+   */
+  regenerateDimensions?: boolean
+}
+
+/**
+ * Options for {@link AcApEntityService.transformEntities}.
+ */
+export interface AcApTransformOptions {
+  /**
+   * Regenerate the anonymous `*D` block of every transformed dimension, like
+   * AutoCAD after SCALE: the cached block would otherwise scale its text and
+   * arrowheads together with the definition points, while AutoCAD keeps them
+   * at their dimension-style (DIMSCALE) size. Default `false`.
+   */
+  regenerateDimensions?: boolean
+}
+
+/**
+ * Regenerates the dimension block of `entity` when it is a dimension.
+ */
+function regenerateDimension(entity: AcDbEntity) {
+  if (entity instanceof AcDbDimension) entity.recomputeDimBlock()
+}
+
+/** Undo label for property palette edits. */
+const ENTITY_PROPERTY_EDIT_LABEL = 'Properties'
+
+/**
+ * Finds a property (writable or not) of `entity` by group and name.
+ */
+function findEntityProperty(
+  entity: AcDbEntity,
+  groupName: string,
+  propertyName: string
+): AcDbEntityRuntimeProperty | undefined {
+  return entity.properties.groups
+    .find(group => group.groupName === groupName)
+    ?.properties.find(property => property.name === propertyName)
 }
 
 /**
@@ -67,9 +113,14 @@ export class AcApEntityService {
    *
    * @param entities - Entities to transform.
    * @param matrix - Transform to apply via {@link AcDbEntity.transformBy}.
+   * @param options - Post-transform behavior.
    * @returns Number of entities successfully transformed.
    */
-  transformEntities(entities: AcDbEntity[], matrix: AcGeMatrix3d): number {
+  transformEntities(
+    entities: AcDbEntity[],
+    matrix: AcGeMatrix3d,
+    options: AcApTransformOptions = {}
+  ): number {
     return this.runEntityEdit(() => {
       let count = 0
       entities.forEach(entity => {
@@ -77,6 +128,7 @@ export class AcApEntityService {
         const opened = this.db.openEntityForWrite(entity)
         if (!opened) return
         opened.transformBy(matrix)
+        if (options.regenerateDimensions) regenerateDimension(opened)
         count++
       })
       return count
@@ -120,6 +172,27 @@ export class AcApEntityService {
   }
 
   /**
+   * Uniformly scales entities around a base point. Dimensions get their
+   * blocks regenerated so text and arrowheads keep their style size, like
+   * AutoCAD SCALE.
+   *
+   * @param entities - Entities to scale.
+   * @param basePoint - Scale origin in WCS, which stays fixed.
+   * @param factor - Uniform scale factor (must be positive).
+   * @returns Number of entities successfully scaled.
+   */
+  scaleEntities(
+    entities: AcDbEntity[],
+    basePoint: AcGePoint3dLike,
+    factor: number
+  ): number {
+    const matrix = createScaleMatrix(basePoint, factor)
+    return this.transformEntities(entities, matrix, {
+      regenerateDimensions: true
+    })
+  }
+
+  /**
    * Clones entities, transforms them, and optionally appends to model space.
    *
    * @param sourceEntities - Entities to clone.
@@ -137,7 +210,10 @@ export class AcApEntityService {
       .map(entity => entity.clone())
       .filter((entity): entity is AcDbEntity => !!entity)
 
-    clones.forEach(entity => entity.transformBy(matrix))
+    clones.forEach(entity => {
+      entity.transformBy(matrix)
+      if (options.regenerateDimensions) regenerateDimension(entity)
+    })
 
     if (append && clones.length > 0) {
       this.db.tables.blockTable.modelSpace.appendEntity(clones)
@@ -147,59 +223,36 @@ export class AcApEntityService {
   }
 
   /**
-   * Erases entities by object id.
+   * Erases entities by object id. Unknown ids and entities on locked layers
+   * are skipped.
    *
-   * Ids are deduplicated and grouped by owning block table record so each
-   * record rewrites its entity array once and emits one `entityErased` batch.
-   * Erasing through {@link AcDbEntity.erase} instead rescans the whole block
-   * table record for every id — O(N²) on a 50k selection — and emits one event
-   * per entity.
-   *
-   * Entities on a locked layer are skipped, and ids that no longer resolve are
-   * ignored.
+   * The entities are removed from each block in one pass: erasing them one
+   * by one scans the block for every entity, which takes many seconds when
+   * thousands of strokes are erased from a large drawing.
    *
    * @param objectIds - Entity ids to erase.
    * @returns Number of entities successfully erased.
    */
   eraseEntities(objectIds: AcDbObjectId[]): number {
     return this.runEntityEdit(() => {
-      if (objectIds.length === 0) return 0
       const blockTable = this.db.tables?.blockTable
       if (!blockTable) return 0
-
-      // A selection set may repeat an id; opening/recording it twice would
-      // double count the erase (and the second open would fail anyway).
-      const idsByOwner = new Map<AcDbObjectId, AcDbObjectId[]>()
-      const seen = new Set<AcDbObjectId>()
-      for (const objectId of objectIds) {
-        if (seen.has(objectId)) continue
-        seen.add(objectId)
-
+      const erasable: AcDbObjectId[] = []
+      new Set(objectIds).forEach(objectId => {
         const existing = blockTable.getEntityById(objectId)
-        if (!existing) continue
-        if (isEntityOnLockedLayer(this.db, existing)) continue
+        if (!existing || isEntityOnLockedLayer(this.db, existing)) return
         const entity = this.db.openEntityForWrite(objectId)
-        if (!entity) continue
-        if (isEntityOnLockedLayer(this.db, entity)) continue
-
-        const ownerId = entity.ownerId
-        if (!ownerId) continue
-        let group = idsByOwner.get(ownerId)
-        if (!group) {
-          group = []
-          idsByOwner.set(ownerId, group)
-        }
-        group.push(objectId)
+        if (!entity) return
+        if (isEntityOnLockedLayer(this.db, entity)) return
+        erasable.push(objectId)
+      })
+      if (erasable.length === 0) return 0
+      // `blockTable.removeEntity` stops at the first block that removed any
+      // entity, so ask every block for the ids it owns.
+      for (const block of blockTable.newIterator()) {
+        block.removeEntity(erasable)
       }
-
-      let count = 0
-      for (const [ownerId, ids] of idsByOwner) {
-        const owner = blockTable.getIdAt(ownerId)
-        if (owner && owner.removeEntity(ids)) {
-          count += ids.length
-        }
-      }
-      return count
+      return erasable.length
     })
   }
 
@@ -255,6 +308,45 @@ export class AcApEntityService {
     })
 
     return { changedCount, alreadyCurrent, missing, currentLayerMissing: false }
+  }
+
+  /**
+   * Sets one property-palette property on entities, as one undoable edit.
+   *
+   * The property is looked up by group and name in each entity's
+   * {@link AcDbEntity.properties}, so the same edit applies to a mixed
+   * selection. Entities on locked layers, entities without that property and
+   * read-only properties are skipped. Dimensions get their block regenerated
+   * after a non-general property changes, like after a grip edit.
+   *
+   * @param objectIds - Entities to change.
+   * @param groupName - Property group, e.g. `general` or `geometry`.
+   * @param propertyName - Property name within the group.
+   * @param value - New value, of the type the property declares.
+   * @returns Number of entities changed.
+   */
+  setEntityProperty(
+    objectIds: AcDbObjectId[],
+    groupName: string,
+    propertyName: string,
+    value: unknown
+  ): number {
+    return this.runEdit(ENTITY_PROPERTY_EDIT_LABEL, () => {
+      let count = 0
+      new Set(objectIds).forEach(objectId => {
+        const existing = this.db.tables.blockTable.getEntityById(objectId)
+        if (!existing || isEntityOnLockedLayer(this.db, existing)) return
+        if (!findEntityProperty(existing, groupName, propertyName)) return
+        const entity = this.db.openEntityForWrite(objectId)
+        if (!entity) return
+        const property = findEntityProperty(entity, groupName, propertyName)
+        if (!property?.accessor.set) return
+        property.accessor.set(value)
+        if (groupName !== 'general') regenerateDimension(entity)
+        count++
+      })
+      return count
+    })
   }
 
   /**

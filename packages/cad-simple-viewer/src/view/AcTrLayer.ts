@@ -12,7 +12,7 @@ import {
 import * as THREE from 'three'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 
-import { AcEdLayerInfo } from '../editor'
+import { AcEdLayerInfo } from '../editor/index.js'
 
 /**
  * Statistics for a CAD layer including name and batched rendering metrics.
@@ -312,6 +312,13 @@ export class AcTrLayer {
    */
   repaintForegroundMaterials(color: number) {
     this._group.repaintForegroundMaterials(color)
+  }
+
+  /**
+   * Applies LWDISPLAY to owned batch material clones in this layer.
+   */
+  applyShowLineWeight(show: boolean) {
+    this._group.applyShowLineWeight(show)
   }
 
   /**

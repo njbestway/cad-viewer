@@ -39,6 +39,9 @@ export default {
     exportingPdf: 'جارٍ تصدير PDF ...',
     exportingSvg: 'جارٍ تصدير SVG ...',
     calculatingSmartExtents: 'جارٍ حساب الملاءمة الذكية ...',
+    copyingToClipboard: 'جارٍ النسخ إلى الحافظة ...',
+    cuttingToClipboard: 'جارٍ القص ...',
+    pastingFromClipboard: 'جارٍ اللصق ...',
     importingPdf: 'جارٍ استيراد PDF ...',
     exportingEntityPreview: 'جارٍ تصدير الصورة ...',
     collectingMemoryProfile: 'جارٍ تحليل الذاكرة ...',
@@ -138,6 +141,9 @@ export default {
     undo: 'تراجع',
     redo: 'إعادة',
     erase: 'حذف',
+    copy: 'نسخ',
+    cut: 'قص',
+    paste: 'لصق',
     collapse: 'طي شريط الأدوات',
     expand: 'توسيع شريط الأدوات'
   },
@@ -201,5 +207,21 @@ export default {
     selectFile: 'اختيار ملف',
     signInRequired: 'سجّل الدخول أولاً لاختيار ملف.',
     downloading: 'جارٍ تنزيل الملف ...'
+  },
+  dockPanel: {
+    close: 'إغلاق اللوحة',
+    dockSide: 'جهة الإرساء',
+    dockTop: 'إرساء بالأعلى',
+    dockBottom: 'إرساء بالأسفل',
+    dockLeft: 'إرساء باليسار',
+    dockRight: 'إرساء باليمين',
+    moreTabs: 'المزيد من علامات التبويب',
+    resize: 'تغيير حجم اللوحة',
+    tab: {
+      layers: 'الطبقات',
+      review: 'المراجعة',
+      find: 'بحث',
+      measurements: 'القياسات'
+    }
   }
 }

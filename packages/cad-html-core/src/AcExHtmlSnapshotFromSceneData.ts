@@ -1,12 +1,13 @@
 import type { AcDbDatabase } from '@mlightcad/data-model'
 import type * as THREE from 'three'
 
-import { acexHtmlGetDocsBaseUrl } from './AcExHtmlDocsUrl'
-import { acexHtmlComputeLayoutViewExtents } from './AcExHtmlLayerExtents'
-import { acexHtmlBuildOsnapCatalog } from './AcExHtmlOsnapPrimitiveBuilder'
-import { acexHtmlCollectLayoutViewports } from './AcExHtmlPaperViewportCollector'
-import { acexHtmlCaptureSavedViewExtents } from './AcExHtmlSavedView'
-import { acexHtmlCollectBatchesFromObject3D } from './AcExHtmlSceneBatchCollector'
+import { acexHtmlGetDocsBaseUrl } from './AcExHtmlDocsUrl.js'
+import { acexHtmlIsEmptyPaperSpaceLayout } from './AcExHtmlEmptyLayout.js'
+import { acexHtmlComputeLayoutViewExtents } from './AcExHtmlLayerExtents.js'
+import { acexHtmlBuildOsnapCatalog } from './AcExHtmlOsnapPrimitiveBuilder.js'
+import { acexHtmlCollectLayoutViewports } from './AcExHtmlPaperViewportCollector.js'
+import { acexHtmlCaptureSavedViewExtents } from './AcExHtmlSavedView.js'
+import { acexHtmlCollectBatchesFromObject3D } from './AcExHtmlSceneBatchCollector.js'
 import {
   ACEX_SNAPSHOT_VERSION,
   type AcExHtmlInitialViewMode,
@@ -17,8 +18,8 @@ import {
   type AcExHtmlSnapshot,
   type AcExHtmlViewerMode,
   type AcExHtmlViewState
-} from './AcExHtmlSnapshotTypes'
-import { acexHtmlBuildViewerMetadata } from './AcExHtmlViewerMetadata'
+} from './AcExHtmlSnapshotTypes.js'
+import { acexHtmlBuildViewerMetadata } from './AcExHtmlViewerMetadata.js'
 
 /**
  * Layer table row for an export snapshot (visibility is independent of
@@ -46,6 +47,12 @@ export interface AcExHtmlExportLayoutInput {
   name?: string
   isModelSpace: boolean
   layers: AcExHtmlExportLayoutLayerGeometry[]
+  /**
+   * INSERT object id → INSERT's own layer name. When the INSERT layer is
+   * frozen, cross-layer fragments are reparented onto that layer during
+   * batch collection so HTML layer toggles can show the whole reference.
+   */
+  insertLayerByObjectId?: ReadonlyMap<string, string>
 }
 
 /**
@@ -56,6 +63,12 @@ export interface AcExHtmlExportLayoutInput {
  */
 export interface AcExHtmlExportSceneInput {
   layers: AcExHtmlExportLayerMeta[]
+  /**
+   * Globally frozen layer names. Used with per-layout
+   * {@link AcExHtmlExportLayoutInput.insertLayerByObjectId} to reparent
+   * frozen-INSERT fragments during batch collection.
+   */
+  frozenLayers?: readonly string[]
   layouts: AcExHtmlExportLayoutInput[]
   activeLayoutBtrId: string
   modelSpaceBtrId: string
@@ -70,6 +83,13 @@ export interface AcExHtmlBuildSnapshotOptions {
   locale?: string
   exportInvisibleLayers?: boolean
   exportLayouts?: boolean
+  /**
+   * When `true`, empty paper-space layouts are still written into the
+   * snapshot. When `false` (default), paper tabs with no content other than
+   * the default `*Paper_Space` viewport are skipped. Model space is always
+   * kept when {@link AcExHtmlBuildSnapshotOptions.exportLayouts} is `true`.
+   */
+  exportEmptyLayouts?: boolean
   initialView?: AcExHtmlInitialViewMode
   viewState?: AcExHtmlViewState
   viewerMode?: AcExHtmlViewerMode
@@ -141,6 +161,7 @@ export async function acexHtmlBuildSnapshotFromExportSceneAsync(
 
   const exportInvisibleLayers = options.exportInvisibleLayers !== false
   const exportLayouts = options.exportLayouts !== false
+  const exportEmptyLayouts = options.exportEmptyLayouts === true
   const includeLayer = exportInvisibleLayers
     ? undefined
     : (layerName: string) =>
@@ -156,8 +177,19 @@ export async function acexHtmlBuildSnapshotFromExportSceneAsync(
   const layoutNames = new Map(
     tableLayouts.map(layout => [layout.blockTableRecordId, layout.name])
   )
-  const activeLayoutBtrId = resolveExportActiveLayoutBtrId(scene, exportLayouts)
-  const layoutInputs = listExportLayouts(scene, tableLayouts, exportLayouts)
+  const activeLayoutBtrId = resolveExportActiveLayoutBtrId(
+    database,
+    scene,
+    exportLayouts,
+    exportEmptyLayouts
+  )
+  const layoutInputs = listExportLayouts(
+    database,
+    scene,
+    tableLayouts,
+    exportLayouts,
+    exportEmptyLayouts
+  )
 
   const layouts: AcExHtmlLayoutSnapshot[] = []
   for (const layoutInput of layoutInputs) {
@@ -192,6 +224,7 @@ function buildSnapshotSync(
 ): AcExHtmlSnapshot {
   const exportInvisibleLayers = options.exportInvisibleLayers !== false
   const exportLayouts = options.exportLayouts !== false
+  const exportEmptyLayouts = options.exportEmptyLayouts === true
   const includeLayer = exportInvisibleLayers
     ? undefined
     : (layerName: string) =>
@@ -207,8 +240,19 @@ function buildSnapshotSync(
   const layoutNames = new Map(
     tableLayouts.map(layout => [layout.blockTableRecordId, layout.name])
   )
-  const activeLayoutBtrId = resolveExportActiveLayoutBtrId(scene, exportLayouts)
-  const layoutInputs = listExportLayouts(scene, tableLayouts, exportLayouts)
+  const activeLayoutBtrId = resolveExportActiveLayoutBtrId(
+    database,
+    scene,
+    exportLayouts,
+    exportEmptyLayouts
+  )
+  const layoutInputs = listExportLayouts(
+    database,
+    scene,
+    tableLayouts,
+    exportLayouts,
+    exportEmptyLayouts
+  )
 
   const layouts: AcExHtmlLayoutSnapshot[] = []
   for (const layoutInput of layoutInputs) {
@@ -301,9 +345,11 @@ function shouldExportLayer(
 }
 
 function listExportLayouts(
+  database: AcDbDatabase,
   scene: AcExHtmlExportSceneInput,
   tableLayouts: AcExHtmlDatabaseLayoutInfo[],
-  exportLayouts: boolean
+  exportLayouts: boolean,
+  exportEmptyLayouts: boolean
 ): AcExHtmlExportLayoutInput[] {
   if (!exportLayouts) {
     const model = scene.layouts.find(
@@ -319,6 +365,16 @@ function listExportLayouts(
   for (const table of tableLayouts) {
     if (seen.has(table.blockTableRecordId)) continue
     seen.add(table.blockTableRecordId)
+    if (
+      !exportEmptyLayouts &&
+      acexHtmlIsEmptyPaperSpaceLayout(
+        database,
+        table.blockTableRecordId,
+        scene.modelSpaceBtrId
+      )
+    ) {
+      continue
+    }
     const existing = byId.get(table.blockTableRecordId)
     result.push(
       existing ?? {
@@ -330,23 +386,45 @@ function listExportLayouts(
     )
   }
 
-  for (const layout of scene.layouts) {
-    if (seen.has(layout.btrId)) continue
-    seen.add(layout.btrId)
-    result.push(layout)
+  // Do not merge scene-only layout keys. The live Three.js scene can retain
+  // orphan empty layout groups for displaced bootstrap BTR handles (e.g. "17")
+  // after DWG open / handle collision. With `exportEmptyLayouts: true` those
+  // would surface as phantom tabs named after the raw handle. The layout
+  // dictionary is the source of truth for exported tabs.
+
+  // Guarantee model space stays in the snapshot even when the layout table
+  // omitted it or only empty paper tabs remained after filtering.
+  if (!result.some(layout => layout.btrId === scene.modelSpaceBtrId)) {
+    const model = byId.get(scene.modelSpaceBtrId)
+    result.unshift(
+      model ?? {
+        btrId: scene.modelSpaceBtrId,
+        isModelSpace: true,
+        layers: []
+      }
+    )
   }
 
   return result
 }
 
 function resolveExportActiveLayoutBtrId(
+  database: AcDbDatabase,
   scene: AcExHtmlExportSceneInput,
-  exportLayouts: boolean
+  exportLayouts: boolean,
+  exportEmptyLayouts: boolean
 ): string {
   if (!exportLayouts) {
     return scene.modelSpaceBtrId
   }
-  return scene.activeLayoutBtrId || scene.modelSpaceBtrId
+  const preferred = scene.activeLayoutBtrId || scene.modelSpaceBtrId
+  if (
+    exportEmptyLayouts ||
+    !acexHtmlIsEmptyPaperSpaceLayout(database, preferred, scene.modelSpaceBtrId)
+  ) {
+    return preferred
+  }
+  return scene.modelSpaceBtrId
 }
 
 function collectLayoutSnapshot(
@@ -359,21 +437,34 @@ function collectLayoutSnapshot(
 ): AcExHtmlLayoutSnapshot {
   const lineBatches: AcExHtmlLineBatch[] = []
   const meshBatches: AcExHtmlMeshBatch[] = []
+  const frozenLayers =
+    scene.frozenLayers && scene.frozenLayers.length > 0
+      ? new Set(scene.frozenLayers)
+      : undefined
   for (const layer of layoutInput.layers) {
     if (includeLayer && !includeLayer(layer.name)) {
       continue
     }
-    const collected = acexHtmlCollectBatchesFromObject3D(layer.root)
+    const collected = acexHtmlCollectBatchesFromObject3D(layer.root, {
+      geometryLayerName: layer.name,
+      insertLayerByObjectId: layoutInput.insertLayerByObjectId,
+      frozenLayers
+    })
     // Scene geometry is already bucketed by layer root. Material metadata is
     // not authoritative for every drawable (IMAGE / OLE use a plain
     // MeshBasicMaterial with no `userData.layer`), so stamp the owning layer
-    // name onto every batch. Otherwise the offline viewer parents those
-    // meshes under layer "0" and they stay visible when this layer is off.
+    // name onto every batch — except fragments the collector reparented onto
+    // a frozen INSERT layer (those keep their INSERT layer so HTML toggles
+    // can show the whole reference).
     for (const batch of collected.lineBatches) {
-      batch.layer = layer.name
+      if (!batch.layer) {
+        batch.layer = layer.name
+      }
     }
     for (const batch of collected.meshBatches) {
-      batch.layer = layer.name
+      if (!batch.layer) {
+        batch.layer = layer.name
+      }
     }
     lineBatches.push(...collected.lineBatches)
     meshBatches.push(...collected.meshBatches)

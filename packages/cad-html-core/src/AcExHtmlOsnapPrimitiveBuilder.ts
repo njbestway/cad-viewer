@@ -29,6 +29,7 @@ import {
   AcDbHatch,
   AcDbLeader,
   AcDbLine,
+  AcDbMInsertBlock,
   AcDbMLeader,
   type AcDbMLeaderLeader,
   type AcDbMLeaderLine,
@@ -61,7 +62,7 @@ import {
 } from '@mlightcad/data-model'
 import * as THREE from 'three'
 
-import { acexHtmlWcsPointToOcsArcAngle } from './AcExHtmlOsnapPrimitiveToAcGe'
+import { acexHtmlWcsPointToOcsArcAngle } from './AcExHtmlOsnapPrimitiveToAcGe.js'
 import type {
   AcExHtmlOsnapArcPrimitive,
   AcExHtmlOsnapCatalog,
@@ -69,7 +70,7 @@ import type {
   AcExHtmlOsnapEllipsePrimitive,
   AcExHtmlOsnapPrimitive,
   AcExHtmlOsnapSplinePrimitive
-} from './AcExHtmlOsnapPrimitiveTypes'
+} from './AcExHtmlOsnapPrimitiveTypes.js'
 
 /** Vertex used when packing a fill/frame {@link AcExHtmlOsnapPathPrimitive}. */
 type AcExOsnapPathVertex = AcGePoint3dLike & { bulge?: number }
@@ -301,10 +302,6 @@ type AcExBlockReferenceLike = AcDbEntity & {
   blockTableRecord: AcDbBlockTableRecord | undefined
   blockName?: string
   getFullInsertionTransform(): AcGeMatrix3d
-  columnCount?: number
-  rowCount?: number
-  columnSpacing?: number
-  rowSpacing?: number
   attributeIterator?: () => Iterable<AcDbEntity> & {
     toArray?: () => AcDbEntity[]
   }
@@ -516,11 +513,10 @@ function appendPathEdge(
   verts.push({ x: end.x, y: end.y, z: end.z ?? 0, bulge: 0 })
 }
 
-function finalizePathVertices(verts: AcExOsnapPathVertex[]): AcExOsnapPathVertex[] {
-  if (
-    verts.length >= 2 &&
-    samePoint2d(verts[0]!, verts[verts.length - 1]!)
-  ) {
+function finalizePathVertices(
+  verts: AcExOsnapPathVertex[]
+): AcExOsnapPathVertex[] {
+  if (verts.length >= 2 && samePoint2d(verts[0]!, verts[verts.length - 1]!)) {
     verts.pop()
   }
   return verts
@@ -583,13 +579,12 @@ function resolveMLeaderLineDrawPoints(
   leader: AcDbMLeaderLeader,
   line: AcDbMLeaderLine
 ): AcGePoint3dLike[] {
-  if (line.vertices.length >= 2) {
-    return line.vertices
-  }
   if (line.vertices.length === 0) {
     return []
   }
-  const start = line.vertices[0]!
+  // AutoCAD stores only the arrowhead and intermediate vertices; every line
+  // ends where its branch meets the landing.
+  const last = line.vertices[line.vertices.length - 1]!
   const end =
     leader.lastLeaderLinePoint ??
     leader.landingPoint ??
@@ -598,13 +593,13 @@ function resolveMLeaderLineDrawPoints(
   if (!end) {
     return line.vertices
   }
-  const dx = start.x - end.x
-  const dy = start.y - end.y
-  const dz = (start.z ?? 0) - (end.z ?? 0)
+  const dx = last.x - end.x
+  const dy = last.y - end.y
+  const dz = (last.z ?? 0) - (end.z ?? 0)
   if (Math.hypot(dx, dy, dz) <= FLOAT_TOL) {
     return line.vertices
   }
-  return [start, end]
+  return [...line.vertices, end]
 }
 
 /**
@@ -1299,10 +1294,13 @@ function visitEntity(
     if (!block || blockStack.has(block.objectId)) return
     blockStack.add(block.objectId)
     const insertXform = entity.getFullInsertionTransform()
-    const cols = Math.max(1, entity.columnCount ?? 1)
-    const rows = Math.max(1, entity.rowCount ?? 1)
-    const colSp = entity.columnSpacing ?? 0
-    const rowSp = entity.rowSpacing ?? 0
+    // MINSERT array data lives on the AcDbMInsertBlock subclass only.
+    const source: AcDbEntity = entity
+    const minsert = source instanceof AcDbMInsertBlock ? source : undefined
+    const cols = Math.max(1, minsert?.columns ?? 1)
+    const rows = Math.max(1, minsert?.rows ?? 1)
+    const colSp = minsert?.columnSpacing ?? 0
+    const rowSp = minsert?.rowSpacing ?? 0
     const blockInsertLayer = effectiveLayer(entity.layer, insertLayer)
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -1669,7 +1667,8 @@ export function acexHtmlBuildOsnapCatalog(
   // offline RBush index the way it did in the main viewer.
   return {
     primitives: primitives.filter(
-      primitive => primitive.kind !== 'line' && isFiniteOsnapPrimitive(primitive)
+      primitive =>
+        primitive.kind !== 'line' && isFiniteOsnapPrimitive(primitive)
     )
   }
 }

@@ -8,10 +8,13 @@ import {
   acexHtmlBuildSnapshotFromExportScene,
   type AcExHtmlExportLayoutInput,
   type AcExHtmlExportSceneInput,
+  acexHtmlIsEmptyPaperSpaceLayout,
   acexHtmlListDatabaseLayouts,
   acexHtmlResolveBackground,
-  type AcExHtmlSnapshot} from '@mlightcad/cad-html-core'
+  type AcExHtmlSnapshot
+} from '@mlightcad/cad-html-core'
 import {
+  AcDbBlockReference,
   type AcDbDatabase,
   type AcDbEntity,
   AcDbViewport
@@ -28,9 +31,9 @@ import {
 import * as THREE from 'three'
 import type { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 
-import type { AcExHtmlExporterOptions } from './exportOptions'
-import { preloadDrawingFonts, setupExportTextRendering } from './nodeFontLoader'
-import { withWorkingDatabase } from './withWorkingDatabase'
+import type { AcExHtmlExporterOptions } from './exportOptions.js'
+import { preloadDrawingFonts, setupExportTextRendering } from './nodeFontLoader.js'
+import { withWorkingDatabase } from './withWorkingDatabase.js'
 
 interface LayerBucket {
   group: AcTrBatchedGroup
@@ -40,6 +43,8 @@ interface LayoutBucket {
   btrId: string
   isModelSpace: boolean
   layers: Map<string, LayerBucket>
+  /** INSERT object id → INSERT's own layer name (for freeze reparent). */
+  insertLayerByObjectId: Map<string, string>
 }
 
 interface PendingDraw {
@@ -100,6 +105,7 @@ async function convertOpenDatabaseToSnapshot(
 ): Promise<AcExHtmlSnapshot> {
   const exportInvisibleLayers = options.exportInvisibleLayers !== false
   const exportLayouts = options.exportLayouts !== false
+  const exportEmptyLayouts = options.exportEmptyLayouts === true
   const width = options.width ?? 1920
   const height = options.height ?? 1080
 
@@ -142,9 +148,22 @@ async function convertOpenDatabaseToSnapshot(
     for (const layout of tableLayouts) {
       if (seen.has(layout.blockTableRecordId)) continue
       seen.add(layout.blockTableRecordId)
+      if (
+        !exportEmptyLayouts &&
+        acexHtmlIsEmptyPaperSpaceLayout(
+          database,
+          layout.blockTableRecordId,
+          modelSpaceBtrId
+        )
+      ) {
+        continue
+      }
       layoutBtrIds.push(layout.blockTableRecordId)
     }
-    if (!seen.has(modelSpaceBtrId)) {
+    // Prefer membership in the export list over `seen`: empty paper tabs
+    // are marked seen before they are skipped, and some drawings omit the
+    // Model layout row entirely.
+    if (!layoutBtrIds.includes(modelSpaceBtrId)) {
       layoutBtrIds.unshift(modelSpaceBtrId)
     }
   }
@@ -160,7 +179,8 @@ async function convertOpenDatabaseToSnapshot(
     const bucket: LayoutBucket = {
       btrId,
       isModelSpace: btrId === modelSpaceBtrId,
-      layers: new Map()
+      layers: new Map(),
+      insertLayerByObjectId: new Map()
     }
     layoutBuckets.set(btrId, bucket)
 
@@ -176,6 +196,9 @@ async function convertOpenDatabaseToSnapshot(
       }
 
       const layerName = entity.layer || '0'
+      if (entity instanceof AcDbBlockReference) {
+        bucket.insertLayerByObjectId.set(entity.objectId, layerName)
+      }
       let layerBucket = bucket.layers.get(layerName)
       if (!layerBucket) {
         layerBucket = { group: new AcTrBatchedGroup() }
@@ -215,6 +238,13 @@ async function convertOpenDatabaseToSnapshot(
   flushMeshGlyphInstancesIntoLayouts(layoutBuckets)
 
   const layerMeta = collectLayerMeta(database)
+  const frozenLayers = layerMeta
+    .filter(layer => !layer.visible)
+    .map(layer => layer.name)
+    .filter(name => {
+      const layer = database.tables.layerTable.getAt(name)
+      return layer?.isFrozen === true
+    })
   const layouts: AcExHtmlExportLayoutInput[] = []
   for (const btrId of layoutBtrIds) {
     const bucket = layoutBuckets.get(btrId)
@@ -226,12 +256,14 @@ async function convertOpenDatabaseToSnapshot(
             name,
             root: layer.group as unknown as THREE.Object3D
           }))
-        : []
+        : [],
+      insertLayerByObjectId: bucket?.insertLayerByObjectId
     })
   }
 
   const scene: AcExHtmlExportSceneInput = {
     layers: layerMeta,
+    frozenLayers,
     layouts,
     activeLayoutBtrId: modelSpaceBtrId,
     modelSpaceBtrId
@@ -244,6 +276,7 @@ async function convertOpenDatabaseToSnapshot(
     locale: options.locale ?? 'en',
     exportInvisibleLayers,
     exportLayouts,
+    exportEmptyLayouts,
     initialView: options.initialView,
     viewerMode: options.viewerMode ?? 'measure',
     canvasAspectRatio: width / height
@@ -341,7 +374,8 @@ async function settlePendingDraws(
   }
 }
 
-function shouldConvertEntity(
+/** @internal Exported for unit tests. */
+export function shouldConvertEntity(
   entity: AcDbEntity,
   database: AcDbDatabase,
   exportInvisibleLayers: boolean
@@ -356,6 +390,12 @@ function shouldConvertEntity(
   const layer = database.tables.layerTable.getAt(layerName)
   if (!layer) {
     return true
+  }
+  if (entity instanceof AcDbBlockReference) {
+    // Match AcTrEntityDisplayController: Off still converts so nested
+    // geometry on other layers can remain visible; Freeze skips the whole
+    // reference when invisible layers are omitted from the snapshot.
+    return !layer.isFrozen
   }
   return !layer.isOff && !layer.isFrozen
 }

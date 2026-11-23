@@ -123,6 +123,19 @@ export default {
       }
     }
   },
+  copybase: {
+    basePoint: '指定基点'
+  },
+  pasteclip: {
+    insertionPoint: '指定插入点',
+    empty: '剪贴板中没有图形对象'
+  },
+  pasteorig: {
+    sameDrawing: 'PASTEORIG 不能粘贴到复制对象的源图形中'
+  },
+  pasteblock: {
+    insertionPoint: '指定插入点'
+  },
   dimlinear: {
     xLine1Point: '指定第一条尺寸界线原点或 <选择对象>',
     xLine2Point: '指定第二条尺寸界线原点',
@@ -269,6 +282,10 @@ export default {
       otherAxis: '另一轴输入无效：距离必须大于 0。',
       rotation: '旋转输入无效：计算得到的短轴必须大于 0。'
     }
+  },
+  explode: {
+    notExplodable: '{count} 个对象无法分解',
+    minsert: '{count} 个用 MINSERT 插入的块无法分解'
   },
   hatch: {
     prompt: '选择边界对象或',
@@ -758,7 +775,16 @@ export default {
     throughPoint: '指定弧上的一个点',
     endPoint: '指定弧的终点',
     lockedEndPoint: '指定弧的终点（按 Ctrl 在大弧与小弧之间切换）',
-    invalidPoints: '三点共线，无法测量弧长。'
+    invalidPoints: '三点共线，无法测量弧长。',
+    pickArc: '选择圆、圆弧或多段线圆弧',
+    noArc: '此处没有圆或圆弧。请单击曲线，或选择三点。',
+    keywords: {
+      threePoint: {
+        display: '三点(T)',
+        local: '三点',
+        global: 'ThreePoint'
+      }
+    }
   },
   measureAngle: {
     vertex: '指定顶点',
@@ -1001,6 +1027,7 @@ export default {
     arrowheadOrRemove: '指定引线箭头位置或 [删除引线(R)]',
     selectLeaderToRemove: '指定要删除的引线或按 Enter 结束',
     cannotRemoveLast: '无法删除该多重引线的最后一条引线。',
+    noLeaderAtPoint: '在该点未找到引线。',
     keywords: {
       remove: {
         display: '删除引线(R)',
@@ -1164,6 +1191,35 @@ export default {
     },
     invalid: {
       referencePoints: '参考点输入无效：两点必须不同。'
+    }
+  },
+  scale: {
+    basePoint: '指定基点',
+    scaleFactorOrOptions: '指定比例因子或',
+    referenceLength: '指定参照长度',
+    newLengthOrPoints: '指定新的长度或',
+    newLengthFirstPoint: '指定第一点',
+    copyMessage: '缩放一组选定对象。',
+    keywords: {
+      copy: {
+        display: '复制(C)',
+        local: '复制',
+        global: 'Copy'
+      },
+      reference: {
+        display: '参照(R)',
+        local: '参照',
+        global: 'Reference'
+      },
+      points: {
+        display: '点(P)',
+        local: '点',
+        global: 'Points'
+      }
+    },
+    invalid: {
+      factor: '需要正的非零值。',
+      length: '需要正的非零值。'
     }
   },
   rect: {
@@ -1505,6 +1561,7 @@ export default {
     exportFormat: '导出格式',
     exportInvisibleLayers: '是否导出不可见图层',
     exportLayouts: '是否导出布局',
+    exportEmptyLayouts: '是否导出空布局',
     background: '背景颜色',
     initialView: '打开 HTML 时的初始视图',
     viewerMode: '离线查看器模式',
@@ -1571,6 +1628,7 @@ export default {
   cpdf: {
     modelSpaceFit: '模型空间范围',
     exportLayouts: '是否导出布局',
+    exportEmptyLayouts: '是否导出空布局',
     textMode: '文字渲染方式',
     colorMode: '颜色模式',
     keywords: {
@@ -1862,14 +1920,18 @@ export default {
       }
     }
   },
-  ipdf: {
+  pdfimport: {
     pageNumber: '输入页码 (1-{count})',
     insertionPoint:
-      '指定插入点（比例 {scale}，模式 {mode}）或',
+      '指定插入点（比例 {scale}，模式 {mode}，文字 {text}）或',
     modePrompt: '选择导入方式',
     modeRecover: '复原图纸',
     modeVisual: '保留 PDF 视觉效果',
     scaleFactor: '输入比例因子',
+    textPrompt: '选择打散文字识别方式',
+    textOff: '关闭',
+    textLocal: '本地字形词典',
+    textOcr: 'OCR 服务',
     keywords: {
       scale: {
         display: '比例(S)',
@@ -1881,6 +1943,11 @@ export default {
         local: '模式',
         global: 'Mode'
       },
+      text: {
+        display: '文字(T)',
+        local: '文字',
+        global: 'Text'
+      },
       recover: {
         display: '复原(R)',
         local: '复原',
@@ -1890,24 +1957,150 @@ export default {
         display: '视觉(V)',
         local: '视觉',
         global: 'Visual'
+      },
+      off: {
+        display: '关闭(O)',
+        local: '关闭',
+        global: 'Off'
+      },
+      local: {
+        display: '本地(L)',
+        local: '本地',
+        global: 'Local'
+      },
+      ocr: {
+        display: '识别(C)',
+        local: '识别',
+        global: 'Ocr'
       }
+    },
+    pickInsertionPoint: '指定插入点',
+    dialog: {
+      title: '输入 PDF',
+      close: '关闭',
+      fileName: '文件名:',
+      browse: '浏览...',
+      pagesGroup: '要输入的页面',
+      page: '页面:',
+      total: '总计: {count}',
+      singleView: '显示页面预览',
+      gridView: '显示页面缩略图',
+      pageLabel: '第 {page} 页',
+      pageSize:
+        '页面大小: {width} × {height} 毫米（{widthIn} × {heightIn} 英寸）',
+      previewError: '无法预览',
+      positionGroup: '位置',
+      onScreen: '在屏幕上指定插入点',
+      x: 'X:',
+      y: 'Y:',
+      scale: '比例:',
+      modeGroup: '输入方式',
+      modeRecover: '复原图纸',
+      recoverHint: '重建圆、圆弧、曲线、文字、填充和块',
+      modeVisual: '保留 PDF 视觉效果',
+      visualHint: '按 PDF 中的原样输入路径和文字',
+      recognizeDimensions: '识别标注',
+      recognizeDimensionsHint: '将分解的标注还原为标注对象',
+      recognizeExplodedText: '识别打散文字',
+      recognizeExplodedTextHint:
+        '将 SHX / 轮廓笔画文字还原为文字对象（本地词典或可用的 OCR 提供方）',
+      recognizeExplodedTextOff: '关闭',
+      recognizeExplodedTextLocal: '本地字形词典',
+      recognizeExplodedTextOcr: 'OCR',
+      ok: '确定',
+      cancel: '取消'
     }
   },
   pdfdim: {
-    noDimensions: '所选范围内没有找到标注（需要箭头或斜线标记、尺寸线和数值文字）。',
-    convertAll: '找到 {count} 个标注（图纸比例 1:{scale}）。是否转换？',
-    convertOne: '标注 {index}/{count}“{text}”：是否转换？',
-    summary: '已转换 {count} 个标注；标注样式 PDF_DIM 的测量比例因子为 {scale}。'
+    cancelled: '已取消识别标注，未做任何更改。',
+    noDimensions:
+      '所选范围内没有找到标注（需要箭头或斜线标记、尺寸线和数值文字）。',
+    summary:
+      '已转换 {count} 个标注；标注样式 {style} 的测量比例因子为 {scale}。',
+    panel: {
+      title: '识别标注',
+      style: '标注样式',
+      dimStyle: '样式',
+      newStyle: '新建标注样式…',
+      newStyleName: '新标注样式的名称',
+      createStyle: '创建',
+      nameEmpty: '请输入名称。',
+      nameInvalid: '名称包含不允许的字符。',
+      nameExists: '已存在同名的标注样式。',
+      scale: '图纸比例',
+      stylePreview: '所选标注样式的预览（已套用识别到的尺寸）',
+      dimensions: '标注',
+      selectHint: '选择一个标注可缩放到该处；应用前可修改文字。',
+      empty: '所选范围内没有找到标注。',
+      include: '转换此标注',
+      kindLinear: '线性',
+      kindRadius: '半径',
+      kindDiameter: '直径',
+      kindAngular: '角度',
+      kindAligned: '对齐',
+      kindArcLength: '弧长',
+      kindOrdinate: '坐标',
+      textTip: '标注文字（替代）',
+      measured: '测量值 {value}',
+      hideStrokes: '隐藏原始线条',
+      ready: '{ready}/{count} 个标注就绪',
+      cancel: '取消',
+      apply: '应用'
+    }
+  },
+  pdfhatch: {
+    cancelled: '已取消识别填充，未做任何更改。',
+    pickPoint: '在要填充的区域内拾取一点',
+    panel: {
+      title: '识别填充',
+      hatches: '图案填充',
+      addArea: '添加区域',
+      addAreaTip:
+        '在识别遗漏的区域内拾取一点，将为其中的线条匹配最合适的图案。',
+      picking: '请在图形中拾取区域内部的一点…',
+      noBoundary: '该点周围没有找到封闭区域。',
+      noStrokes: '该区域内没有找到规则的图案。',
+      empty: '未找到图案填充。可使用“添加区域”拾取。',
+      include: '转换此图案填充',
+      addedTag: '新增',
+      entities: '{count} 个对象',
+      selectHint: '选择一个图案填充以修改其图案、比例或角度。',
+      ownGroup: '测量 / 用户定义',
+      libraryGroup: '预定义',
+      pattern: '图案',
+      scale: '比例',
+      spacing: '间距',
+      angle: '角度',
+      autoFit: '自动拟合',
+      autoFitTip: '根据线条重新测量此图案的比例、角度和原点。',
+      match: '图案落在线条上：{precision} · 线条被重绘：{recall}',
+      noEntities: '此图案不能完整重绘任何对象，不会替换任何内容。',
+      guessed: '线条中没有此图案的特征，比例和角度为估计值。',
+      poorMatch: '匹配度低：填充未能重绘的线条将被保留。',
+      userSingle: '用户定义',
+      userDouble: '用户定义（双向）',
+      measured: '测量的图案',
+      hideStrokes: '隐藏原始线条',
+      ready: '{ready}/{count} 个图案填充就绪',
+      cancel: '取消',
+      apply: '应用'
+    },
+    noHatches:
+      '所选范围内没有找到图案填充（需要规则排列的平行线段及其边界线）。',
+    summary:
+      '已转换 {count} 个图案填充（{patterns}），替换了 {strokes} 个对象。'
   },
   bsearch: {
-    unsupported: '所选对象均无法匹配（支持直线、圆弧、圆、多段线、椭圆、样条曲线、文字、多行文字和块参照）。',
+    unsupported:
+      '所选对象均无法匹配（支持直线、圆弧、圆、多段线、椭圆、样条曲线、文字、多行文字和块参照）。',
     skipped: '{count} 个所选对象无法匹配，已忽略。',
     found: '找到 {count} 个匹配实例，将转换 {included} 个。请选择',
     noMatches: '未找到其他实例。',
     reviewOne: '实例 {index}/{count}（{state}）',
     included: '已包含',
     excluded: '已排除',
-    options: '旋转 {rotation}，镜像 {mirror}，比例 {scale}，相同图层 {layer}，现有块 {blocks}，文字变化 {text}。切换',
+    options:
+      '旋转 {rotation}，镜像 {mirror}，比例 {scale}，相同图层 {layer}，现有块 {blocks}，文字变化 {text}。切换',
     on: '开',
     off: '关',
     target: '转换为',
@@ -2020,40 +2213,69 @@ export default {
       }
     }
   },
-  pdfblock: {
-    keywords: {
-      yes: {
-        display: '是(Y)',
-        local: '是',
-        global: 'Yes'
-      },
-      no: {
-        display: '否(N)',
-        local: '否',
-        global: 'No'
-      },
-      review: {
-        display: '逐个确认(R)',
-        local: '逐个确认',
-        global: 'Review'
-      },
-      all: {
-        display: '全部(A)',
-        local: '全部',
-        global: 'All'
-      },
-      exit: {
-        display: '退出(X)',
-        local: '退出',
-        global: 'eXit'
-      }
-    }
-  },
   pdftext: {
-    enterText:
-      '文字行 {index}/{count}：输入高亮部分的文字（留空跳过，Esc 结束）',
-    enterTextWithSuggestion:
-      '文字行 {index}/{count}：输入高亮部分的文字',
+    panel: {
+      title: '识别文字',
+      shxGroup: 'SHX 文字（线条字体）',
+      meshGroup: 'TrueType 文字（轮廓字体）',
+      style: '文字样式',
+      newStyle: '新建文字样式…',
+      newTag: '新建',
+      newStyleName: '新文字样式名',
+      create: '创建',
+      cancel: '取消',
+      apply: '应用',
+      nameError: {
+        empty: '请输入名称。',
+        invalid: '名称包含不允许的字符。',
+        exists: '已存在同名的文字样式。'
+      },
+      font: '字体',
+      bigFont: '大字体',
+      noBigFont: '（无）',
+      shxFonts: 'SHX 字体',
+      ttfFonts: 'TrueType 字体',
+      fontsUsed: '使用：{fonts}',
+      fontMissing: '字体“{font}”不可用，将以“{fallback}”显示。',
+      fontNotShx: '这是 TrueType 字体：文字外观不会像 SHX 线条文字。',
+      fontNotTtf: '这是 SHX 字体：文字外观不会像 TrueType 轮廓文字。',
+      styleChanges:
+        '将修改文字样式“{style}”的字体：已使用该样式的文字也会改变。',
+      heightScale: '高度比例',
+      widthFactor: '宽度因子',
+      autoWidth: '适配原宽度',
+      lines: '文字行',
+      include: '转换此行',
+      textPlaceholder: '输入文字，留空则跳过',
+      switchKind: '在 SHX 和 TrueType 文字之间切换',
+      kind: {
+        shx: 'SHX',
+        mesh: 'TrueType'
+      },
+      source: {
+        dictionary: '已学习',
+        ocr: 'OCR',
+        typed: '已编辑',
+        unread: '未识别'
+      },
+      hideStrokes: '隐藏原始线条',
+      ready: '{ready}/{count} 行就绪',
+      merge: '合并为多行文字',
+      mergeTip: '将选中的行合并为一个多行文字（MTEXT）',
+      split: '拆分',
+      splitTip: '将选中的合并文字拆分回原来的行',
+      mergeAdjacent: '合并相邻字符',
+      mergeAdjacentTip: '把同一基线上相邻的字符和词合并为多行文字',
+      mergedCount: '已合并为 {count} 个多行文字。',
+      selectHint: 'Ctrl+单击或 Shift+单击可选择多行。',
+      mtextTag: '多行文字'
+    },
+    cancelled: '已取消识别文字，未做任何更改。',
+    ocrNotConfigured:
+      '文字识别（OCR）未启用：尚未配置支持图片的 AI 模型。运行 LLMSETTINGS 进行配置。',
+    recognizing: '正在识别 {count} 行文字…',
+    ocrFailed:
+      '文字识别（OCR）失败：{message}。请手动输入文字，或运行 LLMSETTINGS 检查 AI 模型设置。',
     noCandidates: '所选对象中没有找到类似文字的笔画。',
     summary:
       '已转换 {converted} 行文字，其中 {automatic} 行自动识别；跳过 {skipped} 行。'
@@ -2062,8 +2284,14 @@ export default {
     firstPoint: '指定已知距离的第一点',
     secondPoint: '指定第二点',
     realLength: '输入实际长度（测量值 {measured}）',
-    realLengthFromDimensions: '输入实际长度（测量值 {measured}；标注文字显示比例为 1:{scale}）',
+    realLengthFromDimensions:
+      '输入实际长度（测量值 {measured}；标注文字显示比例为 1:{scale}）',
     zeroDistance: '两点重合。',
     applied: '已按比例 {factor} 缩放 {count} 个对象。'
+  },
+  txt2mtxt: {
+    needTwo: '请至少选择两个单行文字或多行文字进行合并。',
+    mergeFailed: '无法合并所选文字。',
+    eraseFailed: '无法删除全部源文字，合并已取消。'
   }
 }

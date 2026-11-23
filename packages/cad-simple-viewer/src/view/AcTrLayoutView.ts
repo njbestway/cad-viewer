@@ -10,8 +10,8 @@ import {
 } from '@mlightcad/three-renderer'
 import * as THREE from 'three'
 
-import { AcEdViewMode } from '../editor/view/AcEdBaseView'
-import { AcTrScene } from './AcTrScene'
+import { AcEdViewMode } from '../editor/view/AcEdBaseView.js'
+import { AcTrScene } from './AcTrScene.js'
 
 /**
  * Interface for database entity event arguments.
@@ -96,8 +96,10 @@ export class AcTrLayoutView extends AcTrBaseView {
         MIDDLE: THREE.MOUSE.PAN
       }
     } else if (value == AcEdViewMode.PAN) {
+      // Keep middle-button pan so it works regardless of the active mode.
       this._cameraControls.mouseButtons = {
-        LEFT: THREE.MOUSE.PAN
+        LEFT: THREE.MOUSE.PAN,
+        MIDDLE: THREE.MOUSE.PAN
       }
     }
     this._cameraControls.update()
@@ -201,6 +203,7 @@ export class AcTrLayoutView extends AcTrBaseView {
    * @param scene - The scene containing the layout data to render
    */
   render(scene: AcTrScene) {
+    this.fitDepthToScene(scene)
     this._renderer.clear()
     const needsRedraw = this._renderer.render(scene.internalScene, this._camera)
     const modelSpaceLayout = scene.modelSpaceLayout
@@ -209,6 +212,25 @@ export class AcTrLayoutView extends AcTrBaseView {
     }
     this.drawOverlay(scene)
     return needsRedraw
+  }
+
+  /**
+   * Fits every camera used by this view (main, paper-space viewports, snap
+   * loupe) to the Z extent of the layouts they draw, so elevated geometry
+   * such as contour polylines is not clipped by the near/far planes.
+   */
+  private fitDepthToScene(scene: AcTrScene) {
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (const layout of [scene.activeLayout, scene.modelSpaceLayout]) {
+      const range = layout?.depthRange
+      if (!range || range.isEmpty) continue
+      minZ = Math.min(minZ, range.min)
+      maxZ = Math.max(maxZ, range.max)
+    }
+    this.fitDepthRange(minZ, maxZ)
+    this._viewportViews.forEach(view => view.fitDepthRange(minZ, maxZ))
+    this._overlayViewport.fitDepthRange(minZ, maxZ)
   }
 
   /**

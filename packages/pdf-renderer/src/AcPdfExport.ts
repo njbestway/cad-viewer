@@ -8,23 +8,23 @@ import {
 } from '@mlightcad/data-model'
 import { PDFDocument, PDFImage } from 'pdf-lib'
 
-import type { AcPdfExportOptions } from './AcPdfExportOptions'
-import { createPdfFormRegistry } from './pdf/AcPdfContentWriter'
-import { AcPdfFontManager } from './pdf/AcPdfFontManager'
-import { AcPdfOcgManager } from './pdf/AcPdfOcgManager'
-import { AcPdfEntity } from './renderer/AcPdfEntity'
-import { AcPdfRenderer } from './renderer/AcPdfRenderer'
+import type { AcPdfExportOptions } from './AcPdfExportOptions.js'
+import { createPdfFormRegistry } from './pdf/AcPdfContentWriter.js'
+import { AcPdfFontManager } from './pdf/AcPdfFontManager.js'
+import { AcPdfOcgManager } from './pdf/AcPdfOcgManager.js'
+import { AcPdfEntity } from './renderer/AcPdfEntity.js'
+import { AcPdfRenderer } from './renderer/AcPdfRenderer.js'
 import {
   acPdfApplyLayerVisibility,
-  acPdfCollectDatabaseLayerVisibility,
-  acPdfIsLayerClosed
-} from './viewport/AcPdfLayerVisibility'
+  acPdfCollectDatabaseLayerVisibility
+} from './viewport/AcPdfLayerVisibility.js'
 import {
   buildViewportModelContent,
   collectBlockRoots,
   collectModelSpaceRoots,
   isPaperSpaceBlock
-} from './viewport/AcPdfPaperSpaceExport'
+} from './viewport/AcPdfPaperSpaceExport.js'
+import { isDefaultPaperSpaceViewport } from './viewport/AcPdfPaperViewport.js'
 
 /**
  * Renders a drawing database to a vector PDF.
@@ -38,7 +38,7 @@ export async function exportDatabaseToPdf(
 ): Promise<Uint8Array> {
   const layouts =
     options.layouts === 'all' && !options.blockName && !options.blockId
-      ? collectExportLayouts(db)
+      ? collectExportLayouts(db, options.exportEmptyLayouts === true)
       : undefined
 
   AcPdfRenderer.prepareExport()
@@ -54,8 +54,23 @@ export async function exportDatabaseToPdf(
       )
     }
     const roots = await collectLayoutRoots(db, renderer, block, {})
-    const bytes = await renderer.exportAsync(roots)
-    return bytes
+    const layerVisibility = acPdfCollectDatabaseLayerVisibility(db)
+    const doc = await PDFDocument.create()
+    doc.setProducer('MLightCAD pdf-renderer')
+    doc.setCreator('MLightCAD')
+    if (options.title) {
+      doc.setTitle(options.title)
+    }
+    const ocg = new AcPdfOcgManager(doc, {
+      initiallyOffLayers: layerVisibility.frozenLayers
+    })
+    await renderer.renderToDocument(doc, roots, {
+      ocg,
+      revealFrozenLayersForOcg: layerVisibility.frozenLayers,
+      fitBox: options.fitBox
+    })
+    await renderer.textFontManager?.finalize()
+    return doc.save({ useObjectStreams: true })
   } finally {
     AcDbRenderingCache.instance.clear()
   }
@@ -70,8 +85,15 @@ interface ExportLayoutEntry {
 /**
  * Lists layouts ordered by tab, or `null` when the database does not expose a
  * layout table (single-layout export then runs as before).
+ *
+ * When `exportEmptyLayouts` is `false`, empty paper-space tabs are omitted.
+ * Model space is always kept. After filtering, a single remaining layout is
+ * still returned so an empty current paper tab cannot replace model space.
  */
-function collectExportLayouts(db: AcDbDatabase): ExportLayoutEntry[] | null {
+function collectExportLayouts(
+  db: AcDbDatabase,
+  exportEmptyLayouts: boolean
+): ExportLayoutEntry[] | null {
   const layoutTable = (
     db as {
       objects?: {
@@ -98,9 +120,60 @@ function collectExportLayouts(db: AcDbDatabase): ExportLayoutEntry[] | null {
       continue
     }
     seen.add(layout.blockTableRecordId)
+    if (
+      !exportEmptyLayouts &&
+      isEmptyPaperSpaceLayout(db, layout.blockTableRecordId)
+    ) {
+      continue
+    }
     unique.push(layout)
   }
-  return unique.length > 1 ? unique : null
+  // Some drawings omit the Model row from the layout table. After empty
+  // paper tabs are filtered out the list can be empty — or contain only
+  // paper — and falling back to `currentSpaceId` would paint a blank tab
+  // instead of model space. Always keep model when exporting all layouts.
+  const modelSpaceId = db.tables.blockTable.modelSpace.objectId
+  if (!unique.some(layout => layout.blockTableRecordId === modelSpaceId)) {
+    const modelLayout = layouts.find(
+      layout => layout.blockTableRecordId === modelSpaceId
+    )
+    unique.unshift(
+      modelLayout ?? {
+        layoutName: 'Model',
+        blockTableRecordId: modelSpaceId,
+        tabOrder: -1
+      }
+    )
+  }
+  return unique.length > 0 ? unique : null
+}
+
+/**
+ * True when a paper-space block has no content other than AutoCAD's default
+ * `*Paper_Space` viewport. Model space is never treated as empty here.
+ */
+function isEmptyPaperSpaceLayout(
+  db: AcDbDatabase,
+  blockTableRecordId: string
+): boolean {
+  const modelSpaceId = db.tables.blockTable.modelSpace.objectId
+  if (blockTableRecordId === modelSpaceId) {
+    return false
+  }
+  const block = db.tables.blockTable.getIdAt(blockTableRecordId)
+  if (!block?.newIterator) {
+    return true
+  }
+  for (const entity of block.newIterator()) {
+    if (entity instanceof AcDbViewport) {
+      if (isDefaultPaperSpaceViewport(entity)) {
+        continue
+      }
+      return false
+    }
+    return false
+  }
+  return true
 }
 
 function createConfiguredRenderer(
@@ -218,10 +291,13 @@ async function collectLayoutRoots(
   if (viewportEntities.length > 0) {
     const modelRoots = await getModelRoots(db, renderer, modelCache)
     for (const viewport of viewportEntities) {
-      // AutoCAD: Off/Frozen viewport layer hides border and model content.
-      if (acPdfIsLayerClosed(viewport.layer, layerVisibility)) {
-        continue
-      }
+      // AutoCAD puts viewport borders on a frozen / off layer to hide the
+      // frame while still showing and plotting model content through it
+      // (see Autodesk “Prevent viewport borders from being displayed or
+      // plotted”). Never skip the viewport content for a closed layer —
+      // only the border respects Off/Frozen via applyLayerVisibility below.
+      // Matches the interactive viewer (`ensureViewportViews`) and HTML
+      // export, which also attach viewports regardless of layer freeze.
       const built = buildViewportModelContent(
         viewport,
         () => modelRoots,
@@ -263,7 +339,10 @@ async function exportLayoutsToPdf(
   if (options.title) {
     doc.setTitle(options.title)
   }
-  const ocg = new AcPdfOcgManager(doc)
+  const layerVisibility = acPdfCollectDatabaseLayerVisibility(db)
+  const ocg = new AcPdfOcgManager(doc, {
+    initiallyOffLayers: layerVisibility.frozenLayers
+  })
   const imageCache = new Map<Uint8Array, PDFImage>()
   // One document-scoped Form XObject registry: identical glyph/geometry
   // forms are embedded once per document instead of once per page.
@@ -287,6 +366,7 @@ async function exportLayoutsToPdf(
       ocg,
       imageCache,
       formRegistry,
+      revealFrozenLayersForOcg: layerVisibility.frozenLayers,
       // Model-space “Display” framing must not clip paper-space pages.
       fitBox: isModel ? options.fitBox : undefined
     })

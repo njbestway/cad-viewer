@@ -6,36 +6,39 @@ title: Převod výkresů PDF
 
 Výkres v PDF uchovává jen to, co bylo vytištěno: křivky jsou Bézierovy cesty, text je často složený z tahů a kóty i bloky se rozpadly na samostatné čáry. Panel **PDF** na kartě **AI** pásu karet takový výkres převede zpět na upravitelné objekty CAD. Jednoznačné případy se převedou automaticky při importu; u ostatních vyberete vzor nebo potvrdíte, co bylo nalezeno.
 
-| Tlačítko | Příkaz | Co dělá |
-|---|---|---|
-| Import PDF | `ipdf` | Importuje stránku PDF a obnoví křivky, bloky, tloušťky a typy čar |
-| Kalibrovat měřítko | `pdfscale` | Změní měřítko importu na skutečnou velikost podle jedné známé vzdálenosti |
-| Obnovit text | `pdftext` | Převede rozložené tahy textu zpět na text |
-| Vytvořit blok | `pdfblock` | Převede opakovanou geometrii zpět na blok |
-| Obnovit kóty | `pdfdim` | Převede rozložené kóty zpět na kótovací objekty |
+| Tlačítko           | Příkaz                     | Co dělá                                                                   |
+| ------------------ | -------------------------- | ------------------------------------------------------------------------- |
+| Import PDF         | `pdfimport` / `-pdfimport` | Importuje stránku PDF a obnoví křivky, bloky, tloušťky a typy čar         |
+| Kalibrovat měřítko | `pdfscale`                 | Změní měřítko importu na skutečnou velikost podle jedné známé vzdálenosti |
+| Obnovit text       | `pdftext`                  | Převede rozložené tahy textu zpět na text                                 |
+| Obnovit kóty       | `pdfdim`                   | Převede rozložené kóty zpět na kótovací objekty                           |
+| Obnovit šrafy      | `pdfhatch`                 | Převede šrafu rozloženou na krátké čáry zpět na šrafu se vzorem           |
 
-Příkazy vyžadují režim **Zápis**. Doporučené pořadí: `ipdf` → `pdfscale` → `pdftext` → `pdfblock` → `pdfdim`.
+Příkazy vyžadují režim **Zápis**. Doporučené pořadí: `pdfimport` → `pdfscale` → `pdftext` → `pdfdim` → `pdfhatch`.
 
-## Import (`ipdf`)
+## Import (`pdfimport`)
 
-1. Vyberte soubor PDF.
-2. U vícestránkového souboru zadejte číslo stránky.
-3. Určete bod vložení, nebo stiskněte Enter pro počátek. Možnosti:
-   - **Měřítko**: jednotné měřítko použité při importu.
-   - **Režim**: způsob importu.
-     - **Obnovit** (výchozí): pokusí se obnovit původní výkres, viz níže.
-     - **Vzhled**: zachová PDF přesně tak, jak vypadá. Každá cesta se stane úsečkou nebo křivkou (oblouky se rozloží) a každý textový úsek samostatným textem; nic se neslučuje, neodstraňují se duplicity ani nevznikají bloky. Použijte, když obnova změní vzhled stránky.
+1. Vyberte soubor PDF. Otevře se dialog **Importovat PDF**.
+2. V části **Stránka k importu** zvolte stránku (jen u vícestránkových souborů). Náhled zobrazí stránku; tlačítko miniatur vedle něj vypíše všechny stránky. **Procházet...** vybere jiný soubor.
+3. V části **Umístění** zadejte souřadnice X/Y bodu vložení (výchozí je počátek), nebo zaškrtněte **Zadat bod vložení na obrazovce** a určete ho ve výkresu po stisku OK. **Měřítko** je jednotné měřítko použité při importu.
+4. V části **Režim importu** zvolte způsob importu:
+   - **Obnovit výkres** (výchozí): pokusí se obnovit původní výkres, viz níže.
+   - **Zachovat vzhled PDF**: zachová PDF přesně tak, jak vypadá. Každá cesta se stane úsečkou nebo křivkou (oblouky se rozloží) a každý textový úsek samostatným textem; nic se neslučuje, neodstraňují se duplicity ani nevznikají bloky. Použijte, když obnova změní vzhled stránky.
+5. Klikněte na **OK**. Umístění, měřítko a režim se zapamatují pro příští `pdfimport`.
 
-V režimu **Obnovit** se automaticky obnoví:
+`-pdfimport` importuje bez dialogu: po výběru souboru se na příkazovém řádku zeptá na stránku (jen u vícestránkových souborů) a poté na bod vložení s možnostmi **Měřítko**, **Režim** a (v režimu Obnovit) **Text**. Enter přijme počátek.
+
+V režimu **Obnovit výkres** se automaticky obnoví:
 
 - **Křivky**: Bézierovy kružnice, oblouky a elipsy se stanou kružnicemi, oblouky a elipsami. Obrysy kombinující úsečky a oblouky se stanou křivkami s obloukovými segmenty. Oblouky, které tvůrce PDF už rozdělil na krátké úsečky, se znovu proloží. Volné křivky se stanou spliny.
-- **Bloky**: obsah nakreslený několikrát ze stejného formuláře PDF se stane jedním blokem (`PDF_FORM_n`) s referencí pro každou kopii, včetně otočených a zrcadlených.
+- **Bloky**: obsah nakreslený několikrát ze stejného formuláře PDF se stane jedním blokem (`PDF_FORM_n`) s referencí pro každou kopii, včetně otočených a zrcadlených. Symboly nakreslené přímo na stránce (ne jako formuláře) zůstanou jako volná geometrie; později je převeďte na bloky pomocí Chytrých bloků **Vyhledat a převést** (`BSEARCH`) — vypněte **Stejná hladina**, protože import PDF přiřazuje hladiny podle barvy.
 - **Styly**: šířky tahů se stanou tloušťkami čar, přerušované čáry dostanou typ čáry `PDF_DASH_*` a text dostane textový styl `PDF_<písmo>`. Rozdělené úseky textu na jednom řádku se spojí.
+- **Rozložený text**: SHX / obrysový text ze tahů, který dokáže přečíst slovník znaků (a volitelně OCR registrované v `AcApTextRecognitionService`), se stane textovými objekty. V dialogu zvolte **Vypnuto**, **Místní slovník znaků** nebo **Služba OCR**; nepřečtené tahy zůstanou pro `pdftext`. Rozpoznávání vždy seskupí tahy do řádků a u OCR každý řádek znovu vyrastrovat při pevné výšce textu — celá stránka se nikdy neposílá jako jeden obrázek.
 - **Úklid**: přesně duplicitní obrysy se odstraní.
 
 Vyplněné oblasti (barevné plochy, vyplněná loga a obrysy textu) se importují jako plné šrafy v barvě výplně, ve stejném pořadí vykreslení jako na stránce. Integrace mohou nastavit volbu `fillHatches` na `false` a importovat je jen jako obrysy.
 
-Vzorové šrafy (ANSI31, cihly, křížové šrafování apod.) jsou v PDF uloženy jako tisíce krátkých úseček. V režimu **Obnovit** se znovu sestaví jako objekty šraf: úsečky se porovnají se standardními vzory `acadiso.pat`, případně s uživatelským jednoduchým nebo křížovým vzorem, včetně měřítka, úhlu a počátku, se kterými byly nakresleny. Hranice se vezme z nakresleného uzavřeného obrysu, z ořezové cesty PDF nebo z konců úseček. Šrafa se ponechá jen tehdy, když její vykreslení odpovídá úsečkám na stránce; vše ostatní zůstane jako úsečky. Integrace mohou nastavit `recognizeHatches` na `false` a ponechat všechny úsečky.
+Vzorové šrafy (ANSI31, cihly, křížové šrafování apod.) jsou v PDF uloženy jako tisíce krátkých úseček. V režimu **Obnovit výkres** se znovu sestaví jako objekty šraf: úsečky se porovnají se standardními vzory `acadiso.pat`, případně s uživatelským jednoduchým nebo křížovým vzorem, včetně měřítka, úhlu a počátku, se kterými byly nakresleny. Hranice se vezme z nakresleného uzavřeného obrysu, z ořezové cesty PDF nebo z konců úseček. Šrafa se ponechá jen tehdy, když její vykreslení odpovídá úsečkám na stránce; vše ostatní zůstane jako úsečky. Integrace mohou nastavit `recognizeHatches` na `false` a ponechat všechny úsečky.
 
 V obou režimech se text roztáhne nebo zúží na šířku, kterou měl v PDF, protože prohlížeč ho obvykle kreslí jiným písmem. Obrázky (fotografie, loga, QR kódy) se importují jako rastrové obrázky s názvem `PDF_IMAGE_n.png`; jejich pixely zůstávají jen v otevřeném výkresu, protože DWG a DXF odkazují na obrázky jako na samostatné soubory. Černé obrázky na průhledném pozadí, například QR kódy, se umístí na bílý podklad jako na stránce PDF.
 
@@ -51,30 +54,49 @@ Pokud výběr obsahuje rozložené kóty, skutečná délka se předvyplní podl
 
 ## Obnovení textu (`pdftext`)
 
-1. Vyberte oblast s textem. Rámečky a jiné velké čáry se ignorují.
-2. Tahy se seskupí do řádků a každý řádek se postupně zvýrazní. Napište jeho text a potvrďte; prázdný vstup řádek přeskočí, Esc příkaz ukončí.
-3. Tvar každého potvrzeného znaku se zapamatuje. Řádky složené jen ze známých tvarů se převedou bez ptaní, takže čím víc toho napíšete, tím méně musíte psát.
+1. Vyberte oblast s textem. Rámečky a další velké čáry se ignorují.
+2. Tahy se seskupí do řádků a u každého řádku se rozpozná, zda jde o text **SHX** (otevřené čárové tahy), nebo text **TrueType** (uzavřené obrysy). Řádky složené jen z tvarů znaků, které jste dříve zadali, se přečtou hned.
+3. Pokud je nastaven model AI s podporou obrázků (`LLMSETTINGS`), všechny ostatní řádky se mu odešlou najednou v několika požadavcích. Pokud rozpoznání selže, zpráva uvede důvod (například neplatný klíč API).
+4. V paletě se otevře panel **Obnovit text** a výsledek se zobrazí jako náhled ve výkresu. Během otevřeného panelu můžete posouvat a zvětšovat.
+   - Pro text SHX a text TrueType zvlášť vyberte existující **styl textu** nebo vytvořte nový a zkontrolujte **písmo** a **velké písmo**, které používá. Pokud neodpovídají originálu, nahraďte je; varování upozorní, když písmo chybí a čím se místo něj kreslí, nebo když změna písem existujícího stylu změní i texty, které jej již používají. Ve výchozím nastavení text SHX používá styl `PDF_SHX` (`txt` + `gbcbig`), takže si zachová vzhled i velikost textu SHX.
+   - Upravte **měřítko výšky** a **faktor šířky** přizpůsobte původní šířce, nebo jej nastavte ručně.
+   - Seznam zobrazuje každý řádek s textem a jeho původem (naučeno, OCR, upraveno, nerozpoznáno); nerozpoznané řádky jsou první. Kliknutím na řádek jej zobrazíte ve výkresu, opravte nebo zadejte jeho text a klávesou Enter přejděte na další nerozpoznaný řádek; zadání jednoho řádku vyplní i další řádky se stejnými znaky. Zrušením zaškrtnutí řádek přeskočíte; chybně rozpoznaný řádek lze přepnout mezi SHX a TrueType.
+   - Znaky, které mají tvořit jeden text, ale byly rozpoznány jako samostatné řádky, lze sloučit do jednoho víceřádkového textu (MTEXT): vyberte řádky klepnutím s klávesou Ctrl nebo Shift a klepněte na **Sloučit do víceřádkového textu**, nebo klepněte na **Sloučit sousední** a sloučí se vše, co stojí vedle sebe na jednom účaří. Řádky na různých účařích se stanou samostatnými řádky víceřádkového textu s původním řádkováním. **Rozdělit** vrátí sloučený text zpět na řádky.
+   - **Skrýt původní čáry** zobrazí jen náhled.
+5. Klepnutím na **Použít** text převedete. **Zrušit** nebo zavření palety nic nezmění.
 
-Zapamatované tvary se ukládají v prohlížeči, takže pomohou i u dalších výkresů se stejným písmem. Je-li pro CAD Agent nastaven model AI s podporou obrázků, každý řádek přijde s navrženým textem.
-
-## Vytvoření bloku (`pdfblock`)
-
-1. Vyberte objekty **jedné** kopie opakovaného symbolu.
-2. Určete základní bod bloku. Volba **Měřítko** najde i kopie jiné velikosti.
-3. Potvrďte název bloku.
-4. Všechny ostatní kopie, včetně otočených a zrcadlených, se zvýrazní. Zvolte **Ano** pro nahrazení všech, **Ne**, aby se blokem stal jen váš výběr, nebo **Revize** pro rozhodování kopii po kopii.
+Každý napsaný tvar znaku se zapamatuje v prohlížeči, takže pomůže i u dalších výkresů se stejným písmem. Text přečtený modelem AI se nezapamatuje. Celý příkaz lze vrátit jedním krokem a převedené texty lze upravovat jako jakýkoli jiný text.
 
 ## Obnovení kót (`pdfdim`)
 
-1. Vyberte oblast s kótami.
+1. Vyberte oblast s kótami. Text hodnoty může být TEXT, nebo stále rozložené tahy (před `pdftext`): číslice a CAD symboly se čtou vestavěnou šablonou lokálně, bez LLM. Pokud tahy nelze přečíst, lineární kóty použijí naměřenou délku.
 2. Rozpoznají se:
-   - **Lineární kóty**: v libovolném úhlu, se šipkami uvnitř i vně, s architektonickými značkami i řetězové kóty.
+   - **Lineární kóty**: v libovolném úhlu, se šipkami uvnitř i vně, s architektonickými značkami i řetězové kóty. Obnoví se i kóty označené místo hodnoty symbolem (`a`, `e mini`): textový popisek se stane textem kóty, popisek nakreslený čarami zůstane tak, jak je.
    - **Kóty poloměru a průměru**: šipka dotýkající se kružnice s textem `R…` nebo `Ø…`.
    - **Úhlové kóty**: oblouk se šipkou na každém konci.
-3. Zvolte **Ano**, **Ne** nebo **Revize**, stejně jako u bloků.
+3. Panel **Obnovit kóty** se otevře v paletě a místo tahů ukáže náhled kót. Během otevření můžete posouvat a zoomovat.
+   - Upravte každou hodnotu, zrušte zaškrtnutí pro přeskočení kóty a vyberte nebo vytvořte styl kót (náhled ukáže obnovené velikosti s vzhledem zvoleného stylu).
+   - **Skrýt původní tahy** (ve výchozím stavu zapnuto) zobrazí výsledek bez nahrazovaných tahů.
+4. Klepnutím na **Použít** provedete převod. **Zrušit** nebo zavření palety nic nezmění.
 
-Kóty používají styl `PDF_DIM`, jehož výška textu a velikost šipek odpovídají PDF. Jeho lineární měřítko se rovná měřítku výkresu přečtenému z textů, takže výkres 1:100 stále ukazuje skutečné hodnoty. Texty, které se od měření liší nebo obsahují další symboly, zůstanou tak, jak byly napsány.
+Kóty používají styl `PDF_DIM` (nebo vámi vytvořený název) s papírovými velikostmi podle PDF; přepsání na entitě tato velikost uchová i při velkém DIMSCALE jiného stylu. Lineární měřítko se rovná měřítku výkresu přečtenému z textů, takže výkres 1:100 stále ukazuje skutečné hodnoty. Texty, které se od měření liší nebo obsahují další symboly, zůstanou tak, jak byly napsány.
 
 ::: tip
 Chcete-li geometrii ve skutečné velikosti, spusťte nejprve `pdfscale`. `pdfdim` pak zjistí měřítko 1:1.
 :::
+
+## Obnovení šraf (`pdfhatch`)
+
+PDF uchovává vzorovou šrafu jen jako mnoho krátkých čar, již oříznutých hranicí.
+
+1. Vyberte šrafovanou oblast i s čarami kolem ní. Stačí křížové okno přes oblast.
+2. Pravidelné čáry se nejprve porovnají se vzory `acadiso.pat` (ANSI31, ANSI36, AR-B816, ...), potom s uživatelskými jednoduchými nebo křížovými čarami. Když nic nesedí, změří se rozteč, posun a čárkování a šrafa dostane vlastní vzor `PDF_HATCH`.
+3. Hranice se vezme z uzavřených obrysů ve výběru nebo z oblasti, kterou uzavírají vybrané úsečky, oblouky a křivky, i když se kříží nebo přesahují. Ostrovy zůstanou otvory.
+4. V paletě se otevře panel **Obnovit šrafy** a šrafy se zobrazí v náhledu místo svých čar. Během otevřeného panelu můžete posouvat a zvětšovat.
+   - Seznam ukazuje u každé šrafy vzor, měřítko a úhel, míru shody a počet objektů, které nahradí. Šrafy, které své čáry dobře nepřekreslí, jsou označeny. Kliknutím na šrafu ji zobrazíte ve výkresu; zrušením zaškrtnutí ji vynecháte.
+   - Zvolíte-li jiný **vzor** (z `acadiso.pat` nebo uživatelské jednoduché či dvojité čáry), jeho měřítko a úhel se znovu změří z čar. **Měřítko** (nebo **rozteč**) a **úhel** můžete zadat i sami; **Automaticky přizpůsobit** je změří znovu.
+   - **Přidat oblast** určí bod uvnitř oblasti, kterou rozpoznání vynechalo: na čáry v uzavřené oblasti kolem bodu se použije nejlépe odpovídající vzor.
+   - **Skrýt původní čáry** (ve výchozím stavu zapnuto) ukáže výsledek bez čar, které nahradí.
+5. Klikněte na **Použít** pro převod. **Zrušit** nebo zavření palety nic nezmění.
+
+Šrafa se najde jen tehdy, když její nové vykreslení zopakuje původní čáry, a i po změně vzoru se smažou jen objekty, které šrafa vykreslí celé. Měřítko a úhel vzoru jsou v jednotkách výkresu, takže šrafa importovaná v měřítku 1 má malé měřítko; pro skutečné hodnoty nejprve spusťte `pdfscale`.

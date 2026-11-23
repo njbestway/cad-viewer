@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
-import { AcTrBatchDrawVisibilityStrategy } from './AcTrBatchDrawVisibilityStrategy'
-import type { AcTrBatchDrawVisibilityInfo } from './AcTrBatchDrawVisibilityTypes'
+import { AcTrBatchDrawVisibilityStrategy } from './AcTrBatchDrawVisibilityStrategy.js'
+import type { AcTrBatchDrawVisibilityInfo } from './AcTrBatchDrawVisibilityTypes.js'
 
 /**
  * Draw-visibility strategy for indexed line and mesh batches.
@@ -31,7 +31,7 @@ export class AcTrIndexedBatchDrawVisibilityStrategy extends AcTrBatchDrawVisibil
     for (let i = indexStart; i < indexStart + indexCount; i++) {
       array[i] = vertexStart
     }
-    indexAttr.needsUpdate = true
+    this.markChanged(indexAttr, indexStart, indexCount)
     return true
   }
 
@@ -48,7 +48,7 @@ export class AcTrIndexedBatchDrawVisibilityStrategy extends AcTrBatchDrawVisibil
     }
 
     indexAttr.array.set(snapshot, info.indexStart)
-    indexAttr.needsUpdate = true
+    this.markChanged(indexAttr, info.indexStart, snapshot.length)
     delete info.hiddenDrawSnapshot
     return true
   }

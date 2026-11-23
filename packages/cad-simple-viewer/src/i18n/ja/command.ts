@@ -92,6 +92,30 @@ export default {
       description: '選択したオブジェクトを新しい位置に複写します',
       prompt: 'オブジェクトを選択'
     },
+    copybase: {
+      description:
+        '指定した基点とともに選択したオブジェクトをクリップボードにコピー',
+      prompt: 'オブジェクトを選択'
+    },
+    copyclip: {
+      description: '選択したオブジェクトをクリップボードにコピー',
+      prompt: 'オブジェクトを選択'
+    },
+    cutclip: {
+      description:
+        '選択したオブジェクトをクリップボードにコピーし、図面から削除',
+      prompt: 'オブジェクトを選択'
+    },
+    pasteblock: {
+      description: 'クリップボードのオブジェクトをブロックとして貼り付け'
+    },
+    pasteclip: {
+      description: 'クリップボードのオブジェクトを現在の図面に貼り付け'
+    },
+    pasteorig: {
+      description:
+        '元の図面の座標を使用してクリップボードのオブジェクトを貼り付け'
+    },
     csvg: {
       description: '現在の図面を SVG に変換します'
     },
@@ -136,6 +160,12 @@ export default {
     dwgname: {
       description: '現在の図面ファイルの名前を保存します (読み込み専用)'
     },
+    find: {
+      description: '文字検索のドッキング パネルを開きます'
+    },
+    layer: {
+      description: '画層マネージャのドッキング パネルを開くか閉じます'
+    },
     loginname: {
       description: 'ユーザのログイン名を表示します (読み込み専用)'
     },
@@ -152,6 +182,10 @@ export default {
     erase: {
       description: '選択したオブジェクトを図面から削除します',
       prompt: 'オブジェクトを選択'
+    },
+    explode: {
+      description: '複合オブジェクトを構成要素のオブジェクトに分解します',
+      prompt: '分解するオブジェクトを選択'
     },
     group: {
       description:
@@ -225,9 +259,10 @@ export default {
       description: 'PDF で分解された寸法を寸法オブジェクトに戻します',
       prompt: '寸法を含む範囲を選択'
     },
-    pdfblock: {
-      description: 'PDF の繰り返し図形をブロックに戻します',
-      prompt: 'ブロック 1 個分のオブジェクトを選択'
+    pdfhatch: {
+      description:
+        'PDF で線分に分解されたハッチングをハッチング オブジェクトに戻します',
+      prompt: 'ハッチング領域とその周囲の境界線を選択'
     },
     pdftext: {
       description:
@@ -238,8 +273,13 @@ export default {
       description: '既知の距離から読み込んだ PDF 図形の尺度を校正します',
       prompt: '尺度変更するオブジェクトを選択'
     },
-    ipdf: {
-      description: 'PDF ファイルからベクトル ジオメトリを読み込みます'
+    pdfimport: {
+      description:
+        '［PDF 読み込み］ダイアログで PDF ファイルからベクトル ジオメトリを読み込みます'
+    },
+    '-pdfimport': {
+      description:
+        'コマンド ライン オプションで PDF ファイルからベクトル ジオメトリを読み込みます'
     },
     hpang: {
       description:
@@ -425,6 +465,11 @@ export default {
     mtext: {
       description: 'マルチ テキスト オブジェクトを作成します'
     },
+    txt2mtxt: {
+      description:
+        '選択した文字およびマルチ テキストを 1 つのマルチ テキストに結合します',
+      prompt: '文字またはマルチ テキストを選択'
+    },
     open: {
       description: '既存の図面ファイルを開きます'
     },
@@ -546,6 +591,11 @@ export default {
     },
     rotate: {
       description: '選択したオブジェクトを基点を中心に回転します',
+      prompt: 'オブジェクトを選択'
+    },
+    scale: {
+      description:
+        '選択したオブジェクトを縦横比を保ったまま拡大または縮小します',
       prompt: 'オブジェクトを選択'
     },
     select: {

@@ -5,7 +5,7 @@ import type {
 } from '@mlightcad/cad-pdf-core'
 import type { AcGiFontMapping } from '@mlightcad/data-model'
 
-import type { AcExDwgParser } from './registerDwg'
+import type { AcExDwgParser } from './registerDwg.js'
 
 /**
  * Options shared by {@link convertDatabaseToPdf} and {@link exportFileToPdf}.
@@ -22,6 +22,12 @@ export interface AcPdfExporterOptions extends Omit<
    * page. When `false`, only the drawing's current space is exported.
    */
   exportLayouts?: boolean
+  /**
+   * When `true`, empty paper-space layouts are still exported as blank pages.
+   * When `false` (default), those layouts are skipped. Model space is always
+   * kept when {@link AcPdfExporterOptions.exportLayouts} is `true`.
+   */
+  exportEmptyLayouts?: boolean
   /**
    * How MTEXT/TEXT are painted. `'text'` (default) embeds fonts from the
    * font library as real PDF text; `'vector'` tessellates glyph outlines.

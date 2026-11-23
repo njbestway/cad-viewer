@@ -1,8 +1,8 @@
 import type { AcGiFontMapping } from '@mlightcad/data-model'
 
-import type { AcPdfTextFontResolver } from './pdf/AcPdfFontManager'
-import type { AcPdfColorMode } from './renderer/AcPdfStyle'
-import type { AcPdfGlyphProvider } from './text/AcPdfGlyphProvider'
+import type { AcPdfTextFontResolver } from './pdf/AcPdfFontManager.js'
+import type { AcPdfColorMode } from './renderer/AcPdfStyle.js'
+import type { AcPdfGlyphProvider } from './text/AcPdfGlyphProvider.js'
 
 /**
  * Options for {@link exportDatabaseToPdf}.
@@ -74,6 +74,13 @@ export interface AcPdfExportOptions {
    * own PDF page. Defaults to the current space only.
    */
   layouts?: 'current' | 'all'
+  /**
+   * When `true`, empty paper-space layouts are still exported as blank
+   * pages. When `false` (default), paper tabs with no content other than
+   * the default `*Paper_Space` viewport are skipped. Model space is always
+   * kept when {@link AcPdfExportOptions.layouts} is `'all'`.
+   */
+  exportEmptyLayouts?: boolean
   /**
    * Optional glyph engine for MTEXT / SHAPE. When omitted, text entities
    * produce no visible geometry (ActualText may still be reserved later).

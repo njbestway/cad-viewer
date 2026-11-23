@@ -9,8 +9,8 @@ import {
 import {
   type AcExPdfExportOptions,
   acexPdfResolveExportOptions
-} from './AcExPdfExportOptions'
-import { acexPdfCreateGlyphProvider } from './AcExPdfGlyphProvider'
+} from './AcExPdfExportOptions.js'
+import { acexPdfCreateGlyphProvider } from './AcExPdfGlyphProvider.js'
 
 /** Axis-aligned WCS box used to frame a model-space page. */
 export interface AcExPdfFitBox {
@@ -70,6 +70,7 @@ export function acexPdfBuildRendererOptions(
     background: 'none',
     fit: resolved.modelSpaceFit === 'display' ? 'current' : 'extents',
     layouts: resolved.exportLayouts ? 'all' : 'current',
+    exportEmptyLayouts: resolved.exportEmptyLayouts,
     glyphProvider: options.glyphProvider ?? acexPdfCreateGlyphProvider(),
     textMode: resolved.textMode,
     colorMode: resolved.colorMode

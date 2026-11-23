@@ -1,0 +1,124 @@
+import { AcApI18n, type AcApLocale } from '@mlightcad/cad-simple-viewer'
+
+import { llmAr } from './ar.js'
+import { llmChrome } from './chrome.js'
+import { llmCommandDescriptions } from './command.js'
+import { llmCs } from './cs.js'
+import { llmEn } from './en.js'
+import { llmJa } from './ja.js'
+import { llmKo } from './ko.js'
+import { llmTr } from './tr.js'
+import { llmZh } from './zh.js'
+
+/** i18n key prefix of every AI model settings string. */
+export const LLM_I18N_PREFIX = 'main.llm'
+
+/** Union of keys in {@link llmEn}. */
+export type AcApLlmLabelKey = keyof typeof llmEn
+
+/** Map of every label key to its translated string. */
+export type AcApLlmLabels = Record<AcApLlmLabelKey, string>
+
+const llmMessagesByLocale = {
+  en: llmEn,
+  zh: llmZh,
+  ja: llmJa,
+  ko: llmKo,
+  tr: llmTr,
+  cs: llmCs,
+  ar: llmAr
+} as const satisfies Record<AcApLocale, AcApLlmLabels>
+
+const LOCALES = Object.keys(llmMessagesByLocale) as AcApLocale[]
+
+/** Guards {@link registerLlmI18n} against duplicate merges. */
+let isRegistered = false
+
+/**
+ * Builds the nested message object for one locale.
+ *
+ * @param locale - Target locale.
+ * @returns Messages shaped for `mergeLocaleMessage`.
+ */
+function buildMessages(locale: AcApLocale) {
+  const chrome = llmChrome[locale]
+  return {
+    command: {
+      ACAD: {
+        llmsettings: {
+          description: llmCommandDescriptions[locale].llmsettings
+        }
+      }
+    },
+    main: {
+      llm: llmMessagesByLocale[locale],
+      ribbon: {
+        group: { aiModel: chrome.group },
+        command: { llmSettings: chrome.command },
+        tooltip: { llmSettings: chrome.tooltip }
+      }
+    }
+  }
+}
+
+/**
+ * Locale trees for {@link AcApUiRegistry}, including the settings dialog and
+ * the ribbon group.
+ */
+export function llmLocaleMessages(): Partial<
+  Record<AcApLocale, ReturnType<typeof buildMessages>>
+> {
+  const messages: Partial<
+    Record<AcApLocale, ReturnType<typeof buildMessages>>
+  > = {}
+  for (const locale of LOCALES) {
+    messages[locale] = buildMessages(locale)
+  }
+  return messages
+}
+
+/**
+ * Registers the AI model settings strings into {@link AcApI18n}.
+ * Safe to call multiple times; subsequent calls are no-ops.
+ */
+export function registerLlmI18n(): void {
+  if (isRegistered) return
+  for (const locale of LOCALES) {
+    AcApI18n.mergeLocaleMessage(locale, buildMessages(locale))
+  }
+  isRegistered = true
+}
+
+/**
+ * Merges the AI model settings strings into a vue-i18n instance, so Vue UIs
+ * (for example the agent panel's model picker) can use them too.
+ *
+ * @param mergeLocaleMessage - Host app's `mergeLocaleMessage` callback.
+ */
+export function mergeLlmI18nIntoVueI18n(
+  mergeLocaleMessage: (locale: AcApLocale, message: object) => void
+): void {
+  registerLlmI18n()
+  for (const locale of LOCALES) {
+    mergeLocaleMessage(locale, buildMessages(locale))
+  }
+}
+
+/**
+ * Translates one AI model settings label in the current locale.
+ *
+ * @param key - Label key from {@link llmEn}.
+ * @param vars - Values for `{name}` placeholders.
+ * @returns Localized string, or the key when it is not registered.
+ */
+export function llmT(
+  key: AcApLlmLabelKey,
+  vars: Record<string, string | number> = {}
+): string {
+  registerLlmI18n()
+  let text = AcApI18n.t(`${LLM_I18N_PREFIX}.${key}`, { fallback: key })
+  for (const [name, value] of Object.entries(vars)) {
+    text = text.split(`{${name}}`).join(String(value))
+  }
+  return text
+}

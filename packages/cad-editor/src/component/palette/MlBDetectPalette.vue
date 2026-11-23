@@ -5,6 +5,191 @@
     data-testid="bdetect-panel"
   >
     <el-config-provider size="small">
+      <el-collapse
+        v-model="openSections"
+        class="ml-bdetect-panel__options"
+        data-testid="bdetect-options"
+      >
+        <el-collapse-item :title="t('main.bdetect.options')" name="options">
+          <div
+            class="ml-bdetect-panel__filters"
+            :class="{ 'is-disabled': !optionsEditable }"
+          >
+            <div class="ml-bdetect-panel__option">
+              <el-checkbox
+                :model-value="state.options.allowRotation"
+                :disabled="!optionsEditable"
+                @change="(v: unknown) => setOptions({ allowRotation: !!v })"
+              >
+                {{ t('main.bdetect.rotation') }}
+              </el-checkbox>
+              <MlBDetectOptionHelp
+                :text="t('main.bdetect.help.rotation')"
+                :label="
+                  t('main.bdetect.explain', {
+                    option: t('main.bdetect.rotation')
+                  })
+                "
+              />
+            </div>
+            <div class="ml-bdetect-panel__option">
+              <el-checkbox
+                :model-value="state.options.allowMirror"
+                :disabled="!optionsEditable"
+                @change="(v: unknown) => setOptions({ allowMirror: !!v })"
+              >
+                {{ t('main.bdetect.mirror') }}
+              </el-checkbox>
+              <MlBDetectOptionHelp
+                :text="t('main.bdetect.help.mirror')"
+                :label="
+                  t('main.bdetect.explain', {
+                    option: t('main.bdetect.mirror')
+                  })
+                "
+              />
+            </div>
+            <div class="ml-bdetect-panel__option">
+              <el-checkbox
+                :model-value="state.options.allowScale"
+                :disabled="!optionsEditable"
+                @change="(v: unknown) => setOptions({ allowScale: !!v })"
+              >
+                {{ t('main.bdetect.scale') }}
+              </el-checkbox>
+              <MlBDetectOptionHelp
+                :text="t('main.bdetect.help.scale')"
+                :label="
+                  t('main.bdetect.explain', { option: t('main.bdetect.scale') })
+                "
+              />
+            </div>
+            <div class="ml-bdetect-panel__option">
+              <el-checkbox
+                :model-value="state.options.matchLayer"
+                :disabled="!optionsEditable"
+                @change="(v: unknown) => setOptions({ matchLayer: !!v })"
+              >
+                {{ t('main.bdetect.sameLayer') }}
+              </el-checkbox>
+              <MlBDetectOptionHelp
+                :text="t('main.bdetect.help.sameLayer')"
+                :label="
+                  t('main.bdetect.explain', {
+                    option: t('main.bdetect.sameLayer')
+                  })
+                "
+              />
+            </div>
+            <div class="ml-bdetect-panel__option">
+              <el-checkbox
+                :model-value="state.options.textVariations"
+                :disabled="!optionsEditable"
+                @change="(v: unknown) => setOptions({ textVariations: !!v })"
+              >
+                {{ t('main.bdetect.textVariations') }}
+              </el-checkbox>
+              <MlBDetectOptionHelp
+                :text="t('main.bdetect.help.textVariations')"
+                :label="
+                  t('main.bdetect.explain', {
+                    option: t('main.bdetect.textVariations')
+                  })
+                "
+              />
+            </div>
+          </div>
+          <div
+            class="ml-bdetect-panel__thresholds"
+            :class="{ 'is-disabled': !optionsEditable }"
+          >
+            <div class="ml-bdetect-panel__field">
+              <span class="ml-bdetect-panel__field-label">
+                <label :for="minInstancesId">
+                  {{ t('main.bdetect.minInstances') }}
+                </label>
+                <MlBDetectOptionHelp
+                  :text="t('main.bdetect.help.minInstances')"
+                  :label="
+                    t('main.bdetect.explain', {
+                      option: t('main.bdetect.minInstances')
+                    })
+                  "
+                />
+              </span>
+              <el-input-number
+                :id="minInstancesId"
+                :model-value="state.options.minInstances"
+                :min="2"
+                :step="1"
+                :disabled="!optionsEditable"
+                controls-position="right"
+                data-testid="bdetect-min-instances"
+                @update:model-value="
+                  (v: number | undefined) =>
+                    setOptions({ minInstances: v ?? 2 })
+                "
+              />
+            </div>
+            <div class="ml-bdetect-panel__field">
+              <span class="ml-bdetect-panel__field-label">
+                <label :for="minSavingsId">
+                  {{ t('main.bdetect.minSavings') }}
+                </label>
+                <MlBDetectOptionHelp
+                  :text="t('main.bdetect.help.minSavings')"
+                  :label="
+                    t('main.bdetect.explain', {
+                      option: t('main.bdetect.minSavings')
+                    })
+                  "
+                />
+              </span>
+              <el-input-number
+                :id="minSavingsId"
+                :model-value="state.options.minSavings"
+                :min="0"
+                :step="1"
+                :disabled="!optionsEditable"
+                controls-position="right"
+                data-testid="bdetect-min-savings"
+                @update:model-value="
+                  (v: number | undefined) => setOptions({ minSavings: v ?? 0 })
+                "
+              />
+            </div>
+            <div class="ml-bdetect-panel__field">
+              <span class="ml-bdetect-panel__field-label">
+                <label :for="maxEntitiesId">
+                  {{ t('main.bdetect.maxEntities') }}
+                </label>
+                <MlBDetectOptionHelp
+                  :text="t('main.bdetect.help.maxEntities')"
+                  :label="
+                    t('main.bdetect.explain', {
+                      option: t('main.bdetect.maxEntities')
+                    })
+                  "
+                />
+              </span>
+              <el-input-number
+                :id="maxEntitiesId"
+                :model-value="state.options.maxEntities"
+                :min="2"
+                :step="1"
+                :disabled="!optionsEditable"
+                controls-position="right"
+                data-testid="bdetect-max-entities"
+                @update:model-value="
+                  (v: number | undefined) =>
+                    setOptions({ maxEntities: v ?? 64 })
+                "
+              />
+            </div>
+          </div>
+        </el-collapse-item>
+      </el-collapse>
+
       <div
         v-if="state.phase === 'detecting'"
         class="ml-bdetect-panel__progress"
@@ -23,7 +208,17 @@
       </div>
 
       <template v-else>
-        <div v-if="state.groups.length === 0" class="ml-bdetect-panel__empty">
+        <div
+          v-if="state.phase === 'ready'"
+          class="ml-bdetect-panel__empty"
+          data-testid="bdetect-ready"
+        >
+          {{ t('main.bdetect.ready') }}
+        </div>
+        <div
+          v-else-if="state.groups.length === 0"
+          class="ml-bdetect-panel__empty"
+        >
           {{ t('main.bdetect.none') }}
         </div>
         <template v-else>
@@ -110,8 +305,17 @@
           </el-scrollbar>
         </template>
         <div class="ml-bdetect-panel__footer">
+          <el-button type="primary" data-testid="bdetect-run" @click="detect">
+            {{
+              state.phase === 'ready'
+                ? t('main.bdetect.detect')
+                : t('main.bdetect.detectAgain')
+            }}
+          </el-button>
           <el-button
+            v-if="state.phase === 'list'"
             type="primary"
+            plain
             :disabled="checkedCount === 0"
             data-testid="bdetect-convert"
             @click="convert"
@@ -130,38 +334,51 @@
 <script setup lang="ts">
 /**
  * Detect and Convert tab of the tool palette, shown while `BDETECT` runs:
- * detection progress, then the groups of repeated objects found in the
- * drawing. Click a group to highlight its instances, review one group with
- * the Search and Convert toolbar, or convert the checked groups at once.
+ * detection options, then progress, then the groups of repeated objects.
+ * Click Detect to search; click a group to highlight its instances, review
+ * one group with Search and Convert, or convert the checked groups at once.
  */
 import { View } from '@element-plus/icons-vue'
 import {
   ElButton,
   ElCheckbox,
+  ElCollapse,
+  ElCollapseItem,
   ElConfigProvider,
   ElInput,
+  ElInputNumber,
   ElProgress,
   ElScrollbar,
   ElTag
 } from 'element-plus'
-import { computed } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useBDetect } from '../../composable'
+import MlBDetectOptionHelp from './MlBDetectOptionHelp.vue'
 
 const { t } = useI18n()
 const {
   state,
+  detect,
   select,
   review,
   convert,
   close,
   stop,
+  setOptions,
   setChecked,
   setAllChecked,
   rename
 } = useBDetect()
 
+const openSections = ref(['options'])
+const minInstancesId = useId()
+const minSavingsId = useId()
+const maxEntitiesId = useId()
+const optionsEditable = computed(
+  () => state.phase === 'ready' || state.phase === 'list'
+)
 const checkedCount = computed(() => state.groups.filter(g => g.checked).length)
 const allChecked = computed(
   () => state.groups.length > 0 && checkedCount.value === state.groups.length
@@ -193,6 +410,80 @@ const someChecked = computed(() => checkedCount.value > 0)
   display: contents;
 }
 
+.ml-bdetect-panel__options {
+  flex: 0 0 auto;
+  --el-collapse-header-bg-color: transparent;
+  --el-collapse-content-bg-color: transparent;
+}
+
+.ml-bdetect-panel__options :deep(.el-collapse-item__header) {
+  height: 28px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+
+.ml-bdetect-panel__options :deep(.el-collapse-item__content) {
+  padding: 0 4px 6px;
+}
+
+.ml-bdetect-panel__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 2px 8px;
+}
+
+.ml-bdetect-panel__option {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ml-bdetect-panel__filters .el-checkbox {
+  height: auto;
+  margin-right: 0;
+  white-space: normal;
+}
+
+.ml-bdetect-panel__filters :deep(.el-checkbox__label) {
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.ml-bdetect-panel__thresholds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ml-bdetect-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.ml-bdetect-panel__field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ml-bdetect-panel__field-label label {
+  cursor: pointer;
+}
+
+.ml-bdetect-panel__field .el-input-number {
+  width: 100%;
+}
+
+.ml-bdetect-panel__filters.is-disabled,
+.ml-bdetect-panel__thresholds.is-disabled {
+  opacity: 0.6;
+}
+
 .ml-bdetect-panel__summary,
 .ml-bdetect-panel__progress-row,
 .ml-bdetect-panel__footer {
@@ -204,6 +495,7 @@ const someChecked = computed(() => checkedCount.value > 0)
 
 .ml-bdetect-panel__footer {
   justify-content: flex-end;
+  flex-wrap: wrap;
   padding-top: 4px;
   border-top: 1px solid var(--el-border-color-lighter);
 }

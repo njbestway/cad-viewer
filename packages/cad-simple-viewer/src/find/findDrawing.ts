@@ -7,15 +7,16 @@
  * navigate there.
  *
  * Pure TypeScript with no runtime imports (structural database shape), shared
- * by cad-simple-ui-plugin and the Vue cad-viewer.
+ * by simple-ui chrome and the Vue cad-editor.
  */
 import {
   ACAP_FIND_MAX_RESULTS,
   type AcApFindDatabaseLike,
   type AcApFindHit,
   type AcApFindOptions,
-  acapFindTextInLayout
-} from './findText'
+  acapFindTextInLayout,
+  acapResolveFindBlockTableRecord
+} from './findText.js'
 
 /**
  * Where to search.
@@ -129,6 +130,7 @@ export function acapFindText(
   for (const target of targets) {
     const found = acapFindTextInLayout(db, target.btrId, query, {
       matchCase: options.matchCase,
+      dimensionOverrideOnly: options.dimensionOverrideOnly,
       maxResults: max - result.hits.length
     })
     for (const hit of found.hits) {
@@ -169,7 +171,7 @@ export function acapFindHitBox(
   layoutBtrId: string,
   hit: AcApFindHit
 ): AcApFindBox {
-  const btr = db.tables.blockTable.getIdAt(layoutBtrId)
+  const btr = acapResolveFindBlockTableRecord(db, layoutBtrId)
   const owner = btr?.getIdAt?.(hit.entityId) as
     | (WithExtents & {
         attributeIterator?: () => Iterable<WithExtents & { objectId: string }>

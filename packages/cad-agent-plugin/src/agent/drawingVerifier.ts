@@ -1,9 +1,10 @@
+import {
+  acapLlmCreateModel,
+  type AcApLlmSettings,
+  acapLlmSkipDataUrlDownload
+} from '@mlightcad/cad-llm-plugin'
 import { generateObject } from 'ai'
 import { z } from 'zod'
-
-import type { LlmSettings } from '../storage/LlmSettingsStore'
-import { createModelFromSettings } from './createModel'
-import { skipDataUrlDownload } from './skipDataUrlDownload'
 
 /** Maximum number of screenshot verification rounds per user message. */
 export const MAX_VERIFICATION_ATTEMPTS = 5
@@ -27,10 +28,11 @@ Compare the current drawing screenshot against the user's request and any refere
 Focus on overall geometry, topology, proportions, and layout — not exact pixel alignment.
 
 Rules:
-- Ignore dimensions, dimension lines, and dimension text in reference images. The drawing tools cannot create dimensions, so do not require them in the output drawing.
-- Ignore missing annotations or labels unless the user explicitly asked for text entities.
+- When the user asked only for geometry (or did not ask for annotations), ignore dimensions, dimension lines, dimension text, and labels in reference images.
+- When the user asked for an annotated redraw (dimensions, text, leaders, tables), check that legible annotations are present and placed near the right features; do not require unreadable ones.
 - Pass when the drawing reasonably captures the requested shape and layout.
-- Fail only when important geometry is missing, wrong, or clearly misaligned.`
+- Fail only when important geometry (or requested annotation) is missing, wrong, or clearly misaligned.
+- Pixel similarity does not prove physical accuracy; judge topology, proportions, and placement.`
 
 export type DrawingVerificationResult = z.infer<typeof verificationSchema>
 
@@ -43,13 +45,13 @@ export type DrawingVerificationResult = z.infer<typeof verificationSchema>
  * @param drawingImage - PNG data URL of the current drawing.
  */
 export async function verifyDrawing(
-  settings: LlmSettings,
+  settings: AcApLlmSettings,
   userRequest: string,
   referenceImages: string[],
   drawingImage: string,
   abortSignal?: AbortSignal
 ): Promise<DrawingVerificationResult> {
-  const model = createModelFromSettings(settings)
+  const model = acapLlmCreateModel(settings)
   const userContent: Array<
     { type: 'text'; text: string } | { type: 'image'; image: string }
   > = [
@@ -80,7 +82,7 @@ export async function verifyDrawing(
     system: VERIFICATION_SYSTEM_PROMPT,
     schema: verificationSchema,
     abortSignal,
-    experimental_download: skipDataUrlDownload,
+    experimental_download: acapLlmSkipDataUrlDownload,
     messages: [
       {
         role: 'user',

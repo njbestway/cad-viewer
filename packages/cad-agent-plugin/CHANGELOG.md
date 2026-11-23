@@ -1,5 +1,196 @@
 # @mlightcad/cad-agent-plugin
 
+## 1.8.0-preview.6
+
+### Minor Changes
+
+- 8279755: feat(agent): evidence-tracked image redraw with `cad.redraw`
+
+  Port the image-to-CAD redraw workflow into the script runtime. Scripts build a
+  semantic spec (profile, units, per-view calibration, evidence levels,
+  constraints, entities, checks); `cad.redraw.validate` checks it,
+  `cad.redraw.draw` draws it in one undo group on standard layers (OBJECT,
+  HIDDEN, CENTER, DIM, TEXT, TABLE, BORDER, CONSTRUCTION, ASSUMPTION) with real
+  dimensions, leaders, text, and line-drawn tables, and `cad.redraw.inspect`
+  compares readable dimension values with the drawn geometry. Results carry a
+  `pass` / `pass_with_warnings` / `needs_review` / `blocked` / `fail` status.
+  Image pixel coordinates can be mapped through dimension-anchor, similarity,
+  affine, or homography calibrations. Drawing sets `INSUNITS` from the spec
+  units, uses a CJK-capable `REDRAW_TEXT` style for text and dimension text, and
+  falls back to lines + text (or a leader) when a dimension cannot be created.
+
+  Also add `tx.drawLeader` (LEADER with an associated MTEXT annotation),
+  `rotationDeg` / `width` on `tx.drawText`, and fix two drawing bugs: `drawText`
+  set an MTEXT height property that does not exist (text drew with height 0), and
+  `drawArc` passed degrees where radians are expected. The agent prompt gains an
+  IMAGE REDRAW section and a "Redraw image as editable CAD" suggested task, and
+  the MCP `execute_cad_script` description includes the spec reference.
+
+- 0dd562b: feat(ui): let plugins register ribbon, export menus, and palette tabs
+
+  Plugin chrome (ribbon groups, File → Export rows, simple-UI toolbar buttons, and palette tabs) is declared by each plugin's `/register` module through `AcApUiRegistry`. The Vue editor and simple UI draw whatever is registered, so a package that is not installed contributes no buttons. `chtml` and `cpdf` open framework-free dialogs owned by the HTML and PDF plugins. `store.features` and the Vue export dialogs are removed. Headless hosts pass `dialog: false` so those commands stay prompts. See the upgrade guide.
+
+- 0617037: feat(redraw): pixel-level comparison with the reference image
+
+  Add `cad.redraw.compare(spec, options?)`. It renders the drawing over the
+  reference image's CAD footprint, registers it into the image frame through the
+  spec calibration (similarity, affine, or homography), thins both to 1-pixel
+  centerlines, and measures them with distance transforms. The tool result's
+  `redrawCompare` reports a verdict (`aligned` / `offset` / `incomplete` /
+  `cluttered` / `mismatch`), coverage, precision, F1, mean and p95 distances in
+  pixels and CAD units, a suggested move for systematic offsets, and hotspot
+  regions, with an overlay and a difference image attached for the model.
+
+  The pure algorithms (`acexExtractInk`, `acexThinInk`, `acexDistanceTransform`,
+  `acexCompareInk`, overlay / difference rendering) live in
+  `@mlightcad/cad-script-core`; viewer sessions supply decoding, WebGL rendering,
+  and PNG encoding through the new `CadSession.redrawRaster` host
+  (`createViewerRedrawRasterHost`). The CAD agent registers the conversation's
+  attached images as references and iterates draw → inspect → compare.
+
+- feat: makes the Properties palette editable in Write mode, lets plugins register ribbon menus and palettes, and opens BDETECT with an options panel. Agent redraw adds evidence-tracked cad.redraw with pixel comparison plus a clearer busy and context meter. PDF import recognizes dimensions and exploded text via local PaddleOCR, honours image clips and hatch order, and HTML package zips include a drawing thumbnail. Also fixes elevated geometry clipping, block linework precision, and Model_Space placeholders while reading.
+
+### Patch Changes
+
+- 64ca714: Show Working/Thinking feedback while the CAD agent waits on the model, and make the context-usage meter honest when usage exceeds the local window estimate (optional per-model `contextWindow`, estimated-window note, percentages may exceed 100%).
+- 64ca714: fix(agent): require redraw.compare and gate sheet-frame questions
+
+  Strengthen the image-redraw prompts so the model finishes with
+  `cad.redraw.compare` (and a pixel↔CAD calibration). When an attached image
+  shows a title block / border and the user has not chosen yet, the first reply
+  must be a text-only question with no draw tools — do not silently omit the
+  frame.
+
+- Updated dependencies [64ca714]
+- Updated dependencies [8279755]
+- Updated dependencies [2ee892d]
+- Updated dependencies [663c251]
+- Updated dependencies [e4d1399]
+- Updated dependencies [704af08]
+- Updated dependencies [9a09628]
+- Updated dependencies [b9af87c]
+- Updated dependencies [0dd562b]
+- Updated dependencies [0ff8b62]
+- Updated dependencies [7b6bac6]
+- Updated dependencies [0dd562b]
+- Updated dependencies [0617037]
+- Updated dependencies
+  - @mlightcad/cad-llm-plugin@1.8.0-preview.6
+  - @mlightcad/cad-script-core@1.8.0-preview.6
+  - @mlightcad/cad-agent-core@1.8.0-preview.6
+  - @mlightcad/cad-simple-viewer@1.8.0-preview.6
+
+## 1.8.0-preview.5
+
+### Minor Changes
+
+- fix: makes published type declarations resolve under moduleResolution nodenext by emitting explicit .js import specifiers, keeps middle-button panning working while the PAN command is active, and upgrades realdwg-web to 1.15.30 to pick up the latest data-model and DWG conversion fixes.
+
+### Patch Changes
+
+- Updated dependencies [ac569e8]
+- Updated dependencies [aad8aed]
+- Updated dependencies
+  - @mlightcad/cad-simple-viewer@1.8.0-preview.5
+  - @mlightcad/cad-agent-core@1.8.0-preview.5
+  - @mlightcad/cad-llm-plugin@1.8.0-preview.5
+  - @mlightcad/cad-script-core@1.8.0-preview.5
+
+## 1.8.0-preview.4
+
+### Minor Changes
+
+- 242c8db: New `pdftext` command converts exploded PDF text (SHX line text, outlined fonts) back into text objects. It clusters strokes into lines, asks for each line's text, and learns glyph shapes so repeated text converts automatically. `ipdf` now merges text runs that continue one line. `AcApTextRecognitionService` lets hosts register OCR. The CAD Agent plugin registers a recognizer backed by the configured vision model, which pre-fills `pdftext` prompts.
+- feat: completes PDF import with pdftext OCR, pdfhatch and pdfdim recovery plus review palettes, and adds Smart Blocks Search and Detect. New SCALE, LEADER/MLEADER, UCS, named-view and clipboard commands land alongside a shared LLM settings plugin, an SVG Open converter, the AI ribbon tab, and the simple UI folded into cad-simple-viewer.
+- 68d4365: feat(llm): share one AI model configuration between the CAD Agent and PDF OCR
+
+  The LLM provider settings move from `@mlightcad/cad-agent-plugin` into the new
+  `@mlightcad/cad-llm-plugin`, which adds the `llmsettings` command and a
+  framework-free settings dialog (model in use, built-in and custom providers,
+  model catalogs). `@mlightcad/cad-simple-viewer` adds `AcApLlmSettingsService`
+  so features can open the dialog or check whether a vision model is configured
+  without depending on the plugin. `pdftext` now hints once per session when no
+  image-capable model is configured, and OCR falls back to the first
+  image-capable configured model when the model in use is text-only.
+  `@mlightcad/cad-editor` registers the plugin when installed and adds an
+  AI → Model Settings ribbon button. The agent panel's gear button opens the
+  shared dialog. Saved settings carry over unchanged. See the upgrade guide for
+  host migration.
+
+### Patch Changes
+
+- 228004a: Add layer preview mode to `cad.view.capturePreview`.
+  - `cad.view.capturePreview({ layers: ['A', 'B'] })` renders only model-space geometry on those layers (INSERTs contribute just their fragments on those layers) and frames the PNG to the combined extents of the layers, so the image has no large empty margins. Names are case-insensitive; unknown names throw; `layers` cannot be combined with `selection`.
+  - `CaptureDrawingPreviewFailure` adds `'no-layers'`; `normalizeCadCapturePreviewOptions` returns `NormalizedCadCapturePreviewOptions`.
+  - New `AcApEntityPreviewConvertor.captureLayers`, `AcTrLayout.findLayers` / `computeLayerPreviewBoundsBox` / `createLayerPreviewRoot`, `AcTrLayer.getEntityIds` / `computeContentBoundingBox`, and `AcTrBatchedGroup.getEntityIds`.
+
+- c3dcfa2: Complete the UI translations for every supported language. Japanese and Korean were mostly English (ribbon, menus, dialogs, properties, command prompts, plugins, and the exported HTML viewer); Turkish, Czech and Arabic were missing the dimension/multileader style dialogs, view and UCS managers, and many command prompts. All of these now show in the selected language instead of falling back to English.
+- b8fbeac: feat(agent): queue follow-ups, edit/resend messages, and relative timestamps
+
+  Add Cursor-style follow-up queueing while the agent is busy, inline edit/resend
+  for prior user turns, message copy, and relative timestamps. Also document
+  common `tx.draw*` argument names and allow object property keys named like
+  banned globals (`{ window: n }`) while still blocking free identifiers.
+
+- Updated dependencies [c987f64]
+- Updated dependencies [9c6be36]
+- Updated dependencies [2632f9e]
+- Updated dependencies [03ff81b]
+- Updated dependencies [279f460]
+- Updated dependencies [228004a]
+- Updated dependencies [75c44d2]
+- Updated dependencies [aa2a7f7]
+- Updated dependencies [1477693]
+- Updated dependencies [2632f9e]
+- Updated dependencies [c3dcfa2]
+- Updated dependencies [76a6673]
+- Updated dependencies [b340dd6]
+- Updated dependencies [f599e38]
+- Updated dependencies [2a75363]
+- Updated dependencies [0b7c923]
+- Updated dependencies [0acd637]
+- Updated dependencies [cafbb8f]
+- Updated dependencies [4252a9d]
+- Updated dependencies [2741958]
+- Updated dependencies [a1a707b]
+- Updated dependencies [1784dd4]
+- Updated dependencies [1cf426f]
+- Updated dependencies [c2cc263]
+- Updated dependencies [17e4920]
+- Updated dependencies [b340dd6]
+- Updated dependencies [b340dd6]
+- Updated dependencies [eb0f5e8]
+- Updated dependencies [47c83c2]
+- Updated dependencies [529b935]
+- Updated dependencies [529b935]
+- Updated dependencies [510b0dc]
+- Updated dependencies [e4b1046]
+- Updated dependencies [ec6b73d]
+- Updated dependencies [3fefca4]
+- Updated dependencies [242c8db]
+- Updated dependencies [1795cc0]
+- Updated dependencies [7f15f66]
+- Updated dependencies [f80a8c1]
+- Updated dependencies [833c202]
+- Updated dependencies [84f82ff]
+- Updated dependencies [05b2041]
+- Updated dependencies [ed40d25]
+- Updated dependencies [4bbb670]
+- Updated dependencies
+- Updated dependencies [ee7d5da]
+- Updated dependencies [17e4920]
+- Updated dependencies [b340dd6]
+- Updated dependencies [b8fbeac]
+- Updated dependencies [68d4365]
+- Updated dependencies [f6048ff]
+- Updated dependencies [6d80103]
+- Updated dependencies [ac1f322]
+- Updated dependencies [69825da]
+  - @mlightcad/cad-simple-viewer@1.8.0-preview.4
+  - @mlightcad/cad-script-core@1.8.0-preview.4
+  - @mlightcad/cad-agent-core@1.8.0-preview.4
+  - @mlightcad/cad-llm-plugin@1.8.0-preview.4
+
 ## 1.8.0-preview.3
 
 ### Minor Changes

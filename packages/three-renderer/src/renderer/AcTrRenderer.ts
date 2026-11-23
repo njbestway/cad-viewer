@@ -21,8 +21,12 @@ import {
 import { FontManager } from '@mlightcad/mtext-renderer'
 import * as THREE from 'three'
 
-import type { AcTrBatchDrawPolicy } from '../draw/AcTrBatchDrawPolicy'
-import { isComplexLineType } from '../linetype'
+import type { AcTrBatchDrawPolicy } from '../draw/AcTrBatchDrawPolicy.js'
+import { isComplexLineType } from '../linetype/index.js'
+import {
+  buildOffsetRingCenterline,
+  buildOffsetRingDirectGeometry
+} from '../object/AcTrLineGeometryBuilder.js'
 import {
   AcTrEntity,
   AcTrGroup,
@@ -34,15 +38,11 @@ import {
   AcTrPoint,
   AcTrPolygon,
   AcTrShape
-} from '../object'
-import {
-  buildOffsetRingCenterline,
-  buildOffsetRingDirectGeometry
-} from '../object/AcTrLineGeometryBuilder'
-import { AcTrLinePatternShaderProbe } from '../style/AcTrLinePatternShaderProbe'
-import { AcTrMaterialManager } from '../style/AcTrMaterialManager'
-import { AcTrSubEntityTraitsUtil } from '../util'
-import { AcTrCamera } from '../viewport/AcTrCamera'
+} from '../object/index.js'
+import { AcTrLinePatternShaderProbe } from '../style/AcTrLinePatternShaderProbe.js'
+import { AcTrMaterialManager } from '../style/AcTrMaterialManager.js'
+import { AcTrSubEntityTraitsUtil } from '../util/index.js'
+import { AcTrCamera } from '../viewport/AcTrCamera.js'
 import {
   AcTrLineVertexBuilder,
   captureCoalescedLine,
@@ -50,18 +50,18 @@ import {
   isAcTrCoalescedLineRef,
   isFatLineMaterial,
   mergeCoalescedBlockLines
-} from './AcTrBlockLineCoalesce'
+} from './AcTrBlockLineCoalesce.js'
 import {
   AcTrEntityPreview,
   type AcTrEntityPreviewOptions,
   type AcTrEntityPreviewResult
-} from './AcTrEntityPreview'
-import { AcTrMTextRenderer } from './AcTrMTextRenderer'
-import { AcTrRenderContext } from './AcTrRenderContext'
+} from './AcTrEntityPreview.js'
+import { AcTrMTextRenderer } from './AcTrMTextRenderer.js'
+import { AcTrRenderContext } from './AcTrRenderContext.js'
 import {
   measureOffsetEdgeBand,
   measureWidePolylineBand
-} from './AcTrWidePolylineCenterline'
+} from './AcTrWidePolylineCenterline.js'
 
 /** Event payload when a mapped font cannot be resolved during rendering. */
 export interface AcTrFontNotFoundEventArgs {
@@ -303,8 +303,7 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
     width?: number
     height?: number
   }): AcTrRenderer {
-    const width =
-      options?.width ?? AcTrRenderer.DEFAULT_EXPORT_VIEWPORT.width
+    const width = options?.width ?? AcTrRenderer.DEFAULT_EXPORT_VIEWPORT.width
     const height =
       options?.height ?? AcTrRenderer.DEFAULT_EXPORT_VIEWPORT.height
     return new AcTrRenderer(createExportWebGlStub(width, height), {
@@ -647,9 +646,11 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
   }
 
   /**
-   * Sets whether entity lineweights are displayed.
+   * Sets whether entity lineweights are displayed (LWDISPLAY).
    *
-   * When disabled, line entities are rendered with basic 1px materials.
+   * Updates cached fat-line widths in place. Callers that own batch material
+   * clones must also run {@link applyLineWeightDisplay} on the scene, and may
+   * need one upgrade regen when the scene is still on cheap `GL_LINES`.
    */
   set showLineWeight(value: boolean) {
     this._context.styleManager.showLineWeight = value
@@ -665,6 +666,15 @@ export class AcTrRenderer implements AcGiRenderer<AcTrEntity> {
 
   set forceShowLineWeight(value: boolean) {
     this._context.styleManager.forceShowLineWeight = value
+  }
+
+  /**
+   * Renderer state that changes block graphics; see
+   * {@link AcTrStyleManager.cacheVariant}. `AcDbRenderingCache` keeps block
+   * templates apart per variant.
+   */
+  get cacheVariant(): string {
+    return this._context.styleManager.cacheVariant
   }
 
   updateLayerMaterial(

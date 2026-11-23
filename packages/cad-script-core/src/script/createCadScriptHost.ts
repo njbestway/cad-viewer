@@ -1,42 +1,44 @@
 import { AcDbEntity, AcGePoint3d } from '@mlightcad/data-model'
 
-import { getDrawingContext } from '../context/DrawingContextProvider'
+import { getDrawingContext } from '../context/DrawingContextProvider.js'
 import {
   type CadCapturePreviewOptions,
   normalizeCadCapturePreviewOptions
-} from '../preview/types'
-import type { CadSession } from '../session/CadSession'
-import { requireDocument } from '../session/documentAccess'
-import { runInsideScriptEdit } from '../session/editDepth'
-import { isEntityOnLockedLayer } from '../session/lockedLayer'
-import { runSessionEdit } from '../session/runSessionEdit'
-import { CadActionExecutor } from '../tools/CadActionExecutor'
-import type { Point2dInput, ToolResult } from '../tools/types'
-import { createCadMeasure } from './createCadMeasure'
+} from '../preview/types.js'
+import type { RedrawCompareRequest } from '../redraw/compareRedraw.js'
+import { createCadRedraw } from '../redraw/createCadRedraw.js'
+import type { CadSession } from '../session/CadSession.js'
+import { requireDocument } from '../session/documentAccess.js'
+import { runInsideScriptEdit } from '../session/editDepth.js'
+import { isEntityOnLockedLayer } from '../session/lockedLayer.js'
+import { runSessionEdit } from '../session/runSessionEdit.js'
+import { CadActionExecutor } from '../tools/CadActionExecutor.js'
+import type { Point2dInput, ToolResult } from '../tools/types.js'
+import { createCadMeasure } from './createCadMeasure.js'
 import {
   type EntitySnapshot,
   iterateLayoutEntities,
   openEntityFilterView,
   toEntitySnapshot
-} from './entitySnapshot'
+} from './entitySnapshot.js'
 import {
   type CadScriptDxfSaveRequest,
   normalizeDxfSaveRequest
-} from './saveDxf'
+} from './saveDxf.js'
 import {
   type CadScriptHtmlSaveRequest,
   normalizeHtmlSaveRequest
-} from './saveHtml'
+} from './saveHtml.js'
 import {
   type CadScriptPdfSaveRequest,
   normalizePdfSaveRequest
-} from './savePdf'
-import { CAD_EDIT_TX_METHODS, CAD_SCRIPT_API_TREE } from './scriptApi'
+} from './savePdf.js'
+import { CAD_EDIT_TX_METHODS, CAD_SCRIPT_API_TREE } from './scriptApi.js'
 import {
   type BlockSnapshot,
   toBlockSnapshots,
   toDatabaseTables
-} from './tableSnapshot'
+} from './tableSnapshot.js'
 
 /** Queued screenshot request from `cad.view.capturePreview`. */
 export interface CadScriptPreviewRequest {
@@ -82,6 +84,11 @@ export interface CadScriptEffects {
    * Fulfilled after the script returns; HTML/zip bytes are not part of this list.
    */
   htmlSaveRequests: CadScriptHtmlSaveRequest[]
+  /**
+   * Pixel comparisons queued by `cad.redraw.compare`.
+   * Fulfilled after the script returns (rendering is async).
+   */
+  compareRequests?: RedrawCompareRequest[]
 }
 
 /** Limits enforced by `cad.__tick` and snapshot queries. */
@@ -348,6 +355,31 @@ export function createCadScriptHost(
 
   const measure = createCadMeasure(id => snapshotById(session, id))
 
+  const redraw = seal(
+    createCadRedraw({
+      getDatabase: () => requireDocumentRecord(session).database,
+      transaction: (label, fn) => edit.transaction(label, fn),
+      layerNames: () =>
+        requireDocumentRecord(session)
+          .layerStore.getLayers()
+          .map(layer => layer.name),
+      snapshot: id => snapshotById(session, id),
+      tick: hostTick,
+      queueCompare: (spec, options) => {
+        const requests = (effects.compareRequests ??= [])
+        const index = requests.length
+        // Deep copy so later script mutations do not change the request.
+        requests.push({
+          spec: JSON.parse(JSON.stringify(spec)),
+          options: JSON.parse(JSON.stringify(options ?? {})),
+          index
+        })
+        return index
+      }
+    }),
+    Object.keys(CAD_SCRIPT_API_TREE.redraw)
+  )
+
   const file = {
     /**
      * Queues a DXF export of the current drawing.
@@ -457,6 +489,7 @@ export function createCadScriptHost(
     view,
     file,
     measure,
+    redraw,
     edit,
     log(...values: unknown[]): void {
       effects.log.push(values.map(formatLogValue).join(' '))
@@ -534,6 +567,8 @@ export interface CadEditTransaction {
     position: Point2dInput
     text: string
     height?: number
+    rotationDeg?: number
+    width?: number
     layer?: string
   }): string
   drawDimAligned(input: {
@@ -601,6 +636,20 @@ export interface CadEditTransaction {
     styleName?: string
     layer?: string
   }): string
+  /**
+   * Draws a LEADER (arrow at `points[0]`) with an optional MTEXT annotation.
+   * Returns the leader id; the annotation id is also added to created ids.
+   */
+  drawLeader(input: {
+    points: Point2dInput[]
+    text?: string
+    textPosition?: Point2dInput
+    textHeight?: number
+    textLayer?: string
+    arrowHead?: boolean
+    styleName?: string
+    layer?: string
+  }): string
   erase(ids: string[]): number
   setLayer(ids: string[], layer: string): void
   move(ids: string[], dx: number, dy: number): number
@@ -618,6 +667,7 @@ function createTransaction(
     if (!result.success || !result.entityIds?.length) {
       throw new Error(result.error ?? result.message)
     }
+    // Some draws create companions (a leader's MTEXT); track them all.
     effects.createdIds.push(...result.entityIds)
     return result.entityIds[0]
   }
@@ -642,6 +692,7 @@ function createTransaction(
     drawDimAngular: input => created(executor.drawDimAngular(input)),
     drawDimArc: input => created(executor.drawDimArc(input)),
     drawDimOrdinate: input => created(executor.drawDimOrdinate(input)),
+    drawLeader: input => created(executor.drawLeader(input)),
     erase(ids) {
       return session.getDocument()!.entityService.eraseEntities(ids)
     },

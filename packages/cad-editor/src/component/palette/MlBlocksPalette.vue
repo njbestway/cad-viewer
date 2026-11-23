@@ -453,11 +453,9 @@ onUnmounted(() => {
 }
 
 .ml-blocks-palette__source-label {
-  /* Vertical rail label. `writing-mode: vertical-rl` keeps CJK glyphs upright
-   * (top-to-bottom) but rotates Latin 90deg clockwise. The previous
-   * `transform: rotate(180deg)` was meant to make Latin read bottom-to-top,
-   * yet for Chinese it flipped every glyph upside down, so it is removed. */
+  /* Sideways glyphs, first character at the top (中/EN top→bottom). */
   writing-mode: vertical-rl;
+  text-orientation: sideways;
   font-size: 11px;
   letter-spacing: 0.04em;
   white-space: nowrap;

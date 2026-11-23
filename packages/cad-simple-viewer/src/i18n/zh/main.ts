@@ -39,6 +39,9 @@ export default {
     exportingPdf: '正在导出 PDF ...',
     exportingSvg: '正在导出 SVG ...',
     calculatingSmartExtents: '正在计算智能范围 ...',
+    copyingToClipboard: '正在复制到剪贴板 ...',
+    cuttingToClipboard: '正在剪切 ...',
+    pastingFromClipboard: '正在粘贴 ...',
     importingPdf: '正在导入 PDF ...',
     exportingEntityPreview: '正在导出图片 ...',
     collectingMemoryProfile: '正在分析内存 ...',
@@ -135,6 +138,9 @@ export default {
     undo: '撤销',
     redo: '重做',
     erase: '删除',
+    copy: '复制',
+    cut: '剪切',
+    paste: '粘贴',
     collapse: '收起工具栏',
     expand: '展开工具栏'
   },
@@ -198,5 +204,21 @@ export default {
     selectFile: '选择文件',
     signInRequired: '请先登录后再选择文件。',
     downloading: '正在下载文件 ...'
+  },
+  dockPanel: {
+    close: '关闭面板',
+    dockSide: '停靠位置',
+    dockTop: '停靠在顶部',
+    dockBottom: '停靠在底部',
+    dockLeft: '停靠在左侧',
+    dockRight: '停靠在右侧',
+    moreTabs: '更多标签页',
+    resize: '调整面板大小',
+    tab: {
+      layers: '图层',
+      review: '批注',
+      find: '查找',
+      measurements: '测量'
+    }
   }
 }

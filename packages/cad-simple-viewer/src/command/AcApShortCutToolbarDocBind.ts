@@ -9,20 +9,21 @@
  * @packageDocumentation
  */
 
-import { AcApDocManager } from '../app/AcApDocManager'
-import { eventBus } from '../editor/global/eventBus'
-import type { AcEdBaseView } from '../editor/view/AcEdBaseView'
+import { AcApDocManager } from '../app/AcApDocManager.js'
+import { eventBus } from '../editor/global/eventBus.js'
+import type { AcEdBaseView } from '../editor/view/AcEdBaseView.js'
+import { AcEdOpenMode } from '../editor/view/AcEdOpenMode.js'
 import type {
   AcUiShortCutToolbar,
   AcUiShortCutToolbarActionState
-} from '../ui/AcUiShortCutToolbar'
-import { getSessionUndo, runMarkupEdit } from './markup/AcApMarkupHistory'
-import { getMarkupStore } from './markup/AcApMarkupStore'
-import { runMeasurementEdit } from './measure/AcApMeasurementHistory'
+} from '../ui/AcUiShortCutToolbar.js'
+import { getSessionUndo, runMarkupEdit } from './markup/AcApMarkupHistory.js'
+import { getMarkupStore } from './markup/AcApMarkupStore.js'
+import { runMeasurementEdit } from './measure/AcApMeasurementHistory.js'
 import {
   MEASUREMENT_LAYER,
   subscribeMeasurementSelection
-} from './measure/AcApMeasurementStore'
+} from './measure/AcApMeasurementStore.js'
 
 /**
  * Binds document undo stack, selection, and default command actions to a
@@ -39,11 +40,21 @@ export function acapBindShortCutToolbarDocState(
   const resolveActionState = (): AcUiShortCutToolbarActionState => {
     const dm = AcApDocManager.tryGetInstance()
     if (!dm) {
-      return { undo: false, redo: false, erase: false }
+      return {
+        undo: false,
+        redo: false,
+        erase: false,
+        copy: false,
+        cut: false,
+        paste: false,
+        showClipboard: false
+      }
     }
     const doc = dm.curDocument
     const view = dm.curView
     const db = doc?.database
+    const isWriteMode =
+      (doc?.openMode ?? AcEdOpenMode.Read) >= AcEdOpenMode.Write
     const canUndo = db != null ? getSessionUndo().canUndo(db) : false
     const canRedo = db != null ? getSessionUndo().canRedo(db) : false
     const canErase = Boolean(
@@ -51,7 +62,20 @@ export function acapBindShortCutToolbarDocState(
         (view.selectionSet.count > 0 ||
           view.htmlTransientManager.hasSelection())
     )
-    return { undo: canUndo, redo: canRedo, erase: canErase }
+    // COPYCLIP / CUTCLIP only act on drawing entities, not markup or
+    // measurement overlays, so they follow the CAD selection set alone.
+    const hasEntitySelection = Boolean(view && view.selectionSet.count > 0)
+    return {
+      undo: canUndo,
+      redo: canRedo,
+      erase: canErase,
+      copy: hasEntitySelection,
+      cut: hasEntitySelection,
+      paste: db != null,
+      // Clipboard chrome is Write-only (CUTCLIP / PASTECLIP require Write;
+      // COPYCLIP is hidden with them so the bar stays consistent).
+      showClipboard: isWriteMode
+    }
   }
 
   const runErase = () => {
@@ -119,7 +143,10 @@ export function acapBindShortCutToolbarDocState(
   toolbar.setActions({
     undo: () => AcApDocManager.instance.sendStringToExecute('undo'),
     redo: () => AcApDocManager.instance.sendStringToExecute('redo'),
-    erase: runErase
+    erase: runErase,
+    copy: () => AcApDocManager.instance.sendStringToExecute('copyclip'),
+    cut: () => AcApDocManager.instance.sendStringToExecute('cutclip'),
+    paste: () => AcApDocManager.instance.sendStringToExecute('pasteclip')
   })
   toolbar.setActionStateProvider(resolveActionState)
 

@@ -5,9 +5,6 @@ export default {
     drawingUnits: 'Drawing Units',
     exportMenu: 'Export',
     export: 'Export to DXF',
-    exportHtml: 'Export to HTML',
-    exportPdf: 'Export to PDF',
-    exportSvg: 'Export to SVG',
     exportImage: 'Export to Image',
     about: 'About'
   },
@@ -211,11 +208,10 @@ export default {
     },
     group: {
       smartBlocks: 'Smart Blocks',
-      agent: 'Agent',
-      pdf: 'PDF',
       draw: 'Draw',
       dimension: 'Dimension',
       modify: 'Modify',
+      clipboard: 'Clipboard',
       layer: 'Layer',
       properties: 'Properties',
       groups: 'Groups',
@@ -284,11 +280,6 @@ export default {
         'Find all copies of the selected objects and convert them into blocks (BSEARCH).',
       detectConvert:
         'Find repeated objects anywhere in the drawing and convert them into blocks (BDETECT).',
-      importPdf: 'Import vector geometry from a PDF file, rebuilding circles, arcs and curves (IPDF).',
-      pdfScale: 'Rescale imported PDF geometry from two points of a known distance (PDFSCALE).',
-      pdfDim: 'Turn exploded PDF dimensions (arrows or ticks, lines, extension lines and texts) back into dimension objects (PDFDIM).',
-      pdfBlock: 'Turn repeated PDF geometry into a block and replace every copy with a block reference (PDFBLOCK).',
-      pdfText: 'Convert exploded PDF text strokes back into text objects (PDFTEXT).',
       line: 'Draw a single straight line segment.',
       polyline:
         'Draw a connected series of line or arc segments as one object.',
@@ -316,13 +307,28 @@ export default {
       dimcontinue: 'Create a continued dimension from the previous one.',
       dimbaseline: 'Create a baseline dimension from the previous one.',
       dimstyle: 'Open the Dimension Style Manager.',
+      textStyle: 'Open the Text Style Manager.',
+      mleaderStyle: 'Open the Multileader Style Manager.',
       mleader: 'Create a multileader annotation.',
       mleaderAdd: 'Add a leader line to an existing multileader.',
       mleaderRemove: 'Remove a leader line from an existing multileader.',
       move: 'Move selected objects to a new position.',
       rotate: 'Rotate selected objects around a base point.',
-      copy: 'Copy selected objects to a new location.',
+      scale:
+        'Enlarge or reduce selected objects, keeping the proportions the same after scaling.',
       erase: 'Delete selected objects from the drawing.',
+      pasteClip:
+        'Paste objects from the clipboard into the current drawing (PASTECLIP).',
+      pasteOrig:
+        'Paste clipboard objects using the coordinates from the original drawing (PASTEORIG).',
+      pasteBlock:
+        'Paste clipboard objects into the current drawing as a block (PASTEBLOCK).',
+      cutClip:
+        'Remove the selected objects and copy them to the clipboard (CUTCLIP).',
+      copyClip: 'Copy the selected objects to the clipboard (COPYCLIP).',
+      copyBase:
+        'Copy the selected objects to the clipboard with a specified base point (COPYBASE).',
+      explode: 'Break a compound object into its component objects.',
       offset: 'Create a parallel copy of an object at a specified distance.',
       undo: 'Undo the last editing operation.',
       redo: 'Redo the last undone editing operation.',
@@ -330,8 +336,7 @@ export default {
       group: 'Create a group from selected objects (GROUP).',
       ungroup: 'Explode a group definition (UNGROUP).',
       groupEdit: 'Add, remove, or rename group members (GROUPEDIT).',
-      groupSelect:
-        'Toggle group selection on or off (PICKSTYLE group bit).',
+      groupSelect: 'Toggle group selection on or off (PICKSTYLE group bit).',
       classicGroup: 'Open the Object Grouping dialog (CLASSICGROUP).',
       quickSelect:
         'Open Quick Select to filter and select entities by criteria.',
@@ -351,8 +356,6 @@ export default {
         'Open the Enhanced Attribute Editor to edit block attribute values and display properties (ATTEDIT).',
       defineAttribute:
         'Create an attribute definition for use in a block (ATTDEF).',
-      agent:
-        'Open the CAD Agent palette tab to draw geometry using natural language.',
       pan: 'Moves the view of the drawing without changing magnification.',
       zoom: 'Zooms the drawing display.',
       zoomExtents: 'Zooms to display the maximum extents of all entities.',
@@ -361,7 +364,8 @@ export default {
       zoomSaved: 'Zooms to the saved VPORT / layout view.',
       zoomSmart: 'Zooms to the dominant geometry cluster.',
       newView: 'Creates a new named view from the current display or a window.',
-      viewManager: 'Opens the View Manager to create, restore, and delete named views.',
+      viewManager:
+        'Opens the View Manager to create, restore, and delete named views.',
       ucs: 'Sets the origin and orientation of the current user coordinate system.',
       namedUcs: 'Manages named UCS definitions and UCS icon settings.',
       ucsWorld: 'Sets the UCS to the world coordinate system.',
@@ -445,11 +449,6 @@ export default {
     command: {
       searchConvert: 'Search and\nConvert',
       detectConvert: 'Detect and\nConvert',
-      importPdf: 'Import\nPDF',
-      pdfScale: 'Calibrate\nScale',
-      pdfDim: 'Recover\nDims',
-      pdfBlock: 'Make\nBlock',
-      pdfText: 'Recover\nText',
       line: 'Line',
       polyline: 'Polyline',
       circle: 'Circle',
@@ -480,13 +479,22 @@ export default {
       dimcontinue: 'Continue',
       dimbaseline: 'Baseline',
       dimstyle: 'Dim Style',
+      textStyle: 'Text Style',
+      mleaderStyle: 'Multileader Style',
       mleader: 'Multileader',
       mleaderAdd: 'Add Leader',
       mleaderRemove: 'Remove Leader',
       move: 'Move',
       rotate: 'Rotate',
-      copy: 'Copy',
+      scale: 'Scale',
       erase: 'Erase',
+      pasteClip: 'Paste',
+      pasteOrig: 'Paste to Original Coordinates',
+      pasteBlock: 'Paste as Block',
+      cutClip: 'Cut',
+      copyClip: 'Copy',
+      copyBase: 'Copy with Base Point',
+      explode: 'Explode',
       offset: 'Offset',
       undo: 'Undo',
       redo: 'Redo',
@@ -505,7 +513,6 @@ export default {
       insert: 'Insert',
       editAttributes: 'Edit\nAttributes',
       defineAttribute: 'Define\nAttribute',
-      agent: 'CAD\nAgent',
       pan: 'Pan',
       zoom: 'Zoom',
       zoomExtents: 'Extents',
@@ -529,12 +536,9 @@ export default {
     }
   },
   bsearch: {
-    title: 'Search and Convert',
     found: '{count} instances found, {included} included',
-    position: '{index} of {count}',
     previous: 'Previous instance',
     next: 'Next instance',
-    includeCurrent: 'Include this instance',
     convert: 'Convert to block…',
     cancel: 'Cancel',
     rotation: 'Rotated',
@@ -543,12 +547,54 @@ export default {
     sameLayer: 'Same layer',
     existingBlocks: 'Existing blocks',
     textVariations: 'Text variations',
-    pickPrompt: 'Click an instance to include or exclude it, or'
+    pickPrompt: 'Click an instance to include or exclude it, or',
+    source: 'Selected objects: {count}',
+    options: 'Search options',
+    none: 'No other instances were found. Change the search options, or convert the selection alone.',
+    includeAll: 'Include all',
+    include: 'Include this instance',
+    instance: 'Instance {index}',
+    blockReference: 'Block reference',
+    rotatedBy: 'Rotated {angle}°',
+    mirrored: 'Mirrored',
+    scaledBy: 'Scale {scale}',
+    hint: 'Click a row to zoom to the instance. Click an instance in the drawing to include or exclude it.'
   },
   bdetect: {
     detecting: 'Searching the drawing for repeated objects…',
     foundSoFar: '{count} groups found so far',
     stop: 'Stop',
+    ready: 'Adjust the options, then click Detect.',
+    detect: 'Detect',
+    detectAgain: 'Detect again',
+    options: 'Detection options',
+    explain: 'Details for {option}',
+    rotation: 'Rotated',
+    mirror: 'Mirrored',
+    scale: 'Scaled',
+    sameLayer: 'Same layer',
+    textVariations: 'Text variations',
+    minInstances: 'Min. instances',
+    minSavings: 'Min. savings',
+    maxEntities: 'Max. objects',
+    help: {
+      rotation:
+        'Rotated copies still count as the same object, at any angle. Turn this off to group only copies that face the same way.',
+      mirror:
+        'Mirrored copies still count as the same object, such as a door that swings the other way. Turn this off to leave flipped copies out.',
+      scale:
+        'Copies that are uniformly larger or smaller still count as the same object. Turn this off to group only copies of the same size. Stretched or skewed shapes are never matched.',
+      sameLayer:
+        'Each shape in a copy must lie on the same layer as the matching shape. Turn this off when one symbol is split across layers, which is common after a PDF import that assigns layers by color.',
+      textVariations:
+        'Copies may contain different single-line text, such as room numbers. Those texts become block attributes when the group is converted. Turn this off to require the text to read exactly the same. Multiline text always has to match and does not become an attribute.',
+      minInstances:
+        'A group is listed only when at least this many copies are found, including the original. The smallest value is 2. Raise it to ignore pairs and keep only objects that repeat more often.',
+      minSavings:
+        'A group is kept only when converting it would remove at least this many objects. The saving is the number of copies times one less than the objects in a copy: one copy becomes the block, and each other copy is replaced by a single block reference. For example, 5 copies of a 3-object symbol save 10 objects. Raise this to hide small groups, or set it to 0 to list every repeat.',
+      maxEntities:
+        'The most objects one copy may contain. Detection stops adding pieces once a group reaches this size, so a symbol with more pieces is only partly included. Lower it to skip large, complicated repeats, and raise it when a symbol you want has more pieces. The default is 64.'
+    },
     groups: '{count} groups of repeated objects',
     none: 'No repeated objects were found.',
     selectAll: 'Select all',
@@ -918,6 +964,10 @@ export default {
     bdetect: {
       tab: 'Detection',
       title: 'Detect and Convert'
+    },
+    bsearch: {
+      tab: 'Search',
+      title: 'Search and Convert'
     },
     countList: {
       tab: 'Count',

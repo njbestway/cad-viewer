@@ -39,6 +39,9 @@ export default {
     exportingPdf: 'PDF を書き出しています...',
     exportingSvg: 'SVG を書き出しています...',
     calculatingSmartExtents: 'スマート範囲を計算しています...',
+    copyingToClipboard: 'クリップボードにコピーしています...',
+    cuttingToClipboard: '切り取っています...',
+    pastingFromClipboard: '貼り付けています...',
     importingPdf: 'PDF を読み込んでいます...',
     exportingEntityPreview: 'イメージを書き出しています...',
     collectingMemoryProfile: 'メモリを分析しています...',
@@ -141,6 +144,9 @@ export default {
     undo: '元に戻す',
     redo: 'やり直し',
     erase: '削除',
+    copy: 'コピー',
+    cut: '切り取り',
+    paste: '貼り付け',
     collapse: 'ツールバーを折りたたむ',
     expand: 'ツールバーを展開'
   },
@@ -204,5 +210,21 @@ export default {
     selectFile: 'ファイルを選択',
     signInRequired: 'ファイルを選択するには、先にサインインしてください。',
     downloading: 'ファイルをダウンロードしています...'
+  },
+  dockPanel: {
+    close: 'パネルを閉じる',
+    dockSide: 'ドッキング位置',
+    dockTop: '上にドッキング',
+    dockBottom: '下にドッキング',
+    dockLeft: '左にドッキング',
+    dockRight: '右にドッキング',
+    moreTabs: 'その他のタブ',
+    resize: 'パネルのサイズを変更',
+    tab: {
+      layers: '画層',
+      review: 'レビュー',
+      find: '検索',
+      measurements: '計測'
+    }
   }
 }

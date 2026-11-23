@@ -1,13 +1,70 @@
 import {
+  AcDbAlignedDimension,
+  AcDbBlockTableRecord,
   AcDbDatabase,
+  acdbHostApplicationServices,
   AcDbLayerTableRecord,
   AcDbLine,
+  AcGeMatrix3d,
   AcGePoint3d
 } from '@mlightcad/data-model'
 
 import { AcApEntityService } from '../src/service/AcApEntityService'
 
 describe('AcApEntityService', () => {
+  test('scaleEntities scales about the base point and regenerates dimension blocks', () => {
+    const db = new AcDbDatabase()
+    acdbHostApplicationServices().workingDatabase = db
+    const line = new AcDbLine(
+      new AcGePoint3d(0, 0, 0),
+      new AcGePoint3d(10, 0, 0)
+    )
+    const dim = new AcDbAlignedDimension(
+      new AcGePoint3d(0, 0, 0),
+      new AcGePoint3d(10, 0, 0),
+      new AcGePoint3d(5, 5, 0)
+    )
+    db.tables.blockTable.modelSpace.appendEntity([line, dim])
+    dim.recomputeDimBlock()
+    const oldBlock = dim.dimBlockId
+    const service = new AcApEntityService(db)
+
+    expect(
+      service.scaleEntities([line, dim], new AcGePoint3d(10, 0, 0), 2)
+    ).toBe(2)
+
+    expect(line.startPoint.x).toBeCloseTo(-10)
+    expect(line.endPoint.x).toBeCloseTo(10)
+    expect(dim.xLine1Point.x).toBeCloseTo(-10)
+    expect(dim.measurement).toBeCloseTo(20)
+    // AutoCAD SCALE rebuilds the dimension block at DIMSCALE size.
+    expect(dim.dimBlockId).not.toBe(oldBlock)
+    expect(db.tables.blockTable.getAt(dim.dimBlockId!)).toBeDefined()
+  })
+
+  test('cloneAndTransform can regenerate dimension blocks of the copies', () => {
+    const db = new AcDbDatabase()
+    acdbHostApplicationServices().workingDatabase = db
+    const dim = new AcDbAlignedDimension(
+      new AcGePoint3d(0, 0, 0),
+      new AcGePoint3d(10, 0, 0),
+      new AcGePoint3d(5, 5, 0)
+    )
+    db.tables.blockTable.modelSpace.appendEntity(dim)
+    dim.recomputeDimBlock()
+    const service = new AcApEntityService(db)
+
+    const [copy] = service.cloneAndTransform(
+      [dim],
+      new AcGeMatrix3d().makeScale(3, 3, 3),
+      { regenerateDimensions: true }
+    ) as AcDbAlignedDimension[]
+
+    expect(copy.measurement).toBeCloseTo(30)
+    expect(copy.dimBlockId).not.toBe(dim.dimBlockId)
+    expect(dim.measurement).toBeCloseTo(10)
+  })
+
   test('copyDisplayTraits copies visual properties', () => {
     const source = {
       layer: 'A',
@@ -34,57 +91,59 @@ describe('AcApEntityService', () => {
     expect(target.color).toEqual({ cloned: true })
   })
 
-  test('eraseEntities dedupes ids and erases each block table record once', () => {
-    const erased = new Set<string>()
-    const modelSpace = {
-      removeEntity: jest.fn((ids: string[]) => {
-        ids.forEach(id => erased.add(id))
-        return true
-      })
-    }
-    const paperSpace = {
-      removeEntity: jest.fn((ids: string[]) => {
-        ids.forEach(id => erased.add(id))
-        return true
-      })
-    }
-    const entities = new Map<string, { ownerId: string }>([
-      ['a', { ownerId: 'ms' }],
-      ['b', { ownerId: 'ms' }],
-      ['c', { ownerId: 'ps' }]
-    ])
-    const db = {
-      transactionManager: { hasTransaction: () => true },
-      tables: {
-        blockTable: {
-          getEntityById: jest.fn((objectId: string) => entities.get(objectId)),
-          getIdAt: jest.fn((ownerId: string) => {
-            if (ownerId === 'ms') return modelSpace
-            if (ownerId === 'ps') return paperSpace
-            return undefined
-          })
-        }
-      },
-      openEntityForWrite: jest.fn((objectId: string) => entities.get(objectId))
-    }
-    const service = new AcApEntityService(db as never)
+  test('eraseEntities returns the number of erased entities', () => {
+    const db = new AcDbDatabase()
+    const a = new AcDbLine(new AcGePoint3d(0, 0, 0), new AcGePoint3d(1, 0, 0))
+    const b = new AcDbLine(new AcGePoint3d(0, 1, 0), new AcGePoint3d(1, 1, 0))
+    db.tables.blockTable.modelSpace.appendEntity([a, b])
+    const service = new AcApEntityService(db)
 
-    const count = service.eraseEntities(['a', 'b', 'a', 'c', 'missing'])
+    expect(service.eraseEntities([a.objectId, b.objectId, 'missing'])).toBe(2)
+    expect(db.tables.blockTable.getEntityById(a.objectId)).toBeUndefined()
+    expect(db.tables.blockTable.getEntityById(b.objectId)).toBeUndefined()
+  })
 
-    expect(count).toBe(3)
-    expect(erased).toEqual(new Set(['a', 'b', 'c']))
-    // One removal call per owning block table record, with the whole id batch.
-    expect(modelSpace.removeEntity).toHaveBeenCalledTimes(1)
-    expect(modelSpace.removeEntity).toHaveBeenCalledWith(['a', 'b'])
-    expect(paperSpace.removeEntity).toHaveBeenCalledTimes(1)
-    expect(paperSpace.removeEntity).toHaveBeenCalledWith(['c'])
-    // Duplicates and unresolvable ids are never opened.
-    expect(db.openEntityForWrite).toHaveBeenCalledTimes(3)
+  test('eraseEntities removes many entities in one pass per block', () => {
+    // Erasing one by one scans the whole block for each entity, which froze
+    // the UI for half a minute on a large drawing.
+    const db = new AcDbDatabase()
+    const lines = Array.from(
+      { length: 50 },
+      (_, i) => new AcDbLine(new AcGePoint3d(0, i, 0), new AcGePoint3d(1, i, 0))
+    )
+    const kept = new AcDbLine(
+      new AcGePoint3d(5, 0, 0),
+      new AcGePoint3d(6, 0, 0)
+    )
+    db.tables.blockTable.modelSpace.appendEntity([...lines, kept])
+    const service = new AcApEntityService(db)
+    const remove = jest.spyOn(AcDbBlockTableRecord.prototype, 'removeEntity')
+    const blockCount = [...db.tables.blockTable.newIterator()].length
+
+    try {
+      expect(service.eraseEntities(lines.map(line => line.objectId))).toBe(50)
+      expect(remove.mock.calls.length).toBeLessThanOrEqual(blockCount)
+    } finally {
+      remove.mockRestore()
+    }
+    expect(
+      lines.every(line => !db.tables.blockTable.getEntityById(line.objectId))
+    ).toBe(true)
+    expect(db.tables.blockTable.getEntityById(kept.objectId)).toBeDefined()
+
+    // Still one undo step.
+    expect(db.transactionManager.undo()).toBe(true)
+    expect(
+      lines.every(line => db.tables.blockTable.getEntityById(line.objectId))
+    ).toBe(true)
   })
 
   test('eraseEntities records an undoable database change', () => {
     const db = new AcDbDatabase()
-    const line = new AcDbLine(new AcGePoint3d(0, 0, 0), new AcGePoint3d(10, 0, 0))
+    const line = new AcDbLine(
+      new AcGePoint3d(0, 0, 0),
+      new AcGePoint3d(10, 0, 0)
+    )
     db.tables.blockTable.modelSpace.appendEntity(line)
     const objectId = line.objectId
     const service = new AcApEntityService(db)

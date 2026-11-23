@@ -13,12 +13,12 @@ import {
   HATCH_PATTERN_USER
 } from '@mlightcad/data-model'
 
-import type { PdfRecognizedShape } from './recognition/pdfCurveRecognition'
+import type { PdfRecognizedShape } from './recognition/pdfCurveRecognition.js'
 import type {
   PdfHatchDefinitionLine,
   PdfRecognizedHatchPattern
-} from './recognition/pdfHatchRecognition'
-import { cubicAt, type PdfRecPoint } from './recognition/pdfRecGeometry'
+} from './recognition/pdfHatchRecognition.js'
+import { cubicAt, type PdfRecPoint } from './recognition/pdfRecGeometry.js'
 
 /** Name prefix for linetypes created from PDF dash patterns. */
 export const PDF_DASH_LINETYPE_PREFIX = 'PDF_DASH_'
@@ -213,13 +213,20 @@ export function acapPdfCreatePatternHatch(
     hatch.patternType = AcDbHatchPatternType.Predefined
     hatch.patternName = pattern.name
     hatch.patternScale = pattern.scale
-  } else {
+    hatch.patternAngle = pattern.angle
+  } else if (pattern.type === 'userDefined') {
     hatch.patternType = AcDbHatchPatternType.UserDefined
     hatch.patternName = HATCH_PATTERN_USER
     hatch.patternScale = 1
     hatch.patternDouble = pattern.double
+    hatch.patternAngle = pattern.angle
+  } else {
+    // A measured pattern: the definition lines already hold angle and size.
+    hatch.patternType = AcDbHatchPatternType.Custom
+    hatch.patternName = pattern.name
+    hatch.patternScale = 1
+    hatch.patternAngle = 0
   }
-  hatch.patternAngle = pattern.angle
   hatch.isSolidFill = false
   hatch.associative = false
   for (const loop of loops) hatch.add(loop)
@@ -273,6 +280,13 @@ export function acapPdfEnsureTextStyle(
   )
   return name
 }
+
+/** Text style created for recovered SHX line text. */
+export const PDF_SHX_TEXT_STYLE = `${PDF_TEXT_STYLE_PREFIX}SHX`
+
+/** SHX font and big font of {@link PDF_SHX_TEXT_STYLE}. */
+export const PDF_SHX_FONT = 'txt'
+export const PDF_SHX_BIG_FONT = 'gbcbig'
 
 /** Width factors outside this range mean a bad measurement, not real text. */
 const MIN_FIT_WIDTH_FACTOR = 0.1

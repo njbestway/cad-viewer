@@ -66,9 +66,16 @@ test('AI tab hosts the CAD Agent and the PDF tools', async ({ page }) => {
   const baseline = await entityTypeCounts(page)
 
   // Ribbon buttons take their tooltip as accessible name, so address them
-  // by their stable item id instead of the visible label.
+  // by their stable item id instead of the visible label. Dropdowns
+  // (Recover Text) only expose `data-item-id` on the type-dropdown host.
   const ribbonButton = (id: string) =>
-    page.locator(`[data-ribbon-button-id="${id}"]:visible`)
+    page
+      .locator(`[data-ribbon-button-id="${id}"]:visible`)
+      .or(
+        page.locator(
+          `.ml-ribbon-item-host.type-dropdown[data-item-id="${id}"]:visible`
+        )
+      )
 
   // The agent button moved out of Home > Utilities.
   await page.getByRole('tab', { name: 'Home' }).click()
@@ -76,31 +83,35 @@ test('AI tab hosts the CAD Agent and the PDF tools', async ({ page }) => {
 
   await page.getByRole('tab', { name: 'AI' }).click()
   for (const id of [
-    'cmd-ipdf',
+    'cmd-ai-bsearch',
+    'cmd-ai-bdetect',
+    'cmd-pdfimport',
     'cmd-pdfscale',
     'cmd-pdftext',
-    'cmd-pdfblock',
-    'cmd-pdfdim'
+    'cmd-pdfdim',
+    'cmd-pdfhatch'
   ]) {
     await expect(ribbonButton(id)).toBeVisible()
   }
-  await expect(ribbonButton('cmd-ipdf')).toContainText(/Import\s*PDF/)
+  await expect(ribbonButton('cmd-pdfimport')).toContainText(/Import\s*PDF/)
+  // Recover Text is a dropdown; the host still shows the command label.
+  await expect(ribbonButton('cmd-pdftext')).toContainText(/Recover\s*Text/)
+  // The tooltip names the dialog command, not the old `ipdf`.
+  await expect(ribbonButton('cmd-pdfimport')).toHaveAttribute(
+    'aria-label',
+    /\(PDFIMPORT\)/
+  )
 
-  // Import PDF runs `ipdf` (lazy-loading the PDF plugin) and opens the picker.
+  // Import PDF runs `pdfimport` (lazy-loading the PDF plugin) and opens the picker.
   const chooserPromise = page.waitForEvent('filechooser')
-  await ribbonButton('cmd-ipdf').click()
+  await ribbonButton('cmd-pdfimport').click()
   const chooser = await chooserPromise
   await chooser.setFiles(pdfFixturePath)
 
-  // Insertion point prompt: Enter accepts the origin.
-  // The command line clears its placeholder while a prompt is active, so
-  // address the input by class.
-  const commandLine = page.locator('input.ml-cli-text')
-  await expect(page.locator('.ml-cli-recent')).toContainText('Scale', {
-    timeout: 20_000
-  })
-  await commandLine.focus()
-  await page.keyboard.press('Enter')
+  // Import PDF dialog: OK imports the first page at the origin.
+  const dialog = page.locator('.ml-pdf-import-dialog')
+  await expect(dialog).toBeVisible({ timeout: 20_000 })
+  await dialog.locator('.ml-pdf-import-ok').click()
 
   await expect
     .poll(

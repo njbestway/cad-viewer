@@ -1,17 +1,19 @@
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
+
+import vue from '@vitejs/plugin-vue'
+import peerDepsExternal from 'rollup-plugin-peer-deps-external'
+import { visualizer } from 'rollup-plugin-visualizer'
 import {
-  defineConfig,
   type ConfigEnv,
+  defineConfig,
   type LibraryFormats,
   PluginOption
 } from 'vite'
-import svgLoader from 'vite-svg-loader'
-import { visualizer } from 'rollup-plugin-visualizer'
-import peerDepsExternal from 'rollup-plugin-peer-deps-external'
-import vue from '@vitejs/plugin-vue'
 import dts from 'vite-plugin-dts'
 import { libInjectCss } from 'vite-plugin-lib-inject-css'
+import svgLoader from 'vite-svg-loader'
+
 import { createLibEntryFileName } from '../vite-config/pluginRollupOutput'
 
 const packageId = 'cad-editor'
@@ -31,18 +33,10 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     dts({
       include: ['src/**/*.ts', 'src/**/*.vue'],
       exclude: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
-      beforeWriteFile: (filePath, content) => {
-        const normalized = filePath.replace(/\\/g, '/')
-        if (normalized.endsWith('/dist/index.d.ts')) {
-          return {
-            filePath: filePath.replace(/index\.d\.ts$/, `${packageId}.d.ts`),
-            content: content.replace(
-              '//# sourceMappingURL=index.d.ts.map',
-              `//# sourceMappingURL=${packageId}.d.ts.map`
-            )
-          }
-        }
-      }
+      // Bundle into one entry declaration: per-file output re-exports
+      // `./Foo.vue`, which `moduleResolution: node16/nodenext` cannot resolve
+      // (#930) and which cannot be spelled as a `.js` specifier in sources.
+      bundleTypes: true
     }) as PluginOption
   ]
 
@@ -71,14 +65,21 @@ export default defineConfig(({ mode }: ConfigEnv) => {
       },
       minify: true,
       rollupOptions: {
-        // PDF/HTML/SVG/Agent plugins are peers; loaded at runtime via dynamic import
+        // PDF/HTML/SVG/LLM/Agent plugins are peers; loaded at runtime via dynamic import
         external: [
           '@mlightcad/cad-pdf-plugin',
+          '@mlightcad/cad-pdf-plugin/register',
           '@mlightcad/cad-html-plugin',
+          '@mlightcad/cad-html-plugin/register',
           '@mlightcad/cad-svg-plugin',
+          '@mlightcad/cad-svg-plugin/register',
           '@mlightcad/cad-agent-plugin',
           '@mlightcad/cad-agent-plugin/register',
           '@mlightcad/cad-agent-plugin/style.css',
+          '@mlightcad/cad-llm-plugin',
+          '@mlightcad/cad-llm-plugin/register',
+          '@mlightcad/cad-paddleocr-plugin',
+          '@mlightcad/cad-paddleocr-plugin/register',
           '@mlightcad/cad-script-plugin',
           '@mlightcad/cad-script-plugin/register',
           '@mlightcad/cad-script-plugin/style.css'

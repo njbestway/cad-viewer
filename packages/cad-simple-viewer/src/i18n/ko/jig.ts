@@ -126,6 +126,19 @@ export default {
       }
     }
   },
+  copybase: {
+    basePoint: '기준점 지정'
+  },
+  pasteclip: {
+    insertionPoint: '삽입점 지정',
+    empty: '클립보드에 도면 객체가 없습니다'
+  },
+  pasteorig: {
+    sameDrawing: 'PASTEORIG는 객체를 복사한 원본 도면에는 붙여넣을 수 없습니다'
+  },
+  pasteblock: {
+    insertionPoint: '삽입점 지정'
+  },
   dimlinear: {
     xLine1Point: '첫 번째 치수보조선 원점 지정 또는 <객체 선택>',
     xLine2Point: '두 번째 치수보조선 원점 지정',
@@ -312,6 +325,10 @@ export default {
       otherAxis: '잘못된 다른 축 입력: 거리는 0보다 커야 합니다.',
       rotation: '잘못된 회전 입력: 결과 단축은 0보다 커야 합니다.'
     }
+  },
+  explode: {
+    notExplodable: '{count}개의 객체를 분해할 수 없습니다',
+    minsert: 'MINSERT로 삽입된 블록 {count}개는 분해할 수 없습니다'
   },
   hatch: {
     prompt: '경계 객체 선택 또는',
@@ -808,7 +825,16 @@ export default {
     throughPoint: '호 위의 점 지정',
     endPoint: '호의 끝점 지정',
     lockedEndPoint: '호의 끝점 지정 (Ctrl 키로 큰 호/작은 호 전환)',
-    invalidPoints: '세 점이 동일 선상에 있어 호를 정의할 수 없습니다.'
+    invalidPoints: '세 점이 동일 선상에 있어 호를 정의할 수 없습니다.',
+    pickArc: '원, 호 또는 폴리선 호 선택',
+    noArc: '여기에 원이나 호가 없습니다. 곡선을 클릭하거나 3점을 선택하세요.',
+    keywords: {
+      threePoint: {
+        display: '3점(T)',
+        local: '3점',
+        global: 'ThreePoint'
+      }
+    }
   },
   measureArea: {
     firstPoint: '첫 번째 점 지정',
@@ -1064,6 +1090,7 @@ export default {
     arrowheadOrRemove: '지시선 화살촉 위치 지정 또는 [지시선 제거(R)]',
     selectLeaderToRemove: '제거할 지시선 지정 또는 Enter 키를 눌러 완료',
     cannotRemoveLast: '이 다중 지시선에서 마지막 지시선은 제거할 수 없습니다.',
+    noLeaderAtPoint: '해당 위치에서 지시선을 찾을 수 없습니다.',
     keywords: {
       remove: {
         display: '지시선 제거(R)',
@@ -1302,6 +1329,35 @@ export default {
     },
     invalid: {
       referencePoints: '잘못된 참조점: 점들은 서로 달라야 합니다.'
+    }
+  },
+  scale: {
+    basePoint: '기준점 지정',
+    scaleFactorOrOptions: '축척 비율 지정 또는',
+    referenceLength: '참조 길이 지정',
+    newLengthOrPoints: '새 길이 지정 또는',
+    newLengthFirstPoint: '첫 번째 점 지정',
+    copyMessage: '선택한 객체의 사본을 축척합니다.',
+    keywords: {
+      copy: {
+        display: '복사(C)',
+        local: '복사',
+        global: 'Copy'
+      },
+      reference: {
+        display: '참조(R)',
+        local: '참조',
+        global: 'Reference'
+      },
+      points: {
+        display: '점(P)',
+        local: '점',
+        global: 'Points'
+      }
+    },
+    invalid: {
+      factor: '값은 0이 아닌 양수여야 합니다.',
+      length: '값은 0이 아닌 양수여야 합니다.'
     }
   },
   revcloud: {
@@ -1569,6 +1625,7 @@ export default {
     exportFormat: '내보내기 형식',
     exportInvisibleLayers: '보이지 않는 도면층 내보내기',
     exportLayouts: '배치 내보내기',
+    exportEmptyLayouts: '빈 배치 내보내기',
     background: '배경색',
     initialView: 'HTML을 열 때의 초기 뷰',
     viewerMode: '오프라인 뷰어 모드',
@@ -1635,6 +1692,7 @@ export default {
   cpdf: {
     modelSpaceFit: '모형 공간 프레임',
     exportLayouts: '배치 내보내기',
+    exportEmptyLayouts: '빈 배치 내보내기',
     textMode: '문자 렌더링',
     colorMode: '색상 모드',
     keywords: {
@@ -1927,13 +1985,18 @@ export default {
       }
     }
   },
-  ipdf: {
+  pdfimport: {
     pageNumber: '페이지 번호 입력 (1-{count})',
-    insertionPoint: '삽입점 지정 (축척 {scale}, 모드 {mode}) 또는',
+    insertionPoint:
+      '삽입점 지정 (축척 {scale}, 모드 {mode}, 문자 {text}) 또는',
     modePrompt: '가져오기 방식 선택',
     modeRecover: '도면 복원',
     modeVisual: 'PDF 모양 유지',
     scaleFactor: '축척 비율 입력',
+    textPrompt: '분해된 문자 인식 방식 선택',
+    textOff: '끄기',
+    textLocal: '로컬 글리프 사전',
+    textOcr: 'OCR 서비스',
     keywords: {
       scale: {
         display: '축척(S)',
@@ -1945,6 +2008,11 @@ export default {
         local: '모드',
         global: 'Mode'
       },
+      text: {
+        display: '문자(T)',
+        local: '문자',
+        global: 'Text'
+      },
       recover: {
         display: '복원(R)',
         local: '복원',
@@ -1954,17 +2022,141 @@ export default {
         display: '시각(V)',
         local: '시각',
         global: 'Visual'
+      },
+      off: {
+        display: '끄기(O)',
+        local: '끄기',
+        global: 'Off'
+      },
+      local: {
+        display: '로컬(L)',
+        local: '로컬',
+        global: 'Local'
+      },
+      ocr: {
+        display: '인식(C)',
+        local: '인식',
+        global: 'Ocr'
       }
+    },
+    pickInsertionPoint: '삽입점 지정',
+    dialog: {
+      title: 'PDF 가져오기',
+      close: '닫기',
+      fileName: '파일 이름:',
+      browse: '찾아보기...',
+      pagesGroup: '가져올 페이지',
+      page: '페이지:',
+      total: '합계: {count}',
+      singleView: '페이지 미리보기 표시',
+      gridView: '페이지 축소판 표시',
+      pageLabel: '페이지 {page}',
+      pageSize:
+        '페이지 크기: {width} × {height} mm ({widthIn} × {heightIn} 인치)',
+      previewError: '미리보기를 표시할 수 없음',
+      positionGroup: '위치',
+      onScreen: '화면상에 삽입점 지정',
+      x: 'X:',
+      y: 'Y:',
+      scale: '축척:',
+      modeGroup: '가져오기 모드',
+      modeRecover: '도면 복원',
+      recoverHint: '원, 호, 곡선, 문자, 해치 및 블록을 재구성합니다',
+      modeVisual: 'PDF 모양 유지',
+      visualHint: 'PDF에 그려진 그대로 경로와 문자를 가져옵니다',
+      recognizeDimensions: '치수 인식',
+      recognizeDimensionsHint: '분해된 치수를 치수 객체로 되돌립니다',
+      recognizeExplodedText: '분해된 문자 인식',
+      recognizeExplodedTextHint:
+        'SHX / 외곽선 스트로크 문자를 문자 객체로 되돌립니다(로컬 사전 또는 사용 가능한 OCR 제공자)',
+      recognizeExplodedTextOff: '끄기',
+      recognizeExplodedTextLocal: '로컬 글리프 사전',
+      recognizeExplodedTextOcr: 'OCR',
+      ok: '확인',
+      cancel: '취소'
     }
   },
   pdfdim: {
+    cancelled: '치수 인식을 취소했습니다. 변경된 내용이 없습니다.',
     noDimensions:
       '선택 영역에서 치수를 찾지 못했습니다 (화살표 또는 사선, 치수선, 숫자 문자가 필요합니다).',
-    convertAll:
-      '치수 {count}개를 찾았습니다 (도면 축척 1:{scale}). 변환하시겠습니까?',
-    convertOne: '치수 {index}/{count} "{text}": 변환하시겠습니까?',
     summary:
-      '치수 {count}개를 변환했습니다. 치수 스타일 PDF_DIM의 선형 축척 비율은 {scale}입니다.'
+      '치수 {count}개를 변환했습니다. 치수 스타일 {style}의 선형 축척 비율은 {scale}입니다.',
+    panel: {
+      title: '치수 인식',
+      style: '치수 스타일',
+      dimStyle: '스타일',
+      newStyle: '새 치수 스타일…',
+      newStyleName: '새 치수 스타일 이름',
+      createStyle: '만들기',
+      nameEmpty: '이름을 입력하십시오.',
+      nameInvalid: '이름에 사용할 수 없는 문자가 있습니다.',
+      nameExists: '같은 이름의 치수 스타일이 이미 있습니다.',
+      scale: '도면 축척',
+      stylePreview: '선택한 치수 스타일 미리보기(인식된 크기 반영)',
+      dimensions: '치수',
+      selectHint:
+        '치수를 선택하면 해당 위치로 확대됩니다. 적용 전에 값을 수정할 수 있습니다.',
+      empty: '선택 영역에서 치수를 찾지 못했습니다.',
+      include: '이 치수 변환',
+      kindLinear: '선형',
+      kindRadius: '반지름',
+      kindDiameter: '지름',
+      kindAngular: '각도',
+      kindAligned: '정렬',
+      kindArcLength: '호 길이',
+      kindOrdinate: '세로좌표',
+      textTip: '치수 문자(재정의)',
+      measured: '측정값 {value}',
+      hideStrokes: '원본 선 숨기기',
+      ready: '{ready}/{count}개 치수 준비됨',
+      cancel: '취소',
+      apply: '적용'
+    }
+  },
+  pdfhatch: {
+    cancelled: '해치 인식을 취소했습니다. 변경된 내용이 없습니다.',
+    pickPoint: '해치할 영역 내부의 점 지정',
+    panel: {
+      title: '해치 인식',
+      hatches: '해치',
+      addArea: '영역 추가',
+      addAreaTip:
+        '인식되지 않은 영역 내부의 점을 지정하면 그 안의 선에 가장 알맞은 패턴을 맞춥니다.',
+      picking: '도면에서 영역 내부의 점을 지정하십시오…',
+      noBoundary: '그 점 주위에서 닫힌 영역을 찾지 못했습니다.',
+      noStrokes: '그 영역에서 규칙적인 패턴을 찾지 못했습니다.',
+      empty: '해치를 찾지 못했습니다. "영역 추가"로 지정하십시오.',
+      include: '이 해치 변환',
+      addedTag: '추가됨',
+      entities: '객체 {count}개',
+      selectHint: '해치를 선택하면 패턴, 축척, 각도를 변경할 수 있습니다.',
+      ownGroup: '측정 / 사용자 정의',
+      libraryGroup: '미리 정의됨',
+      pattern: '패턴',
+      scale: '축척',
+      spacing: '간격',
+      angle: '각도',
+      autoFit: '자동 맞춤',
+      autoFitTip: '선에서 이 패턴의 축척, 각도, 원점을 다시 측정합니다.',
+      match: '선 위의 패턴: {precision} · 다시 그려진 선: {recall}',
+      noEntities:
+        '이 패턴으로 완전히 다시 그려지는 객체가 없어 아무것도 대체되지 않습니다.',
+      guessed:
+        '선에서 이 패턴의 흔적을 찾지 못했습니다. 축척과 각도는 추정값입니다.',
+      poorMatch: '일치도 낮음: 해치가 다시 그리지 못한 선은 그대로 유지됩니다.',
+      userSingle: '사용자 정의',
+      userDouble: '사용자 정의 (이중)',
+      measured: '측정된 패턴',
+      hideStrokes: '원래 선 숨기기',
+      ready: '해치 {count}개 중 {ready}개 준비됨',
+      cancel: '취소',
+      apply: '적용'
+    },
+    noHatches:
+      '선택 영역에서 해치를 찾지 못했습니다 (규칙적인 평행 선분과 그 경계선이 필요합니다).',
+    summary:
+      '해치 {count}개를 변환했습니다 ({patterns}). 객체 {strokes}개를 대체했습니다.'
   },
   bsearch: {
     unsupported:
@@ -2091,39 +2283,71 @@ export default {
       }
     }
   },
-  pdfblock: {
-    keywords: {
-      yes: {
-        display: '예(Y)',
-        local: '예',
-        global: 'Yes'
-      },
-      no: {
-        display: '아니요(N)',
-        local: '아니요',
-        global: 'No'
-      },
-      review: {
-        display: '개별 확인(R)',
-        local: '개별 확인',
-        global: 'Review'
-      },
-      all: {
-        display: '모두(A)',
-        local: '모두',
-        global: 'All'
-      },
-      exit: {
-        display: '종료(X)',
-        local: '종료',
-        global: 'eXit'
-      }
-    }
-  },
   pdftext: {
-    enterText:
-      '문자 줄 {index}/{count}: 강조 표시된 문자 입력 (비워 두면 건너뛰기, Esc 종료)',
-    enterTextWithSuggestion: '문자 줄 {index}/{count}: 강조 표시된 문자 입력',
+    panel: {
+      title: '문자 인식',
+      shxGroup: 'SHX 문자(선 글꼴)',
+      meshGroup: 'TrueType 문자(윤곽선 글꼴)',
+      style: '문자 스타일',
+      newStyle: '새 문자 스타일…',
+      newTag: '새로 만들기',
+      newStyleName: '새 문자 스타일 이름',
+      create: '만들기',
+      cancel: '취소',
+      apply: '적용',
+      nameError: {
+        empty: '이름을 입력하십시오.',
+        invalid: '이름에 사용할 수 없는 문자가 있습니다.',
+        exists: '같은 이름의 문자 스타일이 이미 있습니다.'
+      },
+      font: '글꼴',
+      bigFont: '큰 글꼴',
+      noBigFont: '(없음)',
+      shxFonts: 'SHX 글꼴',
+      ttfFonts: 'TrueType 글꼴',
+      fontsUsed: '사용 글꼴: {fonts}',
+      fontMissing:
+        '"{font}" 글꼴을 사용할 수 없어 "{fallback}"(으)로 표시됩니다.',
+      fontNotShx: 'TrueType 글꼴입니다. SHX 선 문자처럼 보이지 않습니다.',
+      fontNotTtf: 'SHX 글꼴입니다. TrueType 윤곽선 문자처럼 보이지 않습니다.',
+      styleChanges:
+        '문자 스타일 "{style}"의 글꼴을 변경합니다. 이 스타일을 사용하는 기존 문자도 바뀝니다.',
+      heightScale: '높이 축척',
+      widthFactor: '폭 비율',
+      autoWidth: '원래 폭에 맞춤',
+      lines: '문자 행',
+      include: '이 행 변환',
+      textPlaceholder: '문자를 입력하십시오(비워 두면 건너뜀)',
+      switchKind: 'SHX 문자와 TrueType 문자 간 전환',
+      kind: {
+        shx: 'SHX',
+        mesh: 'TrueType'
+      },
+      source: {
+        dictionary: '학습됨',
+        ocr: 'OCR',
+        typed: '편집됨',
+        unread: '인식 안 됨'
+      },
+      hideStrokes: '원래 선 숨기기',
+      ready: '{count}개 행 중 {ready}개 준비됨',
+      merge: '여러 줄 문자로 결합',
+      mergeTip: '선택한 행을 하나의 여러 줄 문자(MTEXT)로 결합합니다',
+      split: '분할',
+      splitTip: '선택한 결합 문자를 원래 행으로 분할합니다',
+      mergeAdjacent: '인접 문자 결합',
+      mergeAdjacentTip:
+        '같은 기준선에서 서로 인접한 문자와 단어를 여러 줄 문자로 결합합니다',
+      mergedCount: '여러 줄 문자 {count}개로 결합했습니다.',
+      selectHint: 'Ctrl+클릭 또는 Shift+클릭으로 여러 행을 선택할 수 있습니다.',
+      mtextTag: '여러 줄 문자'
+    },
+    cancelled: '문자 인식을 취소했습니다. 변경된 내용이 없습니다.',
+    ocrNotConfigured:
+      '문자 인식(OCR)이 꺼져 있습니다. 이미지를 지원하는 AI 모델이 설정되지 않았습니다. LLMSETTINGS를 실행하여 설정하십시오.',
+    recognizing: '문자 {count}줄을 인식하는 중…',
+    ocrFailed:
+      '문자 인식(OCR)에 실패했습니다: {message}. 문자를 직접 입력하거나 LLMSETTINGS를 실행하여 AI 모델 설정을 확인하십시오.',
     noCandidates: '선택 항목에서 문자처럼 보이는 획을 찾지 못했습니다.',
     summary: '{converted}줄 변환 ({automatic}줄 자동 인식), {skipped}줄 건너뜀.'
   },
@@ -2135,5 +2359,10 @@ export default {
       '실제 길이 입력 (측정값 {measured}, 치수 문자 기준 축척 1:{scale})',
     zeroDistance: '두 점이 같습니다.',
     applied: '{count}개 객체를 {factor} 배로 축척했습니다.'
+  },
+  txt2mtxt: {
+    needTwo: '결합하려면 문자 또는 여러 줄 문자를 둘 이상 선택하십시오.',
+    mergeFailed: '선택한 문자를 결합할 수 없습니다.',
+    eraseFailed: '원본 문자를 모두 지우지 못해 결합이 취소되었습니다.'
   }
 }

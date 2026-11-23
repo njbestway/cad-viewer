@@ -287,7 +287,7 @@ cad.file.saveDxf('./plan-out.dxf')
 
 ### `cad.file.savePdf(path?)`
 
-Queues a PDF export after the script succeeds. Pass a path string or `{ path?, fileName?, exportLayouts?, colorMode?, textMode?, modelSpaceFit? }`. `.pdf` is appended when missing. Returns `{ queued: true, index, fileName }`.
+Queues a PDF export after the script succeeds. Pass a path string or `{ path?, fileName?, exportLayouts?, exportEmptyLayouts?, colorMode?, textMode?, modelSpaceFit? }`. `.pdf` is appended when missing. Returns `{ queued: true, index, fileName }`.
 
 ```javascript
 cad.file.savePdf('./plan.pdf')
@@ -295,7 +295,7 @@ cad.file.savePdf('./plan.pdf')
 
 ### `cad.file.saveHtml(path?)`
 
-Queues offline HTML (or a multi-file `.zip`) after success. Pass a path string or `{ path?, fileName?, exportFormat?, exportLayouts?, background? }`. Requires a viewer host (`exportHtml`). Headless sessions skip with a log note.
+Queues offline HTML (or a multi-file `.zip`) after success. Pass a path string or `{ path?, fileName?, exportFormat?, exportLayouts?, exportEmptyLayouts?, background? }`. Requires a viewer host (`exportHtml`). Headless sessions skip with a log note.
 
 ```javascript
 cad.file.saveHtml('./plan.html')
@@ -337,6 +337,51 @@ return {
 }
 ```
 
+## cad.redraw
+
+Rekonstrukce výkresu z referenčního obrázku (sken, fotografie, snímek obrazovky) se sledováním důkazů. Skript sestaví prostý objekt spec; `cad.redraw` jej ověří, vykreslí v jedné skupině zpět do standardních hladin (OBJECT, HIDDEN, CENTER, DIM, TEXT, TABLE, BORDER, CONSTRUCTION, ASSUMPTION) a zkontroluje výsledek. Úplný popis spec je exportován jako `CAD_REDRAW_SPEC_SUMMARY` a vložen do promptu agenta.
+
+| Metoda | Popis |
+| --- | --- |
+| `cad.redraw.validate(spec, { profile? }?)` | Bez kreslení ověří pole, ID, jednotky, kalibraci a vazby → `{ status, errors, warnings, evidence, calibrations }` |
+| `cad.redraw.draw(spec, { profile?, omit?, offset?, allowBlocked? }?)` | Vykreslí spec → `{ status, drawn, idMap, entityCount, skipped, checks, dimensionChecks, errors, warnings }` |
+| `cad.redraw.inspect(spec, idMap, { profile? }?)` | Znovu spustí kontroly a porovná odečtené hodnoty kót `value` s tím, co nakreslené kóty měří |
+| `cad.redraw.compare(spec, { referenceIndex?, calibration?, viewId?, tolerancePx?, maxSide?, images? }?)` | Porovnání po pixelech s připojeným referenčním obrázkem: zarovná vykreslený výkres podle kalibrace ze spec a vrátí `redrawCompare` (verdikt, pokrytí, přesnost, vzdálenosti, `suggestedMove`, problémová místa) a obrázky překryvu a rozdílu |
+
+- Profily: `general` (výchozí), `strict-dimensioned`, `hybrid`, `visual-trace`, `geometry-only` (vynechá texty, kóty, odkazy a text tabulek).
+- Důkaz pro každou hodnotu: `known`, `scaled`, `inferred`, `unreadable`. Výchozí jednotky jsou `unitless`; milimetry se nikdy nepředpokládají.
+- Entity standardně používají souřadnice CAD. S `coords: 'source'` jde o pixely obrázku (počátek vlevo nahoře, y dolů) převedené kalibrací (`dimension-anchor`, `similarity`, `affine`, `homography`, `sheet-scale`).
+- Stav: `pass`, `pass_with_warnings`, `needs_review` (rozpor kót nebo vazeb), `blocked` (přísnému profilu chybí důkazy), `fail` (neplatný spec; nic se nevykreslí).
+- Tabulky se kreslí jako čáry a text, ne jako AcDbTable.
+- Kreslení nastaví `INSUNITS` podle `units`, texty a texty kót používají styl `REDRAW_TEXT` s podporou CJK (`simsun` + `hztxt.shx`) a kótu, kterou nelze vytvořit, nakreslí s varováním jako čáry a text (poloměr/průměr jako odkaz); `fallbacks` je počítá.
+
+```javascript
+const r = cad.redraw.draw({
+  profile: 'general',
+  units: 'mm',
+  entities: [
+    { id: 'plate', type: 'rectangle', x: 0, y: 0, width: 120, height: 80, evidence: 'known' },
+    { id: 'hole', type: 'circle', center: [60, 40], radius: 10, evidence: 'known' },
+    { id: 'w', type: 'linear_dimension', p1: [0, 0], p2: [120, 0], dimLine: [60, -12], value: 120, evidence: 'known' },
+    { id: 'note', type: 'leader', points: [[67, 47], [85, 65], [95, 65]], text: 'THRU' }
+  ],
+  checks: [{ measure: 'radius', entity: 'hole', expected: 10 }]
+})
+return { status: r.status, checks: r.checks, dimensionChecks: r.dimensionChecks }
+```
+
+### Porovnání po pixelech
+
+`cad.redraw.compare` vykreslí výkres v rozsahu CAD odpovídajícím referenci (nebo `views[].sourceRoi`), převede ho kalibrací (podobnost, afinní nebo homografie) do souřadnic obrázku, obojí ztenčí na 1pixelové osy a změří je proti sobě pomocí vzdálenostních transformací.
+
+- `coverage`: podíl referenčních čar, u kterých je v toleranci nakreslená geometrie (chybějící geometrie ho snižuje).
+- `precision`: podíl nakreslených čar, u kterých je v toleranci referenční čára (nadbytečná nebo posunutá geometrie ho snižuje).
+- `meanDistance*` / `p95Distance*`: vzdálenost referenčních čar od výkresu v pixelech reference a v jednotkách CAD.
+- `verdict`: `aligned`, `offset` (většinu vyřeší posun — viz `suggestedMove`), `incomplete`, `cluttered` nebo `mismatch`.
+- `hotspots`: buňky mřížky s největším nesouladem jako `sourceRoi` (pixely obrázku) a `cadBox`.
+
+Překryv ukazuje zesvětlenou referenci se shodnými čarami zeleně, chybějícími červeně a nadbytečnými modře. Porovnání potřebuje vykreslovač a připojený obrázek, takže funguje v agentovi v aplikaci; relace bez rozhraní vrací `reason: 'no_raster_host'`. Pixelové metriky jsou jen vizuálním důkazem a rozměry neprokazují.
+
 ## cad.edit.transaction
 
 Provede editační operace, všechny změny budou tvořit jednu skupinu pro vrácení zpět. Výkres musí být v editovatelném stavu (ne v režimu pouze pro čtení).
@@ -365,7 +410,7 @@ Metody dostupné v transakci:
 | `tx.drawRay({ start, through, layer? })`                                                                   | `start/through: {x,y}`           | ID nové entity    |
 | `tx.drawXline({ start, through, layer? })`                                                                 | `start/through: {x,y}`           | ID nové entity    |
 | `tx.drawSpline({ points, closed?, layer? })`                                                               | `points: Array<{x,y}>`           | ID nové entity    |
-| `tx.drawText({ position, text, height?, layer? })`                                                         | `position: {x,y}`                | ID nové entity    |
+| `tx.drawText({ position, text, height?, rotationDeg?, width?, layer? })`                                                         | `position: {x,y}`                | ID nové entity    |
 | `tx.drawDimAligned({ xLine1Point, xLine2Point, dimLinePoint, text?, styleName?, layer? })`                 | body `{x,y}`                     | ID nové entity    |
 | `tx.drawDimLinear({ xLine1Point, xLine2Point, dimLinePoint, rotationDeg?, text?, styleName?, layer? })`     | bez `rotationDeg` → H/V podle umístění | ID nové entity |
 | `tx.drawDimDiameter({ center, radius, angleDeg?, leaderLength?, … } \| { chordPoint, farChordPoint, … })` | střed+poloměr nebo tětiva        | ID nové entity    |
@@ -373,6 +418,7 @@ Metody dostupné v transakci:
 | `tx.drawDimAngular({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`             | 3bodový úhel                     | ID nové entity    |
 | `tx.drawDimArc({ center, xLine1Point, xLine2Point, arcPoint, text?, styleName?, layer? })`                  | délka oblouku                    | ID nové entity    |
 | `tx.drawDimOrdinate({ definingPoint, leaderEndPoint, useXAxis?, origin?, text?, styleName?, layer? })`     | souřadnicová kóta                | ID nové entity    |
+| `tx.drawLeader({ points, text?, textPosition?, textHeight?, textLayer?, arrowHead?, styleName?, layer? })` | šipka v `points[0]` | ID odkazu (ID anotačního MTEXTu je také mezi vytvořenými ID) |
 
 Pro kóty používejte `drawDim*`. Nenapodobujte je čarami, šipkami a textem. Výchozí je `$DIMSTYLE` výkresu; přepište ho pomocí `styleName` z `cad.tables.dimStyleTable`.
 

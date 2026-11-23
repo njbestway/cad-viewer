@@ -1,6 +1,6 @@
 import { AcGePoint3d } from '@mlightcad/data-model'
 
-import { type AcApContext, AcApDocManager } from '../../app'
+import { type AcApContext, AcApDocManager } from '../../app/index.js'
 import {
   AcEdCommand,
   AcEdOpenMode,
@@ -10,9 +10,9 @@ import {
   AcEdPromptPointOptions,
   AcEdPromptStatus,
   AcEdPromptStringOptions
-} from '../../editor'
-import { AcApI18n } from '../../i18n'
-import { resolveSelectedEntities } from '../../service/AcApEntitySelection'
+} from '../../editor/index.js'
+import { AcApI18n } from '../../i18n/index.js'
+import { resolveSelectedEntities } from '../../service/AcApEntitySelection.js'
 import {
   acapAllocateBlockName,
   acapConvertSmartBlock,
@@ -25,7 +25,7 @@ import {
   AcApSmartBlockSearch,
   type AcApSmartBlockSearchOptions,
   acapValidateNewBlockName
-} from '../../smartBlock'
+} from '../../smartBlock/index.js'
 
 /**
  * Formats `jig.bsearch.<key>` and substitutes `{name}` placeholders.
@@ -92,8 +92,8 @@ export async function acapBSearchAskKeyword<K extends string>(
  * 3. Review the copies one by one, change search options, then convert the
  *    selection and the included copies into a new or an existing block.
  *
- * The whole conversion is one undo step. Subclasses customize defaults
- * (`pdfblock`) or replace {@link review} with a UI (`BSEARCH` in the editor).
+ * The whole conversion is one undo step. Subclasses can customize defaults
+ * or replace {@link review} with a UI (`BSEARCH` in the editor).
  */
 export class AcApDashBSearchCmd extends AcEdCommand {
   /** `sysCmdPrompt` key of the selection prompt. */

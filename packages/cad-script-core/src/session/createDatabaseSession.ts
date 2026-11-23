@@ -16,12 +16,12 @@ import {
   type CadSessionLayerInfo,
   CadSessionOpenMode,
   type CadSessionView
-} from './CadSession'
+} from './CadSession.js'
 import {
   isEntityOnLockedLayer,
   LAYER_FROZEN_FLAG,
   LAYER_LOCKED_FLAG
-} from './lockedLayer'
+} from './lockedLayer.js'
 
 /** Options for {@link createDatabaseSession}. */
 export interface CreateDatabaseSessionOptions {
@@ -76,7 +76,9 @@ export function createDatabaseSession(
     capturePreview: undefined,
     // Opt out of viewer exporters; PDF still uses the cad-pdf-core fallback.
     exportPdf: undefined,
-    exportHtml: undefined
+    exportHtml: undefined,
+    // No renderer or reference images: cad.redraw.compare reports no_raster_host.
+    redrawRaster: undefined
   }
 }
 

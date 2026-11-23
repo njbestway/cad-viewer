@@ -13,41 +13,41 @@ import {
 } from '@mlightcad/data-model'
 import { debounce } from 'lodash-es'
 
-import { AcApDocManager } from '../../app'
-import { AcApI18n } from '../../i18n'
-import { acapExpandSelectionByGroups } from '../../service/AcApGroup'
-import { excludeLockedLayerIds } from '../../service/AcApLockedLayer'
-import type { AcTrSpatialSearchOptions } from '../../spatialIndex/AcTrSpatialIndex'
+import { AcApDocManager } from '../../app/index.js'
+import { AcApI18n } from '../../i18n/index.js'
+import { acapExpandSelectionByGroups } from '../../service/AcApGroup.js'
+import { excludeLockedLayerIds } from '../../service/AcApLockedLayer.js'
+import type { AcTrSpatialSearchOptions } from '../../spatialIndex/AcTrSpatialIndex.js'
 import type {
   AcEdSessionAccessory,
   AcEdSessionAccessoryHostInfo
-} from '../command/AcEdSessionAccessory'
-import { AcEdSessionProviderRegistry } from '../command/AcEdSessionProviderRegistry'
-import { AcEdCorsorType, AcEdSelectionSet } from '../input'
-import { AcEditor } from '../input/AcEditor'
+} from '../command/AcEdSessionAccessory.js'
+import { AcEdSessionProviderRegistry } from '../command/AcEdSessionProviderRegistry.js'
+import { AcEditor } from '../input/AcEditor.js'
 import {
   type AcEdOsnapPoint,
   AcEdOsnapResolver
-} from '../input/AcEdOsnapResolver'
-import { AcEdMarkerManager } from '../input/marker'
+} from '../input/AcEdOsnapResolver.js'
+import { AcEdCorsorType, AcEdSelectionSet } from '../input/index.js'
+import { AcEdMarkerManager } from '../input/marker/index.js'
 import {
   acedDisposeMobileSnapLoupe,
   acedHideMobileSnapLoupe,
   acedRefreshMobileSnapLoupe
-} from '../input/ui/AcEdMobileSnapLoupe'
-import { AcEdHoverController } from './AcEdHoverController'
+} from '../input/ui/AcEdMobileSnapLoupe.js'
+import { AcEdHoverController } from './AcEdHoverController.js'
 import {
   AcEdSelectionAction,
   resolveSelectionActionFromEvent
-} from './AcEdSelectionAction'
+} from './AcEdSelectionAction.js'
 import {
   AcEdSpatialQueryResultItemEx,
   isEffectiveSpatialQueryHit
-} from './AcEdSpatialQueryResult'
-import { AcEdViewMode } from './AcEdViewMode'
-import { acedMergeSelectionIds } from './AcEdViewportBoxSelection'
+} from './AcEdSpatialQueryResult.js'
+import { AcEdViewMode } from './AcEdViewMode.js'
+import { acedMergeSelectionIds } from './AcEdViewportBoxSelection.js'
 
-export { AcEdViewMode } from './AcEdViewMode'
+export { AcEdViewMode } from './AcEdViewMode.js'
 
 /**
  * Interface to define arguments of mouse event events.
@@ -129,11 +129,11 @@ export interface AcEdViewRenderFrameEventArgs {
  */
 export type AcEdSelectionMode = 'window' | 'crossing'
 
-export type { AcEdSelectionAction } from './AcEdSelectionAction'
+export type { AcEdSelectionAction } from './AcEdSelectionAction.js'
 export {
   resolvePointerSelectionAction,
   resolveSelectionActionFromEvent
-} from './AcEdSelectionAction'
+} from './AcEdSelectionAction.js'
 
 /**
  * One unresolved external reference reported by the viewer.
@@ -234,6 +234,11 @@ export abstract class AcEdBaseView {
   /** Set of currently selected entities */
   private _selectionSet: AcEdSelectionSet
   /**
+   * Click-pick viewport id per model-space entity selected through a
+   * paper-space viewport. Used by grip display when several viewports overlap.
+   */
+  private _modelEntityViewportHints = new Map<AcDbObjectId, AcDbObjectId>()
+  /**
    * When false, pointer hover and click/box gestures do not select or
    * highlight CAD entities. Markup overlays can still be picked.
    */
@@ -241,10 +246,13 @@ export abstract class AcEdBaseView {
 
   /**
    * When true, pick and window selection may include entities on locked layers.
-   * Selection prompts set this from `allowObjectOnLockedLayer` for commands that
-   * only read entities, such as layer isolate and hatch boundaries.
+   *
+   * Idle (pick-first) selection allows them, as in AutoCAD, so the properties
+   * palette can show them read-only; grips, palette edits and modify commands
+   * still skip them. While a command prompts for objects, `getSelection` sets
+   * this from `allowObjectOnLockedLayer` and restores it afterwards.
    */
-  private _allowSelectOnLockedLayer = false
+  private _allowSelectOnLockedLayer = true
   /**
    * When false, {@link applySelection} skips selectable-group expansion even if
    * `PICKSTYLE` enables group selection. Selection prompts set this from
@@ -706,6 +714,50 @@ export abstract class AcEdBaseView {
   abstract getViewportCoordinateMapper(
     viewportId: AcDbObjectId
   ): AcEdViewportCoordinateMapper | undefined
+
+  /**
+   * When the active layout is paper space and `entityId` belongs to model
+   * space (typically selected through a viewport drill-through), returns the
+   * viewport id + coordinate mapper used to convert that entity's model-space
+   * WCS grips into paper-space WCS for on-screen display, and the inverse for
+   * grip edits.
+   *
+   * Default returns `undefined` (model-space layouts, or hosts without
+   * viewport drill-through). {@link AcTrView2d} overrides this.
+   */
+  findViewportMapperForModelEntity(
+    _entityId: AcDbObjectId
+  ):
+    | { viewportId: AcDbObjectId; mapper: AcEdViewportCoordinateMapper }
+    | undefined {
+    return undefined
+  }
+
+  /**
+   * Remembers which paper-space viewport a model-space entity was last
+   * selected through (click pick). Grip display uses this when multiple
+   * viewports could claim the same entity extents.
+   */
+  rememberModelEntityViewportHint(
+    entityId: AcDbObjectId,
+    viewportId: AcDbObjectId | undefined
+  ) {
+    if (viewportId) {
+      this._modelEntityViewportHints.set(entityId, viewportId)
+    } else {
+      this._modelEntityViewportHints.delete(entityId)
+    }
+  }
+
+  /** Clears {@link rememberModelEntityViewportHint} associations. */
+  clearModelEntityViewportHints() {
+    this._modelEntityViewportHints.clear()
+  }
+
+  /** Last click-pick viewport id for a model-space entity, if any. */
+  getModelEntityViewportHint(entityId: AcDbObjectId): AcDbObjectId | undefined {
+    return this._modelEntityViewportHints.get(entityId)
+  }
 
   /**
    * Select entities intersected with the specified bounding box in the world
@@ -1258,6 +1310,8 @@ export abstract class AcEdBaseView {
 
   /**
    * Whether pick and window selection include entities on locked layers.
+   * Defaults to `true` for idle selection; command selection prompts override
+   * it for their duration.
    */
   get allowSelectOnLockedLayer() {
     return this._allowSelectOnLockedLayer

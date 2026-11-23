@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module'
+
 import vue from '@vitejs/plugin-vue'
 import { createReadStream, existsSync, statSync } from 'fs'
 import { dirname, extname, resolve, sep } from 'path'
@@ -13,9 +15,16 @@ import {
   LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '../../tools/worker-assets.mjs'
-import { examplePeerPackageAliases, exampleRollupOutput } from '../vite-config/pluginRollupOutput'
+import {
+  examplePeerPackageAliases,
+  exampleRollupOutput
+} from '../vite-config/pluginRollupOutput'
+import { resolveOnnxRuntimeDist } from '../vite-config/resolveOnnxRuntimeDist'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const requireFromEditor = createRequire(
+  resolve(__dirname, '../cad-editor/package.json')
+)
 const VIEWER_RUNTIME_SRC = '../cad-html-plugin/dist/viewer-runtime.iife.js'
 const LOCAL_DATA_MODEL_LIB = resolve(
   __dirname,
@@ -26,16 +35,16 @@ const LOCAL_UI_COMPONENTS_SRC = resolve(
   __dirname,
   '../../../ui-components/packages/ui-components/src'
 )
-const LOCAL_UI_COMPONENTS_ROOT = resolve(
-  __dirname,
-  '../../../ui-components'
-)
+const LOCAL_UI_COMPONENTS_ROOT = resolve(__dirname, '../../../ui-components')
 const LOCAL_MTEXT_RENDERER_ROOT = resolve(
   __dirname,
   '../../../mtext-renderer/packages/mtext-renderer'
 )
 const LOCAL_MTEXT_RENDERER_DIST = resolve(LOCAL_MTEXT_RENDERER_ROOT, 'dist')
-const LOCAL_MTEXT_RENDERER_ENTRY = resolve(LOCAL_MTEXT_RENDERER_DIST, 'index.js')
+const LOCAL_MTEXT_RENDERER_ENTRY = resolve(
+  LOCAL_MTEXT_RENDERER_DIST,
+  'index.js'
+)
 const LOCAL_MTEXT_RENDERER_WORKER = resolve(
   LOCAL_MTEXT_RENDERER_DIST,
   MTEXT_RENDERER_WORKER_FILE
@@ -190,10 +199,32 @@ export default defineConfig(({ command, mode }) => {
   })
 
   if (command === 'serve') {
-    aliases.push({
-      find: /^@mlightcad\/cad-pdf-plugin\/register$/,
-      replacement: resolve(__dirname, '../cad-pdf-plugin/src/register.ts')
-    })
+    aliases.push(
+      {
+        find: /^@mlightcad\/cad-pdf-plugin\/register$/,
+        replacement: resolve(__dirname, '../cad-pdf-plugin/src/register.ts')
+      },
+      {
+        find: /^@mlightcad\/cad-html-plugin\/register$/,
+        replacement: resolve(__dirname, '../cad-html-plugin/src/register.ts')
+      },
+      {
+        find: /^@mlightcad\/cad-svg-plugin\/register$/,
+        replacement: resolve(__dirname, '../cad-svg-plugin/src/register.ts')
+      },
+      {
+        find: /^@mlightcad\/cad-agent-plugin\/register$/,
+        replacement: resolve(__dirname, '../cad-agent-plugin/src/register.ts')
+      },
+      {
+        find: /^@mlightcad\/cad-llm-plugin\/register$/,
+        replacement: resolve(__dirname, '../cad-llm-plugin/src/register.ts')
+      },
+      {
+        find: /^@mlightcad\/cad-script-plugin\/register$/,
+        replacement: resolve(__dirname, '../cad-script-plugin/src/register.ts')
+      }
+    )
     // Package name is @mlightcad/cad-editor; the repo itself is still cad-viewer.
     aliases.push({
       find: /^@mlightcad\/cad-editor$/,
@@ -249,6 +280,19 @@ export default defineConfig(({ command, mode }) => {
         '[cad-editor-demo] Local ui-components alias requested but not found at:',
         LOCAL_UI_COMPONENTS_SRC
       )
+    } else {
+      // Same resolution as the cad-editor library build, so a patched
+      // ui-components source (overflow tabs) is what `pnpm dev` runs.
+      const uiComponentsSrc = resolve(
+        dirname(
+          requireFromEditor.resolve('@mlightcad/ui-components/package.json')
+        ),
+        'src/index.ts'
+      )
+      aliases.push({
+        find: /^@mlightcad\/ui-components$/,
+        replacement: uiComponentsSrc
+      })
     }
   }
 
@@ -273,6 +317,15 @@ export default defineConfig(({ command, mode }) => {
   const mtextWorkerSrc = linkLocalMtextRenderer
     ? LOCAL_MTEXT_RENDERER_WORKER.replace(/\\/g, '/')
     : `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
+  const ortDist = resolveOnnxRuntimeDist(__dirname)
+  if (!ortDist) {
+    console.warn(
+      '[cad-editor-demo] onnxruntime-web not found — PaddleOCR wasm will be unavailable. ' +
+        'Install @mlightcad/cad-paddleocr-plugin to enable local OCR.'
+    )
+  } else {
+    console.info(`[cad-editor-demo] copying ONNX Runtime wasm from ${ortDist}`)
+  }
 
   const plugins = [
     vue(),
@@ -303,6 +356,15 @@ export default defineConfig(({ command, mode }) => {
               {
                 src: VIEWER_RUNTIME_SRC,
                 dest: 'assets',
+                rename: { stripBase: true }
+              }
+            ]
+          : []),
+        ...(ortDist
+          ? [
+              {
+                src: `${ortDist}/ort-wasm*`,
+                dest: 'vendor/onnxruntime',
                 rename: { stripBase: true }
               }
             ]
@@ -347,7 +409,7 @@ export default defineConfig(({ command, mode }) => {
           ? [
               ...devSourcePackages.map(name => `@mlightcad/${name}`),
               ...(linkLocalDataModel ? ['@mlightcad/data-model'] : []),
-              ...(linkLocalUiComponents ? ['@mlightcad/ui-components'] : []),
+              '@mlightcad/ui-components',
               ...(linkLocalMtextRenderer ? ['@mlightcad/mtext-renderer'] : [])
             ]
           : []

@@ -1,15 +1,27 @@
-export * from './app'
-export * from './util'
-export * from './service'
-export * from './command'
-export * from './editor'
-export * from './find'
-export * from './find/AcApFindNavigator'
-export * from './i18n'
-export * from './plugin'
-export * from './smartBlock'
-export * from './view'
-export * from './ui'
+export * from './app/index.js'
+export * from './util/index.js'
+export * from './service/index.js'
+export * from './command/index.js'
+// Not re-exported from command/modify barrel: DocManager imports that barrel
+// while initializing, and a CJS cycle would leave the class undefined.
+export { AcApTxt2MtxtCmd } from './command/modify/AcApTxt2MtxtCmd.js'
+export * from './editor/index.js'
+export * from './find/index.js'
+export * from './i18n/index.js'
+export * from './plugin/index.js'
+export * from './smartBlock/index.js'
+export * from './view/index.js'
+export * from './ui/index.js'
+// Public view APIs (e.g. `AcTrLayout.spatialIndexStats`) return these types;
+// without a root export, inferred declarations in dependents reference
+// `lib/spatialIndex`, which the package `exports` map does not expose.
+export type {
+  AcTrSpatialIndexBBox,
+  AcTrSpatialIndexKind,
+  AcTrSpatialIndexStats,
+  AcTrSpatialSearchOptions,
+  AcTrSpatialSelectionMode
+} from './spatialIndex/AcTrSpatialIndex.js'
 export {
   MTextColor,
   MTextParagraphAlignment,

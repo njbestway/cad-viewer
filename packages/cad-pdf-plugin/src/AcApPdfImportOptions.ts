@@ -1,18 +1,62 @@
-import type { PdfCurveRecognitionOptions } from './recognition/pdfCurveRecognition'
-import type { PdfHatchRecognitionOptions } from './recognition/pdfHatchRecognition'
+import type { PdfCurveRecognitionOptions } from './recognition/pdfCurveRecognition.js'
+import type { PdfDimensionOptions } from './recognition/pdfDimensionPattern.js'
+import type { PdfHatchRecognitionOptions } from './recognition/pdfHatchRecognition.js'
 
 /**
- * How `ipdf` turns a PDF page into CAD entities.
+ * How `pdfimport` turns a PDF page into CAD entities.
  *
  * - `recover` — try to rebuild the source drawing: recover circles, arcs,
  *   ellipses and splines from Bezier paths, drop duplicate outlines, merge
  *   text runs into lines, turn repeated forms into blocks and map fonts to
  *   text styles.
  * - `visual` — keep the page as painted: every PDF path becomes a line or a
- *   flattened polyline and every text run its own text, as `ipdf` did before
+ *   flattened polyline and every text run its own text, as `pdfimport` did before
  *   curve recovery was added. Use it when recovery changes how a page looks.
  */
 export type AcApPdfImportMode = 'recover' | 'visual'
+
+/**
+ * How `pdfimport` recovers exploded text (SHX line text / outlined fonts).
+ *
+ * - `false` — leave strokes as imported; use `pdftext` later.
+ * - `'local'` — glyph dictionary only (no OCR).
+ * - `{ ocr: providerId }` — dictionary first, then that OCR provider only
+ *   (e.g. `'paddleocr'`, `'cad-llm'`).
+ */
+export type AcApPdfExplodedTextMode = false | 'local' | { ocr: string }
+
+/** True when `mode` selects an OCR provider. */
+export function acapPdfExplodedTextModeIsOcr(
+  mode: AcApPdfExplodedTextMode
+): mode is { ocr: string } {
+  return typeof mode === 'object' && mode !== null && typeof mode.ocr === 'string'
+}
+
+/** OCR provider id when `mode` is `{ ocr }`, otherwise `undefined`. */
+export function acapPdfExplodedTextOcrId(
+  mode: AcApPdfExplodedTextMode
+): string | undefined {
+  return acapPdfExplodedTextModeIsOcr(mode) ? mode.ocr : undefined
+}
+
+/**
+ * Normalizes a stored / dialog value. Legacy `'ocr'` becomes
+ * `{ ocr: '' }` (resolved to the first available provider at use time).
+ */
+export function acapPdfNormalizeExplodedTextMode(
+  value: unknown
+): AcApPdfExplodedTextMode | undefined {
+  if (value === false || value === 'local') return value
+  if (value === 'ocr') return { ocr: '' }
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { ocr?: unknown }).ocr === 'string'
+  ) {
+    return { ocr: (value as { ocr: string }).ocr }
+  }
+  return undefined
+}
 
 /**
  * Options for {@link AcApPdfImportConvertor.convert}.
@@ -25,7 +69,8 @@ export interface AcApPdfImportOptions {
   /**
    * Import mode; it sets the defaults of the reconstruction fields below
    * (`visual` turns off `recognizeCurves`, `removeDuplicates`,
-   * `mergeTextRuns`, `formBlocks` and `textStyles`). Explicit fields still
+   * `mergeTextRuns`, `formBlocks`, `textStyles`, `recognizeHatches`,
+   * `recognizeDimensions` and `recognizeExplodedText`). Explicit fields still
    * win. Default `'recover'`.
    */
   mode?: AcApPdfImportMode
@@ -86,6 +131,25 @@ export interface AcApPdfImportOptions {
   /** Tuning for pattern hatch recognition. */
   hatchRecognition?: PdfHatchRecognitionOptions
   /**
+   * Turn exploded dimensions (arrowheads or ticks, dimension and extension
+   * lines, value text, including SHX stroke text) back into dimension
+   * entities on the `PDF_DIM` dimension style. Only well-supported matches
+   * are converted; `pdfdim` can review the rest. Default `true` in `recover`
+   * mode, `false` in `visual` mode.
+   */
+  recognizeDimensions?: boolean
+  /** Tuning for dimension recognition. */
+  dimensionRecognition?: Omit<PdfDimensionOptions, 'profile' | 'debug'>
+  /**
+   * Turn exploded text strokes (SHX line text, outlined fonts) into
+   * `AcDbText` when they can be read. `'local'` uses the glyph dictionary
+   * only; `'ocr'` also calls the host's
+   * {@link AcApTextRecognitionService} recognizer for unread lines.
+   * Unread strokes stay as imported for `pdftext`. Default `'local'` in
+   * `recover` mode, `false` in `visual` mode.
+   */
+  recognizeExplodedText?: AcApPdfExplodedTextMode
+  /**
    * Give imported text a `PDF_<font family>` text style using the PDF font's
    * family. Default `true`.
    */
@@ -107,9 +171,15 @@ export interface AcApPdfImportOptions {
 
 /** Fully populated {@link AcApPdfImportOptions}. */
 export type AcApResolvedPdfImportOptions = Required<
-  Omit<AcApPdfImportOptions, 'curveRecognition' | 'hatchRecognition'>
+  Omit<
+    AcApPdfImportOptions,
+    'curveRecognition' | 'hatchRecognition' | 'dimensionRecognition'
+  >
 > &
-  Pick<AcApPdfImportOptions, 'curveRecognition' | 'hatchRecognition'>
+  Pick<
+    AcApPdfImportOptions,
+    'curveRecognition' | 'hatchRecognition' | 'dimensionRecognition'
+  >
 
 /**
  * Fills defaults for {@link AcApPdfImportOptions}.
@@ -138,6 +208,15 @@ export function resolveAcApPdfImportOptions(
     fillHatches: options?.fillHatches ?? true,
     recognizeHatches: options?.recognizeHatches ?? recover,
     hatchRecognition: options?.hatchRecognition,
+    recognizeDimensions: options?.recognizeDimensions ?? recover,
+    dimensionRecognition: options?.dimensionRecognition,
+    recognizeExplodedText: (() => {
+      const normalized = acapPdfNormalizeExplodedTextMode(
+        options?.recognizeExplodedText
+      )
+      if (normalized !== undefined) return normalized
+      return recover ? 'local' : false
+    })(),
     textStyles: options?.textStyles ?? recover,
     fitTextWidth: options?.fitTextWidth ?? true,
     images: options?.images ?? true

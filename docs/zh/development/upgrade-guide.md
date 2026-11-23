@@ -1,24 +1,105 @@
 ---
-title: "升级 cad-simple-viewer 和 cad-editor"
+title: '升级 cad-simple-viewer 和 cad-editor'
 ---
 
 # 升级 cad-simple-viewer 和 cad-editor
 
 本指南介绍如何安全地升级 `@mlightcad/cad-simple-viewer` 和 `@mlightcad/cad-editor`——为什么它们不能单独升级、哪些相关包必须一起迁移，以及两种可靠的方法来确定任意给定版本的正确兼容版本集。
 
+::: info 插件界面改由 `AcApUiRegistry` 提供
+从包含此变更的版本开始，属于插件的功能区组、文件 → 导出菜单、简易 UI 工具栏按钮和选项板标签，都由该插件的 `/register` 模块通过 **`AcApUiRegistry`** 声明。宿主只绘制已注册的内容。未安装的包不会出现对应界面。
+
+宿主与插件迁移：
+
+- `@mlightcad/cad-editor` 不再内置智能体、模型设置、脚本、PDF、HTML、SVG 按钮。它用动态 `import()` 加载 `@mlightcad/cad-pdf-plugin/register`、`@mlightcad/cad-html-plugin/register` 和 `@mlightcad/cad-svg-plugin/register`，与智能体、LLM、脚本、PaddleOCR 相同。打包 editor 时请把这些说明符标为 external。
+- `store.features` 标志（`agentPlugin`、`llmPlugin`、`paddleOcrPlugin`、`scriptPlugin`）已删除。
+- 插件在 `/register` 中调用 `AcApUiRegistry.register`，提供功能区组、`file.export` 菜单行、选项板 `mount` 和各语言文案。`/register` 执行后按钮即出现，重模块仍在命令触发时加载。
+- 简易 UI 的导出菜单和额外工具栏按钮也读这张注册表。请去掉手写的智能体和脚本工具栏按钮。
+- `setAgentPaletteOpener` 与 `setCadScriptPaletteOpener` 仍可供不处理注册表选项板 id 的宿主使用。`cad-editor` 和简易 UI 会自己打开这些 id。
+- `chtml` 和 `cpdf` 打开的是 `cad-html-plugin` 与 `cad-pdf-plugin` 里的无框架对话框。浏览器中由 `/register` 注册这两条命令，确定后通过 `-chtml` / `-cpdf` 加载插件。无界面宿主传入 `dialog: false`，`chtml` 和 `cpdf` 仍走命令行提示。Vue 对话框 `MlExportHtmlDlg` / `MlExportPdfDlg` 以及编辑器里的命令类已删除。
+  :::
+
+::: info 简易 UI 已并入 `cad-simple-viewer`
+从包含此变更的版本开始，**`@mlightcad/cad-simple-ui-plugin` 已移除**。工具栏、停靠面板标签（图层 / 查找 / 审阅 / 测量）与默认 `AcApPaletteHost` 位于 **`@mlightcad/cad-simple-viewer`**。
+
+迁移：卸载该插件；用 `AcApDocManager.createInstance({ simpleUi: { … } })`（默认开启）；`cad-editor` / CLI / 无头环境传 `simpleUi: false`；类型与辅助 API 从 `@mlightcad/cad-simple-viewer` 导入；用 `simpleUiReady` / `simpleUi` 代替 `getPlugin('SimpleUiPlugin')` / 旧的 `simpleUiPlugin`。`cad-editor` 仍使用 Vue 图层管理器，查找 / 审阅 / 测量复用共享 DOM 视图。`/simple-ui` 与 `/find` 子路径均已移除。
+:::
+
+::: info Dock 面板 chrome 迁入 `cad-simple-viewer`
+纯 DOM 的 **dock 面板 chrome**（`AcUiDockPanel`）位于 **`@mlightcad/cad-simple-viewer`**。内置简易 UI 会在该 dock 上挂载标签内容（图层 / 查找 / 审阅 / 测量）并注册 `AcApPaletteHost`；`cad-editor` 则注册其 Vue 工具选项板宿主。
+
+宿主迁移：
+
+- 从 `@mlightcad/cad-simple-viewer` 导入 `AcUiDockPanel`、`AcUiDockPanelTab`、`AcUiDockPanelSide`。
+- Dock chrome 的 i18n 键位于 **`main.dockPanel.*`**（含 `main.dockPanel.tab.layers` 等）。
+- 未注册宿主时，`AcApPaletteService.open` 使用真正的 `AcUiDockPanel`（右侧停靠 / 手机底部 sheet）。
+- 内置命名标签通过 **`AcApPaletteService.openNamedTab`** / 可选的 `AcApPaletteHost.openNamedTab` 打开（id 见 `ACAP_PALETTE_NAMED_TAB`），且**必须已注册宿主**——命名标签没有 dock 回退。托管的 `HTMLElement` 面板仍使用 `AcApPaletteService.open`。
+  :::
+
+::: info 本地 PaddleOCR（`@mlightcad/cad-paddleocr-plugin`）
+从包含此变更的版本开始，宿主可安装 **`@mlightcad/cad-paddleocr-plugin`**，在浏览器内对打散的 PDF 文字做 OCR（`pdftext` / PDF 导入 OCR）。它在 `AcApTextRecognitionService` 中注册 `paddleocr` 识别器；Wasm 与 ONNX 模型仅在首次 OCR 时加载。PDF 导入的「识别打散文字」列表会列出每个*可用*的 OCR 选项：本地 PaddleOCR，以及每个已配置且支持图片的 LLM **模型**（例如 `kkidc — model-id`），而不是按服务商只显示一行。
+
+宿主迁移：
+
+- 安装 `@mlightcad/cad-paddleocr-plugin`，并在 `registerLazyLlmPlugin` **之前**调用 `registerLazyPaddleOcrPlugin`，以便未识别的行仍回退到视觉 LLM。安装该包后，`@mlightcad/cad-editor` 会自动完成注册。
+- 从同源路径提供 ONNX Runtime Web 的 wasm 文件（示例使用 `./vendor/onnxruntime/`），并通过 `wasmPaths` 传给 `registerLazyPaddleOcrPlugin`。
+- 可用 `AcApTextRecognitionService.has(id)` 检查某个识别器是否已注册（例如存在 `paddleocr` 时跳过「OCR 未配置」的 LLM 提示）。
+
+```ts
+import { registerLazyPaddleOcrPlugin } from '@mlightcad/cad-paddleocr-plugin/register'
+import { registerLazyLlmPlugin } from '@mlightcad/cad-llm-plugin/register'
+
+registerLazyPaddleOcrPlugin(pluginManager, {
+  wasmPaths: './vendor/onnxruntime/'
+})
+registerLazyLlmPlugin(pluginManager)
+```
+
+:::
+
+::: info 共享的 AI 模型设置（`@mlightcad/cad-llm-plugin`）
+从包含此变更的版本开始，LLM 服务商设置从 `@mlightcad/cad-agent-plugin` 移到新的 **`@mlightcad/cad-llm-plugin`**，CAD 智能体和 `pdftext` 文字识别（OCR）共用同一份配置。新包提供 **LLMSETTINGS** 命令和一个不依赖 UI 框架的设置对话框（`@mlightcad/cad-editor` 的 AI 功能区选项卡中也有入口）；`@mlightcad/cad-simple-viewer` 新增 `AcApLlmSettingsService`，任何功能都可以通过它打开对话框，或检查是否配置了支持图片的模型。
+
+宿主迁移：
+
+- 安装 `@mlightcad/cad-llm-plugin`（现在是 `@mlightcad/cad-agent-plugin` 的 peer 依赖），并在 `registerLazyAgentPlugin` 旁调用 `registerLazyLlmPlugin`。安装该包后，`@mlightcad/cad-editor` 会自动完成注册。
+- `registerLazyAgentPlugin` 不再注册文字识别器。识别器 id 改为 `cad-llm`（原为 `cad-agent`），由 `registerLazyLlmPlugin` 注册。`acapAgentRecognizeText` / `cleanRecognizedText` 改为 `@mlightcad/cad-llm-plugin` 中的 `acapLlmRecognizeText` / `acapLlmCleanRecognizedText`。
+- 智能体面板中内嵌的设置卡片被对话框取代，齿轮按钮会打开 LLMSETTINGS。
+- 已保存的设置不会丢失：`localStorage` 键 `cad-agent-plugin.llm-config` 保持不变。
+- 当前使用的模型只支持文本时，OCR 会改用第一个已配置的支持图片的模型。
+
+```ts
+import { registerLazyAgentPlugin } from '@mlightcad/cad-agent-plugin/register'
+import { registerLazyLlmPlugin } from '@mlightcad/cad-llm-plugin/register'
+
+registerLazyLlmPlugin(pluginManager)
+registerLazyAgentPlugin(pluginManager)
+```
+
+:::
+
+::: info 输入 PDF：`ipdf` 改为 `PDFIMPORT` / `-PDFIMPORT`
+从包含此改动的版本（1.8.0）起，`@mlightcad/cad-pdf-plugin` 的 PDF 导入命令改用 AutoCAD 的名称：
+
+- **PDFIMPORT** 在选择文件后打开“输入 PDF”对话框（`AcUiPdfImportDialog`）：带预览的页面、插入点（X/Y 或在屏幕上指定）、比例和输入方式（复原图纸 / 保留 PDF 视觉效果）。
+- **-PDFIMPORT** 保留原 `ipdf` 的命令行提示（页码，以及带“比例”和“模式”选项的插入点），对应类为 `AcApImportPdfPromptCmd`。
+
+迁移：`ipdf` 已不存在。通过 `executeCommand('ipdf')` 并回答提示的脚本应改用 `-pdfimport`；自行渲染功能区的宿主应使用 `pdfimport`（cad-editor 功能区按钮 ID 现为 `cmd-pdfimport`）。命令说明从 `command.ACAD.ipdf` 移到 `command.ACAD.pdfimport` / `command.ACAD.-pdfimport`，提示文本从 `jig.ipdf` 移到 `jig.pdfimport`（对话框文本位于 `jig.pdfimport.dialog`）。`AcApPdfImportConvertor.importFromFilePicker` 现在显示对话框；`importFromCommandLine` 为命令行流程。
+:::
+
 ::: info 智能块：搜索并转换（`BSEARCH`）
-自包含本变更的版本起，`@mlightcad/cad-simple-viewer` 注册 **-BSEARCH**，`@mlightcad/cad-editor` 增加 **BSEARCH**（别名 `BCONVERT`），提供审阅工具栏和「转换为块」对话框（位于功能区「插入」和「AI」选项卡）。
+自包含本变更的版本起，`@mlightcad/cad-simple-viewer` 注册 **-BSEARCH**，`@mlightcad/cad-editor` 增加 **BSEARCH**（别名 `BCONVERT`），提供工具选项板中的「搜索并转换」选项卡（列出找到的实例）和「转换为块」对话框（位于功能区「插入」和「AI」选项卡）。
 
 形状匹配已从 `@mlightcad/cad-pdf-plugin` 移至 `@mlightcad/cad-simple-viewer`，请迁移导入：
 
-| `@mlightcad/cad-pdf-plugin`（已弃用） | `@mlightcad/cad-simple-viewer` |
-| --- | --- |
-| `findPdfShapeMatches` | `acedFindShapeMatches` |
-| `applyPdfAffine` | `acedApplyAffine2d` |
-| `pdfEntityToFeature` | `acedEntityToShapeFeature(entity, id, { matchLayer: false })` |
+| `@mlightcad/cad-pdf-plugin`（已弃用）                                      | `@mlightcad/cad-simple-viewer`                                                   |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `findPdfShapeMatches`                                                      | `acedFindShapeMatches`                                                           |
+| `applyPdfAffine`                                                           | `acedApplyAffine2d`                                                              |
+| `pdfEntityToFeature`                                                       | `acedEntityToShapeFeature(entity, id, { matchLayer: false })`                    |
 | `PdfMatchFeature` / `PdfAffine` / `PdfShapeMatch` / `PdfShapeMatchOptions` | `AcEdShapeFeature` / `AcEdAffine2d` / `AcEdShapeMatch` / `AcEdShapeMatchOptions` |
 
-旧名称仍作为已弃用的别名可用。文字内容已从特征的 `kind` 移到 `label`（默认 `ignoreLabels: false` 时仍需一致）。`pdfblock` 现在使用 `-BSEARCH` 的提示顺序（转换 → 新建/现有 → 名称 → 插入点 → 范围），按旧提示应答的脚本需要调整。
+旧名称仍作为已弃用的别名可用。文字内容已从特征的 `kind` 移到 `label`（默认 `ignoreLabels: false` 时仍需一致）。`@mlightcad/cad-pdf-plugin` 的 `pdfblock` 命令已移除；请改用 `BSEARCH` / `-BSEARCH`（PDF 导入后请关闭按图层匹配——PDF 图层按颜色划分）。
 :::
 
 ::: info AutoCAD 编组（`GROUP` / `PICKSTYLE` / `GROUPDISPLAYMODE`）
@@ -146,15 +227,21 @@ Agent / 脚本应调用这些方法，而不是用直线、箭头和文字拼假
 v1 支持子集：`line`、`polyline`/`polygon`/`rect`、`circle`、`ellipse`（非均匀时折线近似）、`path`（细分）、`text`、嵌套 `g` + transform。导出仍用 `@mlightcad/cad-svg-plugin` 的 `csvg`；编辑后保存为 DXF（`cdxf`）或再导出 SVG，无原生 SVG 保存。
 :::
 
+::: info HTML/PDF 导出默认跳过空布局
+从包含此改动的版本起，HTML 与 PDF 导出新增 **`exportEmptyLayouts`**（默认 **`false`**）。仅含 AutoCAD 默认 `*Paper_Space` 视口的图纸空间布局会被省略，除非将该选项设为 `true`。在导出布局时始终保留模型空间。
+
+迁移：若输出中仍需空白图纸空间选项卡，请传入 `exportEmptyLayouts: true`（导出对话框开关、`-chtml` / `-cpdf` 提示、脚本 `cad.file.saveHtml` / `savePdf`，或导出器 CLI 的 `--export-empty-layouts`）。
+:::
+
 ::: info PDF 导出拆分为共享核心（浏览器 + Node）
 从 **1.8.0** 开始，PDF 导出与 HTML 导出采用相同的分层：共享逻辑放在 `@mlightcad/cad-pdf-core`（选项模型与 database → PDF 管线，**不**依赖 `cad-simple-viewer` / DOM）。两个前端都基于它：
 
-| 包 | 作用 |
-| --- | --- |
-| `@mlightcad/cad-pdf-plugin` | 浏览器端 `cpdf` / `-cpdf` / `ipdf`（以及 Vue 导出对话框） |
-| `@mlightcad/cad-pdf-exporter` | Node 无头 DXF/DWG → PDF — **无需浏览器** |
+| 包                            | 作用                                                           |
+| ----------------------------- | -------------------------------------------------------------- |
+| `@mlightcad/cad-pdf-plugin`   | 浏览器端 `cpdf` / `-cpdf` / `pdfimport`（以及 Vue 导出对话框） |
+| `@mlightcad/cad-pdf-exporter` | Node 无头 DXF/DWG → PDF — **无需浏览器**                       |
 
-**浏览器集成方——大体不变。** 继续使用 `cpdf` / `-cpdf` / `ipdf`、`AcApPdfConvertor`、`AcApPdfExportOptions`、`resolveAcApPdfExportOptions`。请把新的 peer `@mlightcad/cad-pdf-core` 与插件一起安装（版本与 `cad-simple-viewer` 相同）。
+**浏览器集成方——大体不变。** 继续使用 `cpdf` / `-cpdf` / `pdfimport`、`AcApPdfConvertor`、`AcApPdfExportOptions`、`resolveAcApPdfExportOptions`。请把新的 peer `@mlightcad/cad-pdf-core` 与插件一起安装（版本与 `cad-simple-viewer` 相同）。
 
 **对用户有影响的 API / 行为变化：**
 
@@ -206,72 +293,73 @@ await exportFileToPdf('drawing.dwg', 'drawing.pdf', {
 
 ### 核心查看器包
 
-| 包 | 作用 |
-| --- | --- |
-| `@mlightcad/cad-simple-viewer` | 与框架无关的核心（文档管理、命令栈、渲染粘合层） |
-| `@mlightcad/cad-editor` | 构建在 cad-simple-viewer 之上的 Vue 3 + Element Plus UI 封装 |
+| 包                             | 作用                                                         |
+| ------------------------------ | ------------------------------------------------------------ |
+| `@mlightcad/cad-simple-viewer` | 与框架无关的核心（文档管理、命令栈、渲染粘合层）             |
+| `@mlightcad/cad-editor`        | 构建在 cad-simple-viewer 之上的 Vue 3 + Element Plus UI 封装 |
 
 ### 插件——**必须与 cad-simple-viewer 版本完全一致**
 
-| 包 | 用途 |
-| --- | --- |
-| `@mlightcad/cad-html-plugin` | 一键导出自包含 HTML |
-| `@mlightcad/cad-pdf-plugin` | 浏览器端 PDF 导出与 PDF 转 CAD 导入 |
-| `@mlightcad/cad-svg-plugin` | SVG 导出 |
-| `@mlightcad/cad-svg-converter` | SVG File → Open（矢量 → AcDb 实体） |
-| `@mlightcad/cad-simple-ui-plugin` | 纯 DOM 工具栏、图层管理器、停靠面板 |
-| `@mlightcad/cad-agent-plugin` | AI 智能体驱动的交互 |
-| `@mlightcad/cad-onedrive-plugin` | OneDrive 集成 |
-| `@mlightcad/cad-google-drive-plugin` | Google Drive 集成 |
+| 包                                          | 用途                                                |
+| ------------------------------------------- | --------------------------------------------------- |
+| `@mlightcad/cad-html-plugin`                | 一键导出自包含 HTML                                 |
+| `@mlightcad/cad-paddleocr-plugin`           | 本地 PaddleOCR.js，用于打散 PDF 文字识别            |
+| `@mlightcad/cad-pdf-plugin`                 | 浏览器端 PDF 导出与 PDF 转 CAD 导入                 |
+| `@mlightcad/cad-svg-plugin`                 | SVG 导出                                            |
+| `@mlightcad/cad-svg-converter`              | SVG File → Open（矢量 → AcDb 实体）                 |
+| `@mlightcad/cad-simple-viewer` (`simpleUi`) | Built-in plain-DOM toolbar / dock tabs (`simpleUi`) |
+| `@mlightcad/cad-agent-plugin`               | AI 智能体驱动的交互                                 |
+| `@mlightcad/cad-onedrive-plugin`            | OneDrive 集成                                       |
+| `@mlightcad/cad-google-drive-plugin`        | Google Drive 集成                                   |
 
 > **经验法则：** 上面列表中的每个插件都应固定为与你正在升级到的 `cad-simple-viewer` **完全相同的版本号**（例如 `1.7.5`）。
 
 ### 共享导出核心与无头导出器（与核心同版本）
 
-| 包 | 用途 |
-| --- | --- |
-| `@mlightcad/cad-html-core` | 共享 HTML 快照 / 打包管线（无查看器 / DOM） |
-| `@mlightcad/cad-html-exporter` | Node 无头 HTML 导出 |
-| `@mlightcad/cad-pdf-core` | 共享 PDF 选项模型与 database → PDF 管线（无查看器 / DOM） |
-| `@mlightcad/cad-pdf-exporter` | Node 无头 DXF/DWG → PDF（无需浏览器） |
+| 包                             | 用途                                                      |
+| ------------------------------ | --------------------------------------------------------- |
+| `@mlightcad/cad-html-core`     | 共享 HTML 快照 / 打包管线（无查看器 / DOM）               |
+| `@mlightcad/cad-html-exporter` | Node 无头 HTML 导出                                       |
+| `@mlightcad/cad-pdf-core`      | 共享 PDF 选项模型与 database → PDF 管线（无查看器 / DOM） |
+| `@mlightcad/cad-pdf-exporter`  | Node 无头 DXF/DWG → PDF（无需浏览器）                     |
 
 ### 内部渲染器层（与核心同版本，单独发布）
 
-| 包 | 用途 |
-| --- | --- |
-| `@mlightcad/three-renderer` | 基于 THREE.js 的 2D/3D 渲染引擎 |
-| `@mlightcad/pdf-renderer` | `cad-pdf-core` 使用的 PDF 内容后端 |
+| 包                          | 用途                               |
+| --------------------------- | ---------------------------------- |
+| `@mlightcad/three-renderer` | 基于 THREE.js 的 2D/3D 渲染引擎    |
+| `@mlightcad/pdf-renderer`   | `cad-pdf-core` 使用的 PDF 内容后端 |
 
 这些包由插件和 cad-simple-viewer 在内部使用。你通常**不会**直接安装它们，但它们的版本必须与你安装的插件兼容。
 
 ### 底层数据与文本层——**必须匹配发布版本中的版本**
 
-| 包 | 说明 |
-| --- | --- |
-| `@mlightcad/data-model` | 核心实体/数据库类型；每个版本都会随查看器一起升级 |
-| `@mlightcad/libredwg-converter` | DWG 解析的 WebAssembly 封装——DWG 支持依赖它 |
-| `@mlightcad/mtext-parser` | MTEXT 内容解析器 |
-| `@mlightcad/mtext-renderer` | MTEXT → THREE 几何渲染器 |
-| `@mlightcad/mtext-input-box` | 画布内 MTEXT 编辑器控件 |
+| 包                              | 说明                                              |
+| ------------------------------- | ------------------------------------------------- |
+| `@mlightcad/data-model`         | 核心实体/数据库类型；每个版本都会随查看器一起升级 |
+| `@mlightcad/libredwg-converter` | DWG 解析的 WebAssembly 封装——DWG 支持依赖它       |
+| `@mlightcad/mtext-parser`       | MTEXT 内容解析器                                  |
+| `@mlightcad/mtext-renderer`     | MTEXT → THREE 几何渲染器                          |
+| `@mlightcad/mtext-input-box`    | 画布内 MTEXT 编辑器控件                           |
 
 ### 仅 cad-editor 使用的 Vue UI 依赖
 
 这些出现在 `pnpm-workspace.yaml` 的 overrides 中，但仅在使用 `@mlightcad/cad-editor`（完整的 Vue 3 UI）时需要。cad-simple-viewer 的集成不会直接安装它们。
 
-| 包 | 用途 |
-| --- | --- |
-| `@mlightcad/ribbon` | Ribbon UI 组件 |
+| 包                         | 用途                 |
+| -------------------------- | -------------------- |
+| `@mlightcad/ribbon`        | Ribbon UI 组件       |
 | `@mlightcad/ui-components` | 共享 Vue UI 基础组件 |
 
 ### 第三方 peer 依赖（保持发布版本中固定的版本）
 
-| 包 |
-| --- |
-| `three` |
-| `vue`（仅 cad-editor 使用） |
+| 包                                   |
+| ------------------------------------ |
+| `three`                              |
+| `vue`（仅 cad-editor 使用）          |
 | `element-plus`（仅 cad-editor 使用） |
-| `vue-i18n`（仅 cad-editor 使用） |
-| `lodash-es` |
+| `vue-i18n`（仅 cad-editor 使用）     |
+| `lodash-es`                          |
 
 ---
 

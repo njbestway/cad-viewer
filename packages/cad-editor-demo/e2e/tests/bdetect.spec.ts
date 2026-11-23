@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, type Page, test } from '@playwright/test'
 
 import { uploadFixture } from '../helpers/fileUpload'
+import { clickRibbonButton } from '../helpers/ribbon'
 
 /**
  * BDETECT (Smart Blocks: Detect and Convert) on `bsearch-symbols.dxf`: four
@@ -92,9 +93,12 @@ test('BDETECT finds repeated symbols and converts them into a block', async ({
     .toBe(10)
 
   await page.getByRole('tab', { name: 'Insert' }).click()
-  await page.locator('[data-ribbon-button-id="cmd-bdetect"]:visible').click()
+  await clickRibbonButton(page, 'cmd-bdetect')
 
   const panel = page.getByTestId('bdetect-panel')
+  await expect(panel.getByTestId('bdetect-ready')).toBeVisible()
+  await expect(panel.getByTestId('bdetect-options')).toBeVisible()
+  await panel.getByTestId('bdetect-run').click()
   await expect(page.getByTestId('bdetect-count')).toHaveText(
     '1 groups of repeated objects',
     { timeout: 30_000 }
@@ -108,6 +112,15 @@ test('BDETECT finds repeated symbols and converts them into a block', async ({
   // Selecting the group highlights all of its instances.
   await group.click()
   await expect(group).toHaveClass(/is-selected/)
+
+  // Reviewing a group opens the Search and Convert tab; cancelling returns
+  // to the detection list.
+  await group.getByTestId('bdetect-review').click()
+  const review = page.getByTestId('bsearch-panel')
+  await expect(review.getByTestId('bsearch-match')).toHaveCount(3)
+  await review.getByTestId('bsearch-cancel').click()
+  await expect(review).toBeHidden()
+  await expect(panel).toBeVisible()
 
   // el-input forwards data-testid to its native <input>, not the wrapper.
   await group.getByTestId('bdetect-name').fill('DOOR')

@@ -5,9 +5,13 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import {
   isComplexPatternElement,
   normalizeComplexPatternElement
-} from '../linetype/AcTrLineTypeWalker'
-import { AcTrLinePatternShaders } from './AcTrLinePatternShaders'
-import { AcTrMaterialManager } from './AcTrMaterialManager'
+} from '../linetype/AcTrLineTypeWalker.js'
+import { AcTrLinePatternShaders } from './AcTrLinePatternShaders.js'
+import { AcTrMaterialManager } from './AcTrMaterialManager.js'
+import {
+  getMaterialMetadata,
+  setMaterialMetadata
+} from './AcTrMaterialMetadata.js'
 
 export interface AcTrLineMaterialOptions {
   basicMaterialOnly?: boolean
@@ -121,11 +125,20 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
         color: rgb
       })
     } else {
+      const lineWeightPixels = this.resolveLineWidth(traits.lineWeight)
+      const lockLineWeightDisplay = options.fatLines === true
       const fatLineMaterial = new LineMaterial({
         color: rgb,
-        linewidth: this.resolveLineWidth(traits.lineWeight)
+        linewidth: this.displayLineWidth(
+          lineWeightPixels,
+          lockLineWeightDisplay
+        )
       })
       fatLineMaterial.resolution.copy(this.options.resolution)
+      setMaterialMetadata(fatLineMaterial, {
+        lineWeightPixels,
+        lockLineWeightDisplay
+      })
       material = fatLineMaterial
     }
     return material
@@ -173,15 +186,32 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
       else gapSize += Math.abs(len)
     }
     if (dashSize === 0) dashSize = 0.5
+    const lineWeightPixels = this.resolveLineWidth(traits.lineWeight)
     const dashedLineMaterial = new LineMaterial({
       color: rgb,
-      linewidth: this.resolveLineWidth(traits.lineWeight),
+      linewidth: this.displayLineWidth(lineWeightPixels, false),
       dashed: true,
       dashSize,
       gapSize
     })
     dashedLineMaterial.resolution.copy(this.options.resolution)
+    setMaterialMetadata(dashedLineMaterial, {
+      lineWeightPixels,
+      lockLineWeightDisplay: false
+    })
     return dashedLineMaterial
+  }
+
+  /**
+   * Applies the current LWDISPLAY flag to every cached {@link LineMaterial}.
+   *
+   * Geometry stays fat-line; only `linewidth` flips between hairline and the
+   * authored weight so the status-bar toggle stays interactive.
+   */
+  applyShowLineWeight(show: boolean) {
+    Object.values(this.cache).forEach(material => {
+      applyLineWeightDisplay(material, show)
+    })
   }
 
   updateResolution() {
@@ -193,6 +223,19 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
     })
   }
 
+  /**
+   * Pixel linewidth stored on the material for the current LWDISPLAY state.
+   */
+  private displayLineWidth(
+    lineWeightPixels: number,
+    lockLineWeightDisplay: boolean
+  ): number {
+    if (lockLineWeightDisplay || this.options.showLineWeight) {
+      return lineWeightPixels
+    }
+    return 1
+  }
+
   //References https://knowledge.autodesk.com/support/autocad-lt/learn-explore/caas/CloudHelp/cloudhelp/2020/ENU/AutoCAD-LT/files/GUID-4323BBAD-2757-4E92-B2E4-E0E550BB37CB-htm.html
   private getLineTypeScales() {
     return {
@@ -200,4 +243,24 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
       celtscale: this.options.celtscale || 1.0
     }
   }
+}
+
+/**
+ * Sets {@link LineMaterial.linewidth} from material metadata for LWDISPLAY.
+ *
+ * Shared by the style-manager cache and batch-owned material clones.
+ *
+ * @param material - Material that may carry {@link lineWeightPixels} metadata
+ * @param show - Whether LWDISPLAY is currently on
+ */
+export function applyLineWeightDisplay(
+  material: THREE.Material,
+  show: boolean
+): void {
+  if (!(material instanceof LineMaterial)) return
+  const metadata = getMaterialMetadata(material)
+  if (metadata.lockLineWeightDisplay === true) return
+  const pixels = metadata.lineWeightPixels
+  if (pixels == null) return
+  material.linewidth = show ? pixels : 1
 }
