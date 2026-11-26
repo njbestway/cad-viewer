@@ -2,6 +2,7 @@ export default {
   mainMenu: {
     new: 'Nový výkres',
     open: 'Otevřít výkres',
+    save: 'Uložit',
     drawingUnits: 'Jednotky výkresu',
     exportMenu: 'Export',
     export: 'Exportovat do DXF',
@@ -292,6 +293,7 @@ export default {
       offset: 'Vytvoří rovnoběžnou kopii objektu v zadané vzdálenosti.',
       undo: 'Vrátí zpět poslední úpravu.',
       redo: 'Zopakuje poslední vrácenou úpravu.',
+      save: 'Uloží výkres (Ctrl+S).',
       properties: 'Otevře paletu Vlastnosti pro aktuální výběr.',
       quickSelect:
         'Otevře Rychlý výběr pro filtrování a výběr objektů podle kritérií.',
@@ -1027,6 +1029,16 @@ export default {
   message: {
     loadingFonts: 'Načítám fonty…',
     loadingDwgConverter: 'Načítám převodník DWG…',
+    savingDwg: 'Ukládám DWG ...',
+    saveDwgSuccess: 'Uloženo „{name}“ ({count} záznamů bajtově shodných).',
+    saveDwgFailed: 'Uložení DWG selhalo [{code}]: {message}',
+    saveDwgTooLarge:
+      'Tento výkres přesahuje 64 MB. Uložte jej nativním nástrojem patch_fixture místo prohlížeče.',
+    saveDwgNoCapture: 'Pro tento dokument nebyla uchována zdrojová data DWG.',
+    saveDwgNoConverter:
+      'Převodník DWG acad-rust s podporou záplat není registrován.',
+    saveDwgSemanticWarning:
+      'Poznámka k věrnosti: {reencoded} záznamů překódováno se shodným významem; {semantic} záznamů má přijaté sémantické rozdíly (např. tělesa ACIS).',
     fontsNotFound: 'Fonty {fonts} nebyly nalezeny v úložišti fontů!',
     fontsNotLoaded: 'Fonty {fonts} se nepodařilo načíst!',
     fontMissedInDrawing:

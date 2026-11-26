@@ -22,6 +22,7 @@ import {
   AcApPointStyleCmd,
   AcApPropertiesCmd,
   AcApQSelectCmd,
+  AcApSaveDwgCmd,
   AcApTextStyleCmd,
   AcApXrefCmd,
   hatchRibbonCommand
@@ -156,6 +157,13 @@ export const registerCmds = () => {
       'attdef',
       new AcApAttDefCmd(),
       'ddattdef'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'savedwg',
+      'savedwg',
+      new AcApSaveDwgCmd(),
+      'qsave'
     )
     isCommandRegistered = true
   }

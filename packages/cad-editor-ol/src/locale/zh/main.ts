@@ -2,6 +2,7 @@ export default {
   mainMenu: {
     new: '新建图纸',
     open: '打开图纸',
+    save: '保存',
     drawingUnits: '图形单位',
     exportMenu: '导出',
     export: '导出为DXF',
@@ -289,6 +290,7 @@ export default {
       offset: '按指定距离创建对象的平行副本。',
       undo: '撤销上一次编辑操作。',
       redo: '重做上一次撤销的操作。',
+      save: '保存图纸（Ctrl+S）。',
       properties: '打开当前所选对象的属性面板。',
       quickSelect: '打开快速选择对话框，按条件筛选并选择图元。',
       find: '打开查找面板，在整个图纸或当前布局中搜索文字。',
@@ -993,6 +995,15 @@ export default {
   message: {
     loadingFonts: '正在加载字体...',
     loadingDwgConverter: '正在加载DWG转换器...',
+    savingDwg: '正在保存 DWG ...',
+    saveDwgSuccess: '已保存“{name}”（{count} 条记录字节保真）。',
+    saveDwgFailed: 'DWG 保存失败 [{code}]：{message}',
+    saveDwgTooLarge:
+      '该图纸超过 64 MB，请使用原生 patch_fixture 工具保存，而非浏览器。',
+    saveDwgNoCapture: '当前文档未保留源 DWG 字节。',
+    saveDwgNoConverter: '未注册支持增量补丁的 acad-rust DWG 转换器。',
+    saveDwgSemanticWarning:
+      '保真提示：{reencoded} 条记录被重编码（语义相等）；{semantic} 条记录存在已接受的语义差异（如 ACIS 实体）。',
     fontsNotFound: '在字体库中找不到字体：{fonts}。',
     fontsNotLoaded: '无法加载字体：{fonts}。',
     fontMissedInDrawing:

@@ -4,6 +4,7 @@ import '@mlightcad/ribbon/style.css'
 import {
   ChatLineSquare,
   Delete,
+  DocumentChecked,
   DocumentCopy,
   Hide,
   RefreshLeft,
@@ -2675,6 +2676,10 @@ const fileMenuItems = computed<FileMenuItemModel[]>(() => {
     },
     openItem,
     {
+      id: 'Save',
+      label: t('main.mainMenu.save')
+    },
+    {
       id: 'DrawingUnits',
       label: t('main.mainMenu.drawingUnits')
     }
@@ -2731,6 +2736,11 @@ const handleRibbonItemClick = (payload: {
   AcApDocManager.instance.sendStringToExecute(command)
 }
 
+const handleHeaderSave = () => {
+  if (isRibbonDisabled.value) return
+  AcApDocManager.instance.sendStringToExecute('savedwg')
+}
+
 const handleHeaderUndo = () => {
   if (isRibbonDisabled.value || !canUndo.value) return
   AcApDocManager.instance.sendStringToExecute('undo')
@@ -2761,6 +2771,8 @@ const handleFileMenuSelect = async (command: string) => {
     if (item) {
       void acapRunDataSourceMenuAction(item)
     }
+  } else if (command === 'Save') {
+    AcApDocManager.instance.sendStringToExecute('savedwg')
   } else if (command === 'DrawingUnits') {
     AcApDocManager.instance.sendStringToExecute('units')
   } else if (command === 'About') {
@@ -2791,6 +2803,18 @@ const handleFileMenuSelect = async (command: string) => {
     >
       <template #tabs-after="{ disabled }">
         <div class="ml-ribbon-tabs-after">
+          <el-tooltip
+            :content="t('main.ribbon.tooltip.save')"
+            :hide-after="0"
+            :show-after="1000"
+          >
+            <el-button
+              class="ml-ribbon-tabs-after__button"
+              :disabled="disabled"
+              :icon="DocumentChecked"
+              @click="handleHeaderSave"
+            />
+          </el-tooltip>
           <el-tooltip
             :content="t('main.ribbon.tooltip.undo')"
             :hide-after="0"

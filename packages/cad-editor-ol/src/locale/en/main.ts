@@ -2,6 +2,7 @@ export default {
   mainMenu: {
     new: 'New Drawing',
     open: 'Open Drawing',
+    save: 'Save',
     drawingUnits: 'Drawing Units',
     exportMenu: 'Export',
     export: 'Export to DXF',
@@ -293,6 +294,7 @@ export default {
       offset: 'Create a parallel copy of an object at a specified distance.',
       undo: 'Undo the last editing operation.',
       redo: 'Redo the last undone editing operation.',
+      save: 'Save the drawing (Ctrl+S).',
       properties: 'Open the Properties palette for the current selection.',
       quickSelect:
         'Open Quick Select to filter and select entities by criteria.',
@@ -1040,6 +1042,16 @@ export default {
   message: {
     loadingFonts: 'Loading fonts ...',
     loadingDwgConverter: 'Loading DWG converter...',
+    savingDwg: 'Saving DWG ...',
+    saveDwgSuccess: 'Saved "{name}" ({count} records byte-exact).',
+    saveDwgFailed: 'DWG save failed [{code}]: {message}',
+    saveDwgTooLarge:
+      'This drawing exceeds 64 MB. Save it with the native patch_fixture tool instead of the browser.',
+    saveDwgNoCapture: 'The source DWG bytes were not retained for this document.',
+    saveDwgNoConverter:
+      'The acad-rust DWG converter with patch support is not registered.',
+    saveDwgSemanticWarning:
+      'Fidelity note: {reencoded} record(s) re-encoded with equal semantics; {semantic} record(s) have accepted semantic differences (e.g. ACIS solids).',
     fontsNotFound: 'Fonts {fonts} can not be found in font repository!',
     fontsNotLoaded: 'Fonts {fonts} can not be loaded!',
     fontMissedInDrawing:

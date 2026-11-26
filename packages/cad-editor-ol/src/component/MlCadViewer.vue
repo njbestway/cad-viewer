@@ -112,6 +112,7 @@ import {
   isFindShortcutInViewer,
   openFindPalette
 } from '../command/AcApFindCmd'
+import { isSaveShortcut } from '../command/AcApSaveDwgCmd'
 import {
   ensureColorThemeSync,
   isDark,
@@ -486,6 +487,22 @@ const onFindShortcut = (e: KeyboardEvent) => {
 }
 
 /**
+ * Ctrl/Cmd+S saves the drawing (SAVEDWG): Route-B incremental DWG save for
+ * DWG sources, DXF export otherwise. The browser's "save page" dialog is
+ * suppressed only inside the viewer and never while editing MText.
+ */
+const onSaveShortcut = (e: KeyboardEvent) => {
+  if (!isSaveShortcut(e) || e.defaultPrevented) return
+  if (AcEdMTextEditor.getActiveInputBox()) return
+  if (!isFindShortcutInViewer(e.target, layoutRef.value)) return
+  const docManager = AcApDocManager.tryGetInstance()
+  if (!docManager?.curDocument) return
+  e.preventDefault()
+  e.stopPropagation()
+  docManager.sendStringToExecute('savedwg')
+}
+
+/**
  * `AcApDocManager.newDocument()` concatenates `baseUrl` with the template path
  * and parses the result with `new URL()`, so a relative base such as
  * `/cad-data/` throws "Invalid URL" and the blank drawing never opens.
@@ -504,6 +521,7 @@ const toAbsoluteBaseUrl = (baseUrl?: string) => {
 // Component lifecycle: Initialize and load initial file if URL or localFile is provided
 onMounted(async () => {
   window.addEventListener('keydown', onFindShortcut, true)
+  window.addEventListener('keydown', onSaveShortcut, true)
   beginPendingOpen(props.mode)
 
   if (props.url || props.localFile) {
@@ -559,6 +577,7 @@ onUnmounted(() => {
   emit('destroy')
 
   window.removeEventListener('keydown', onFindShortcut, true)
+  window.removeEventListener('keydown', onSaveShortcut, true)
 
   AcEdMTextEditor.setDefaultToolbarEnabled(true)
   headerResizeObserver?.disconnect()

@@ -16,6 +16,13 @@ import {
 } from '@mlightcad/data-model'
 import { AcDbAcadRustNativeConverter } from '@njbestway/acad-rust-converter'
 
+import {
+  captureEntitySnapshot,
+  captureOriginalBytes,
+  captureSectionSnapshot,
+  wireDwgSave
+} from '../src/save'
+
 export function registerAcadRustConverter(parserWorkerUrl: string): void {
   const manager = AcDbDatabaseConverterManager.instance
 
@@ -23,8 +30,18 @@ export function registerAcadRustConverter(parserWorkerUrl: string): void {
   // the built-in DXF converter (`AcDbNativeDxfConverter`), which stays active.
   manager.register(
     AcDbFileType.DWG,
-    new AcDbAcadRustNativeConverter({ useWorker: true, parserWorkerUrl })
+    new AcDbAcadRustNativeConverter({
+      useWorker: true,
+      parserWorkerUrl,
+      // Route-B save capture: source bytes + open-time serde snapshots.
+      onOriginalBytes: captureOriginalBytes,
+      onEntitySnapshot: captureEntitySnapshot,
+      onSectionSnapshot: captureSectionSnapshot
+    })
   )
+
+  // Bind the captured session to the document lifecycle (SaveJournal).
+  wireDwgSave()
 
   assertDwgParser(manager)
 }

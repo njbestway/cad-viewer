@@ -2,6 +2,7 @@ export default {
   mainMenu: {
     new: 'Yeni Çizim',
     open: 'Çizim Aç',
+    save: 'Kaydet',
     drawingUnits: 'Çizim Birimleri',
     exportMenu: 'Dışa Aktar',
     export: 'DXF\'e Dışa Aktar',
@@ -298,6 +299,7 @@ export default {
         'Bir nesnenin belirtilen mesafede paralel bir kopyasını oluşturun.',
       undo: 'Son düzenleme işlemini geri alın.',
       redo: 'Son geri alınan düzenleme işlemini yineleyin.',
+      save: 'Çizimi kaydet (Ctrl+S).',
       properties: 'Geçerli seçim için Özellikler panelini açın.',
       quickSelect:
         'Ölçütlere göre varlıkları filtrelemek ve seçmek için Hızlı Seçimi açın.',
@@ -1041,6 +1043,16 @@ export default {
   message: {
     loadingFonts: 'Yazı tipleri yükleniyor ...',
     loadingDwgConverter: 'DWG dönüştürücü yükleniyor...',
+    savingDwg: 'DWG kaydediliyor ...',
+    saveDwgSuccess: '"{name}" kaydedildi ({count} kayıt bayt düzeyinde aynı).',
+    saveDwgFailed: 'DWG kaydetme başarısız [{code}]: {message}',
+    saveDwgTooLarge:
+      'Bu çizim 64 MB\'ı aşıyor. Tarayıcı yerine yerel patch_fixture aracıyla kaydedin.',
+    saveDwgNoCapture: 'Bu belge için kaynak DWG baytları saklanmadı.',
+    saveDwgNoConverter:
+      'Yama destekli acad-rust DWG dönüştürücüsü kayıtlı değil.',
+    saveDwgSemanticWarning:
+      'Doğruluk notu: {reencoded} kayıt eşdeğer anlamla yeniden kodlandı; {semantic} kayıtta kabul edilmiş anlamsal farklar var (ör. ACIS katıları).',
     fontsNotFound: '{fonts} yazı tipleri yazı tipi deposunda bulunamıyor!',
     fontsNotLoaded: '{fonts} yazı tipleri yüklenemiyor!',
     fontMissedInDrawing:
