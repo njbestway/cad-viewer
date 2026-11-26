@@ -1,0 +1,75 @@
+{
+  "name": "@njbestway/acad-rust-converter",
+  "version": "0.2.0",
+  "private": true,
+  "license": "(MIT AND MPL-2.0)",
+  "type": "module",
+  "description": "DWG converter built on acadrust (Rust/WASM, MPL-2.0) — a copyleft-free replacement for the GPL @mlightcad/libredwg-converter",
+  "author": "njbestway",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/njbestway/cad-viewer.git",
+    "directory": "packages/acad-rust-converter"
+  },
+  "bugs": {
+    "url": "https://github.com/njbestway/cad-viewer/issues"
+  },
+  "homepage": "https://github.com/njbestway/cad-viewer#readme",
+  "keywords": [
+    "acadrust",
+    "autocad",
+    "cad",
+    "dwg",
+    "dxf",
+    "mlight",
+    "mlightcad",
+    "objectarx",
+    "wasm"
+  ],
+  "files": [
+    "dist",
+    "lib",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "package.json"
+  ],
+  "sideEffects": false,
+  "main": "./dist/acad-rust-converter.umd.cjs",
+  "module": "./dist/acad-rust-converter.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./dist/acad-rust-converter.js",
+      "require": "./dist/acad-rust-converter.umd.cjs"
+    }
+  },
+  "scripts": {
+    "clean": "rimraf dist lib wasm/pkg rust/target tsconfig.tsbuildinfo",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "node scripts/build-wasm.mjs && tsc && vite build -c vite.config.main.ts && vite build -c vite.config.worker.ts && vite build -c vite.config.maint.ts",
+    "build:js": "tsc && vite build -c vite.config.main.ts && vite build -c vite.config.worker.ts && vite build -c vite.config.maint.ts",
+    "build:main": "tsc && vite build -c vite.config.main.ts",
+    "build:worker": "vite build -c vite.config.worker.ts",
+    "build:main-thread": "vite build -c vite.config.maint.ts",
+    "verify": "node scripts/verify-package.mjs",
+    "prepublishOnly": "rimraf lib dist && pnpm run build && node scripts/verify-package.mjs"
+  },
+  "devDependencies": {
+    "@mlightcad/data-model": "1.16.4",
+    "@types/node": "^24.0.0",
+    "@types/rollup-plugin-peer-deps-external": "^2.2.5",
+    "rimraf": "^6.0.1",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "typescript": "^5.5.2",
+    "vite": "^6.4.3",
+    "vite-plugin-static-copy": "^4.1.1"
+  },
+  "peerDependencies": {
+    "@mlightcad/data-model": "^1.15.6"
+  }
+}

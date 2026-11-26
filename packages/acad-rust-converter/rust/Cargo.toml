@@ -1,0 +1,79 @@
+[package]
+name = "acad-rust-converter"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "WASM bridge exposing acadrust DWG parsing to the @njbestway/acad-rust-converter npm package"
+license = "MPL-2.0"
+
+# This crate is compiled to wasm32-unknown-unknown and consumed by the
+# TypeScript worker in ../src. It is never published to crates.io; the built
+# `wasm/pkg` glue is bundled into the npm package instead.
+[lib]
+name = "acad_rust_converter"
+crate-type = ["cdylib", "rlib"]
+
+# Offline native-only fixture generator (see src/bin/dump_fixture.rs). Gated
+# behind a non-default feature so `cargo build --target
+# wasm32-unknown-unknown` (used by scripts/build-wasm.mjs) never tries to
+# compile it - it relies on `std::fs` and `DwgReader::from_file`, neither of
+# which exist on the wasm32-unknown-unknown target.
+[[bin]]
+name = "dump_fixture"
+path = "src/bin/dump_fixture.rs"
+required-features = ["dumper"]
+
+# P0/P1 round-trip matrix for the Route-B incremental DWG patch save: reads a
+# source DWG, writes it back through acadrust 0.6.8's verbatim passthrough and
+# classifies every record (byte-exact / re-encoded / semantic diff), then runs
+# edit / erase / add cases. Native-only, same feature gate as dump_fixture.
+[[bin]]
+name = "patch_fixture"
+path = "src/bin/patch_fixture.rs"
+required-features = ["dumper"]
+
+[features]
+dumper = ["dep:anyhow"]
+
+[dependencies]
+# acadrust is MPL-2.0 (file-level copyleft) and compiles cleanly for wasm32
+# because its memmap2/rayon dependencies are gated behind
+# cfg(not(target_arch = "wasm32")).
+#
+# Route-B incremental DWG patch save pins the njbestway fork branch
+# route-b-fidelity, based on the v0.6.8 tag (byte-identical to crates.io 0.6.8)
+# plus a scoped fix to prepare_database_references: the unconditional repair
+# pass no longer mutates unedited records that still carry raw_record (Table
+# empty-block_name desync, hatch associativity drop, boundary reactor synthesis),
+# restoring verbatim byte fidelity for untouched entities. Fork main is avoided
+# because its merged upstream carries an unrelated TABLE round-trip regression.
+# MPL-2.0 file-level copyleft: the modified fork source is published on that branch.
+acadrust = { git = "https://github.com/njbestway/acadrust", branch = "route-b-fidelity", features = ["serde"] }
+# Needed directly (not just transitively via `acadrust`'s `serde` feature) to
+# name the `serde::Serialize` trait bound in `to_json`'s generic signature;
+# `derive` lets the batched-block reply serialize a plain struct instead of an
+# intermediate `serde_json::Value` tree.
+serde = { version = "1", features = ["derive"] }
+# Pinned exactly so the generated JS glue schema matches the installed
+# `wasm-bindgen` CLI (0.2.126). A mismatch aborts wasm-bindgen with a schema
+# version error.
+wasm-bindgen = "=0.2.126"
+serde_json = "1"
+# Only used by the `dumper`-feature binary (ergonomic error chaining for its
+# many `fs`/`serde_json` calls); optional so it never links into the wasm.
+anyhow = { version = "1", optional = true }
+
+[profile.release]
+# Optimise for runtime speed rather than byte size: the DWG read dominates wall
+# clock on large drawings (~4.7 s of a 9.4 s Architecture-B read, ~8 s of an
+# Architecture-A transcode) and the browser fetches this wasm once per worker.
+opt-level = 3
+lto = true
+codegen-units = 1
+# `unwind` (not `abort`) so a panic inside the bundled acadrust crate is caught
+# by `guard()`/`catch_unwind` in src/lib.rs and surfaced to JS as a rejected
+# parse. Under `abort` the same panic would terminate the whole wasm instance
+# (crashing the host tab) and never reach the catch. Trade-off: a slightly larger
+# wasm and a dependency on a browser/engine with the WebAssembly
+# exception-handling proposal enabled (all current Chromium builds do).
+panic = "unwind"

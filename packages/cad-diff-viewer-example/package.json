@@ -21,7 +21,7 @@
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/data-model": "1.16.1",
     "@mlightcad/libredwg-converter": "3.16.1",
-    "@njbestway/acad-rust-converter": "0.1.0",
+    "@njbestway/acad-rust-converter": "workspace:*",
     "@mlightcad/mtext-parser": "1.5.7",
     "@mlightcad/mtext-renderer": "0.13.10",
     "@mlightcad/three-renderer": "workspace:*",

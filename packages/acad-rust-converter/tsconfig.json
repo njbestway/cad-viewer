@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2020", "dom"],
+    "rootDir": "./src",
+    "outDir": "./lib",
+    "baseUrl": "./src",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src"],
+  "//": "worker.ts and main-thread.ts are bundled by vite (esbuild) and import the generated wasm glue outside rootDir, so they are excluded from the tsc lib build.",
+  "exclude": ["src/worker.ts", "src/main-thread.ts"]
+}

@@ -7,17 +7,36 @@ variables:
   NODE_VERSION: "20"
   PNPM_VERSION: "10.33.4"
 
-# Shared setup for every job that runs `pnpm build`: install pnpm, then install
-# JS dependencies.
+# Shared setup for every job that runs `pnpm build`: install pnpm, install JS
+# dependencies, then provision the Rust toolchain for the in-tree
+# acad-rust-converter (cargo -> wasm32 -> wasm-bindgen). CARGO_HOME/RUSTUP_HOME
+# live inside the project dir so the runner cache can persist them.
 .build-setup:
+  variables:
+    CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+    RUSTUP_HOME: "$CI_PROJECT_DIR/.rustup"
   cache:
     key: "build-${CI_COMMIT_REF_SLUG}"
     paths:
       - node_modules/
       - .pnpm-store/
+      - .cargo/
+      - .rustup/
+      - packages/acad-rust-converter/rust/target/
   before_script:
     - npm install -g pnpm@${PNPM_VERSION}
     - pnpm install --frozen-lockfile
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target wasm32-unknown-unknown --no-modify-path
+    - . "$CARGO_HOME/env"
+    # The wasm-bindgen CLI must match the crate pin exactly or the glue schema
+    # check aborts; derive the version straight from Cargo.toml.
+    - |
+      ver="$(sed -nE 's/^wasm-bindgen = "=(.*)"/\1/p' packages/acad-rust-converter/rust/Cargo.toml | tr -d '[:space:]')"
+      if [ -z "$ver" ]; then echo "Could not parse wasm-bindgen pin" >&2; exit 1; fi
+      curl -sSfL "https://github.com/rustwasm/wasm-bindgen/releases/download/${ver}/wasm-bindgen-${ver}-x86_64-unknown-linux-gnu.tar.gz" | tar xz
+      install -m 0755 "wasm-bindgen-${ver}-x86_64-unknown-linux-gnu/wasm-bindgen" /usr/local/bin/wasm-bindgen
+      got="$(wasm-bindgen --version | awk '{print $2}')"
+      if [ "$got" != "$ver" ]; then echo "wasm-bindgen CLI $got != crate pin $ver" >&2; exit 1; fi
 
 # ----------------------
 # CI Job

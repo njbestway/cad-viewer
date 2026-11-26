@@ -15,6 +15,31 @@ permissions:
   id-token: write
 
 jobs:
+  # Native Rust regression gate for the in-tree acad-rust-converter crate:
+  # self-contained DWG read / Route-B patch round-trip tests, no wasm-bindgen
+  # needed. The acadrust dependency resolves from the public njbestway fork
+  # branch pinned in Cargo.toml.
+  rust:
+    name: Rust tests (native)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/acad-rust-converter/rust
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo (registry + target)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/acad-rust-converter/rust
+
+      - name: cargo test
+        run: cargo test --tests
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -44,6 +69,51 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # acad-rust-converter is built in-tree: cargo -> wasm32 -> wasm-bindgen
+      # -> tsc -> vite. The CLI must match the crate pin exactly or the glue
+      # schema check aborts (historical footgun), so derive it from Cargo.toml.
+      - name: Install Rust toolchain (wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo (registry + target)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/acad-rust-converter/rust
+
+      - name: Resolve pinned wasm-bindgen version
+        id: wbv
+        run: |
+          ver="$(sed -nE 's/^wasm-bindgen = "=(.*)"/\1/p' packages/acad-rust-converter/rust/Cargo.toml | tr -d '[:space:]')"
+          if [ -z "$ver" ]; then
+            echo "Could not parse the wasm-bindgen pin from Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "Pinned wasm-bindgen: $ver"
+
+      - name: Install wasm-bindgen CLI (prebuilt ${{ steps.wbv.outputs.version }})
+        run: |
+          set -euo pipefail
+          ver="${{ steps.wbv.outputs.version }}"
+          tripl="x86_64-unknown-linux-gnu"
+          curl -sSfL \
+            "https://github.com/rustwasm/wasm-bindgen/releases/download/${ver}/wasm-bindgen-${ver}-${tripl}.tar.gz" \
+            | tar xz
+          sudo install -m 0755 "wasm-bindgen-${ver}-${tripl}/wasm-bindgen" /usr/local/bin/wasm-bindgen
+
+      - name: Assert wasm-bindgen CLI matches the crate pin
+        run: |
+          set -euo pipefail
+          want="${{ steps.wbv.outputs.version }}"
+          got="$(wasm-bindgen --version | awk '{print $2}')"
+          if [ "$got" != "$want" ]; then
+            echo "::error::wasm-bindgen CLI is $got but Cargo.toml pins =$want"
+            exit 1
+          fi
+          echo "wasm-bindgen CLI $got OK"
 
       - name: Lint code
         run: pnpm lint
@@ -172,6 +242,48 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Same in-tree converter toolchain as the build job (release rebuilds all
+      # packages, including the wasm bridge).
+      - name: Install Rust toolchain (wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo (registry + target)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/acad-rust-converter/rust
+
+      - name: Resolve pinned wasm-bindgen version
+        id: wbv
+        run: |
+          ver="$(sed -nE 's/^wasm-bindgen = "=(.*)"/\1/p' packages/acad-rust-converter/rust/Cargo.toml | tr -d '[:space:]')"
+          if [ -z "$ver" ]; then
+            echo "Could not parse the wasm-bindgen pin from Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Install wasm-bindgen CLI (prebuilt ${{ steps.wbv.outputs.version }})
+        run: |
+          set -euo pipefail
+          ver="${{ steps.wbv.outputs.version }}"
+          tripl="x86_64-unknown-linux-gnu"
+          curl -sSfL \
+            "https://github.com/rustwasm/wasm-bindgen/releases/download/${ver}/wasm-bindgen-${ver}-${tripl}.tar.gz" \
+            | tar xz
+          sudo install -m 0755 "wasm-bindgen-${ver}-${tripl}/wasm-bindgen" /usr/local/bin/wasm-bindgen
+
+      - name: Assert wasm-bindgen CLI matches the crate pin
+        run: |
+          set -euo pipefail
+          want="${{ steps.wbv.outputs.version }}"
+          got="$(wasm-bindgen --version | awk '{print $2}')"
+          if [ "$got" != "$want" ]; then
+            echo "::error::wasm-bindgen CLI is $got but Cargo.toml pins =$want"
+            exit 1
+          fi
 
       - name: Build projects
         run: |

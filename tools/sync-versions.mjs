@@ -13,6 +13,14 @@ function isWorkspaceVersion(value) {
   return typeof value === 'string' && value.startsWith('workspace:');
 }
 
+// Non-semver override targets (vendored tarballs, links, npm aliases) are
+// resolution directives, not versions: package.json specifiers must never be
+// rewritten to them (a file: path would not resolve from packages/* and would
+// corrupt published peer ranges).
+function isNonSemverOverride(value) {
+  return typeof value === 'string' && /^(file|link|workspace|npm):/.test(value);
+}
+
 function parseOverridesFromWorkspaceYaml(content) {
   const overrides = {};
   const lines = content.split(/\r?\n/);
@@ -143,14 +151,18 @@ async function syncPackage(
         if (workspacePackageNames.has(name)) continue;
 
         const rootVersion = rootVersionMap[name];
-        if (!rootVersion) {
+        if (!rootVersion || isNonSemverOverride(rootVersion)) {
           console.warn(`⚠️  ${pkg.name || packageFilePath}: no root version found for ${name} in ${depKey}`);
           continue;
         }
         newVersion = rootVersion;
       }
       // Priority 2: check versions in pnpm-workspace.yaml overrides
-      else if (overrides[name] && value !== overrides[name]) {
+      else if (
+        overrides[name] &&
+        !isNonSemverOverride(overrides[name]) &&
+        value !== overrides[name]
+      ) {
         newVersion = overrides[name];
       }
 

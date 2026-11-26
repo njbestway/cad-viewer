@@ -9,7 +9,20 @@ allowBuilds:
   unrs-resolver: true
   vue-demi: true
 overrides:
-  '@mlightcad/data-model': '1.16.1'
+  # data-model is a locally maintained fork (realdwg-web, adds the dwgHandle
+  # field used by Route-B DWG patch-save); it is NOT published to npm. The
+  # committed dependency is the vendored tarball snapshot below. To refresh:
+  # rebuild the fork, re-pack, replace vendor/*.tgz and bump this entry.
+  # For local fork iteration you may temporarily switch this line to a path
+  # override ('../../../realdwg-web/packages/data-model', resolved from each
+  # importer dir) — do not commit that machine-specific form or its lockfile.
+  '@mlightcad/data-model': 'file:./vendor/njbestway-data-model-1.16.4.tgz'
+  # acad-rust-converter is back in the workspace (packages/acad-rust-converter)
+  # and marked private: it is never published from this repo (npm 0.1.0 from the
+  # archived standalone repo stays the published line). The CLI declares 0.1.0
+  # so its published artifact resolves on npm; this workspace override keeps
+  # every local consumer (incl. the CLI) linked to the in-tree 0.2.0 sources.
+  '@njbestway/acad-rust-converter': 'workspace:*'
   '@mlightcad/libredwg-converter': '3.16.1'
   '@mlightcad/mtext-input-box': '0.3.10'
   '@mlightcad/mtext-parser': '1.5.7'

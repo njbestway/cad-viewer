@@ -39,7 +39,17 @@ const config: Config = {
   transformIgnorePatterns: [
     '/node_modules/(?!.*(mtext-parser|rbush|quickselect|three/build/three))'
   ],
-  testPathIgnorePatterns: ['/e2e/', '/__tests__/helpers/', '/__tests__/simple-ui/helpers/'],
+  testPathIgnorePatterns: [
+    '/e2e/',
+    '/__tests__/helpers/',
+    '/__tests__/simple-ui/helpers/',
+    // Gitignored benchmark scratch output (stale spec copies, not sources).
+    '/.bench-out/',
+    // Replays native-dumper fixtures (__tests__/fixtures/sample-drawing) that
+    // are not committed; regenerate offline via rust dump_fixture before
+    // re-enabling this spec.
+    'acad-rust-converter/__tests__/AcDbAcadRustNativeConverter\\.parity\\.spec\\.ts'
+  ],
   moduleNameMapper: {
     // Published packages use Node-ESM `.js` specifiers; map them back to `.ts`.
     '^(\\.{1,2}/.*)\\.js$': '$1',
