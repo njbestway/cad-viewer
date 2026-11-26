@@ -91,6 +91,7 @@ import {
   useUndoRedo
 } from '../../composable'
 import { markComponentConfigRaw } from '../../composable/markComponentConfigRaw'
+import { getDwgSaveJournal } from '../../save'
 import {
   arcCenterStartAngle,
   arcCenterStartEnd,
@@ -542,6 +543,7 @@ const bindAnnotationVisibilityEvents = (db?: AcDbDatabase) => {
 }
 
 const handleDocumentActivated = () => {
+  activeDocumentRevision.value++
   bindSelectionEvents(getCurrentSelectionSet())
   bindAnnotationVisibilityEvents(AcApDocManager.instance?.curDocument?.database)
   ribbonLayerIsolationSnapshot.value = null
@@ -2640,6 +2642,27 @@ watch(
   { immediate: true }
 )
 
+/**
+ * Bumped on every document activation so {@link canExportDwg} re-evaluates.
+ * The Route-B journal is attached by a separate `documentActivated` listener
+ * (wireDwgSave); computed re-evaluation happens in the post-event render
+ * flush, by which time the journal lookup is settled regardless of listener
+ * registration order.
+ */
+const activeDocumentRevision = ref(0)
+
+/**
+ * Whether the active document carries a Route-B save journal (DWG source
+ * with original bytes). DXF sources and new drawings get none, where
+ * `savedwg` would silently fall back to a .dxf download — hide the
+ * "Export to DWG" entry there instead of misleading the user.
+ */
+const canExportDwg = computed(() => {
+  activeDocumentRevision.value
+  const db = AcApDocManager.instance?.curDocument?.database
+  return !!db && getDwgSaveJournal(db) !== undefined
+})
+
 const fileMenuItems = computed<FileMenuItemModel[]>(() => {
   locale.value
   dataSourceMenuItems.value
@@ -2673,20 +2696,23 @@ const fileMenuItems = computed<FileMenuItemModel[]>(() => {
     }
   ]
   if (!AcApDocManager.instance.disableExport) {
+    const exportChildren: FileMenuItemModel[] = [
+      {
+        id: 'Convert',
+        label: t('main.mainMenu.export')
+      }
+    ]
+    if (canExportDwg.value) {
+      exportChildren.push({
+        id: 'ExportDwg',
+        label: t('main.mainMenu.exportDwg')
+      })
+    }
     items.push({
       id: 'Export',
       label: t('main.mainMenu.exportMenu'),
       divided: true,
-      children: [
-        {
-          id: 'Convert',
-          label: t('main.mainMenu.export')
-        },
-        {
-          id: 'ExportDwg',
-          label: t('main.mainMenu.exportDwg')
-        }
-      ]
+      children: exportChildren
     })
   }
   return items
