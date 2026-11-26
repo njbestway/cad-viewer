@@ -30,12 +30,6 @@
             {{ t('main.statusBar.setting.ribbon') }}
           </el-dropdown-item>
           <el-dropdown-item
-            :icon="features.isShowLanguageSelector ? Check : ''"
-            command="isShowLanguageSelector"
-          >
-            {{ t('main.statusBar.setting.languageSelector') }}
-          </el-dropdown-item>
-          <el-dropdown-item
             :icon="features.isShowCoordinate ? Check : ''"
             command="isShowCoordinate"
           >
@@ -84,10 +78,6 @@ const handleCommand = (command: keyof AcApSettings) => {
   } else if (command == 'isShowRibbon') {
     features.isShowRibbon = !features.isShowRibbon
     AcApSettingManager.instance.isShowRibbon = features.isShowRibbon
-  } else if (command == 'isShowLanguageSelector') {
-    features.isShowLanguageSelector = !features.isShowLanguageSelector
-    AcApSettingManager.instance.isShowLanguageSelector =
-      features.isShowLanguageSelector
   } else if (command == 'isShowToolbar') {
     features.isShowToolbar = !features.isShowToolbar
     AcApSettingManager.instance.isShowToolbar = features.isShowToolbar

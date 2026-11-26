@@ -6,11 +6,11 @@ export default {
     drawingUnits: 'Drawing Units',
     exportMenu: 'Export',
     export: 'Export to DXF',
+    exportDwg: 'Export to DWG',
     exportHtml: 'Export to HTML',
     exportPdf: 'Export to PDF',
     exportSvg: 'Export to SVG',
-    exportImage: 'Export to Image',
-    about: 'About'
+    exportImage: 'Export to Image'
   },
   ribbon: {
     tab: {
@@ -616,7 +616,6 @@ export default {
       commandLine: 'Command Line',
       coordinate: 'Coordinate',
       entityInfo: 'Entity Info',
-      languageSelector: 'Language Selector',
       ribbon: 'Ribbon',
       toolbar: 'Toolbar',
       stats: 'Statistics'

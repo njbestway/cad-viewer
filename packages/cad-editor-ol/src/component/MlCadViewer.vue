@@ -20,7 +20,7 @@
   - Customizable base URL for fonts, templates, and example files
   
   COMPONENTS INCLUDED:
-  - Ribbon with CAD commands and language selector
+  - Ribbon with CAD commands
   - Toolbars with CAD commands
   - Layer manager for controlling entity visibility
   - Command line for text-based commands
@@ -255,7 +255,7 @@ const buildOpenOptions = (): AcApOpenDatabaseOptions => ({
 })
 
 const { t } = useI18n()
-const { currentLocale, effectiveLocale, elementPlusLocale } = useLocale(
+const { currentLocale, elementPlusLocale } = useLocale(
   props.locale
 )
 provideLocale(currentLocale)
@@ -668,7 +668,6 @@ const closeNotificationCenter = () => {
         <header v-if="editorRef" ref="headerRef" class="ml-cad-header">
           <ml-ribbon-commands
             v-if="features.isShowRibbon"
-            :current-locale="effectiveLocale"
           />
         </header>
 

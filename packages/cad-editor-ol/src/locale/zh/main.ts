@@ -6,11 +6,11 @@ export default {
     drawingUnits: '图形单位',
     exportMenu: '导出',
     export: '导出为DXF',
+    exportDwg: '导出为DWG',
     exportHtml: '导出为 HTML',
     exportPdf: '导出为PDF',
     exportSvg: '导出为 SVG',
-    exportImage: '导出图片',
-    about: '关于'
+    exportImage: '导出图片'
   },
   ribbon: {
     tab: {
@@ -570,7 +570,6 @@ export default {
       commandLine: '命令行',
       coordinate: '坐标',
       entityInfo: '图元信息',
-      languageSelector: '语言菜单',
       ribbon: '功能区',
       toolbar: '工具栏',
       stats: '性能面板'

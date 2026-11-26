@@ -88,11 +88,9 @@ import {
   useDocument,
   useLayerFilters,
   useLayers,
-  useSettings,
   useUndoRedo
 } from '../../composable'
 import { markComponentConfigRaw } from '../../composable/markComponentConfigRaw'
-import { LocaleProp } from '../../locale'
 import {
   arcCenterStartAngle,
   arcCenterStartEnd,
@@ -170,7 +168,6 @@ import MlBlockInsertGallery from '../common/MlBlockInsertGallery.vue'
 import MlLayerSelect from '../common/MlLayerSelect.vue'
 import MlCharacterMapDialog from '../dialog/MlCharacterMapDialog.vue'
 import MlRibbonFileName from './MlRibbonFileName.vue'
-import MlRibbonLanguageSelector from './MlRibbonLanguageSelector.vue'
 import MlRibbonMeasurementUnitsPanel from './MlRibbonMeasurementUnitsPanel.vue'
 import MlRibbonPropertyColorDropdown from './MlRibbonPropertyColorDropdown.vue'
 import MlRibbonPropertyLineTypeSelect from './MlRibbonPropertyLineTypeSelect.vue'
@@ -186,10 +183,6 @@ const OVERLAY_STYLE_CONTROL_WIDTH = '120px'
 /** Authoring mode for overlay text height (Fit to screen vs world height). */
 type OverlayTextHeightMode = 'adaptive' | 'custom'
 
-interface Props {
-  currentLocale?: LocaleProp
-}
-
 /**
  * Subset of the system variable change event used by the ribbon property sync.
  */
@@ -200,11 +193,6 @@ interface RibbonSysVarChangeEvent {
   name: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  currentLocale: undefined
-})
-
-const features = useSettings()
 const ribbonContainerRef = ref<HTMLElement>()
 const { isDocumentOpening, openMode: docOpenMode } = useDocument()
 const { canUndo, canRedo } = useUndoRedo()
@@ -2693,15 +2681,14 @@ const fileMenuItems = computed<FileMenuItemModel[]>(() => {
         {
           id: 'Convert',
           label: t('main.mainMenu.export')
+        },
+        {
+          id: 'ExportDwg',
+          label: t('main.mainMenu.exportDwg')
         }
       ]
     })
   }
-  items.push({
-    id: 'About',
-    label: t('main.mainMenu.about'),
-    divided: true
-  })
   return items
 })
 
@@ -2753,7 +2740,10 @@ const handleHeaderRedo = () => {
 
 const handleFileMenuSelect = async (command: string) => {
   if (isRibbonDisabled.value) return
-  if (AcApDocManager.instance.disableExport && command === 'Convert') {
+  if (
+    AcApDocManager.instance.disableExport &&
+    (command === 'Convert' || command === 'ExportDwg')
+  ) {
     return
   }
   if (command === 'Convert') {
@@ -2771,12 +2761,11 @@ const handleFileMenuSelect = async (command: string) => {
     if (item) {
       void acapRunDataSourceMenuAction(item)
     }
-  } else if (command === 'Save') {
+  } else if (command === 'Save' || command === 'ExportDwg') {
+    // Same Route-B DWG save-as path as the header save button / Ctrl+S.
     AcApDocManager.instance.sendStringToExecute('savedwg')
   } else if (command === 'DrawingUnits') {
     AcApDocManager.instance.sendStringToExecute('units')
-  } else if (command === 'About') {
-    AcApDocManager.instance.sendStringToExecute('about')
   }
 }
 </script>
@@ -2840,13 +2829,6 @@ const handleFileMenuSelect = async (command: string) => {
             />
           </el-tooltip>
         </div>
-      </template>
-      <template #tabs-extra="{ disabled }">
-        <ml-ribbon-language-selector
-          v-if="features.isShowLanguageSelector"
-          :current-locale="props.currentLocale"
-          :disabled="disabled"
-        />
       </template>
     </ml-ribbon>
     <ml-ribbon-file-name :container-el="ribbonContainerRef" />

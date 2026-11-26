@@ -8,26 +8,8 @@ import { computed, ref, watch } from 'vue'
 
 import type { LocaleProp } from '../locale/types'
 
-/** Must stay in sync with {@link ../locale/i18n.ts} startup persistence. */
+/** Legacy persistence key; startup no longer reads it (locale fixed to 'zh'). */
 const STORAGE_KEY = 'preferred_lang'
-
-export const LOCALE_OPTIONS = [
-  { locale: 'en' as const, label: 'English' },
-  { locale: 'zh' as const, label: '简体中文' },
-  { locale: 'tr' as const, label: 'Türkçe' },
-  { locale: 'cs' as const, label: 'Čeština' },
-  { locale: 'ar' as const, label: 'العربية' }
-]
-
-export const isSupportedLocale = (value: string): value is AcApLocale => {
-  return (
-    value === 'en' ||
-    value === 'zh' ||
-    value === 'tr' ||
-    value === 'cs' ||
-    value === 'ar'
-  )
-}
 
 /**
  * Shared reactive mirror of {@link AcApI18n.currentLocale}.

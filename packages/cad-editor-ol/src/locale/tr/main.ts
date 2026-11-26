@@ -6,11 +6,11 @@ export default {
     drawingUnits: 'Çizim Birimleri',
     exportMenu: 'Dışa Aktar',
     export: 'DXF\'e Dışa Aktar',
+    exportDwg: 'DWG Olarak Dışa Aktar',
     exportHtml: 'HTML\'e Dışa Aktar',
     exportPdf: 'PDF\'e Dışa Aktar',
     exportSvg: 'SVG\'e Dışa Aktar',
-    exportImage: 'Görüntüye Dışa Aktar',
-    about: 'Hakkında'
+    exportImage: 'Görüntüye Dışa Aktar'
   },
   ribbon: {
     tab: {
@@ -616,7 +616,6 @@ export default {
       commandLine: 'Komut Satırı',
       coordinate: 'Koordinat',
       entityInfo: 'Varlık Bilgisi',
-      languageSelector: 'Dil Seçici',
       ribbon: 'Şerit',
       toolbar: 'Araç Çubuğu',
       stats: 'İstatistikler'

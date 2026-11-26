@@ -6,11 +6,11 @@ export default {
     drawingUnits: 'Jednotky výkresu',
     exportMenu: 'Export',
     export: 'Exportovat do DXF',
+    exportDwg: 'Exportovat do DWG',
     exportHtml: 'Exportovat do HTML',
     exportPdf: 'Exportovat do PDF',
     exportSvg: 'Exportovat do SVG',
-    exportImage: 'Exportovat do obrázku',
-    about: 'O aplikaci'
+    exportImage: 'Exportovat do obrázku'
   },
   ribbon: {
     tab: {
@@ -603,7 +603,6 @@ export default {
       commandLine: 'Příkazový řádek',
       coordinate: 'Souřadnice',
       entityInfo: 'Informace o objektu',
-      languageSelector: 'Volba jazyka',
       ribbon: 'Pás karet',
       toolbar: 'Panel nástrojů',
       stats: 'Statistiky'

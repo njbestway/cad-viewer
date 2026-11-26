@@ -10,11 +10,11 @@ export default {
     drawingUnits: 'وحدات الرسم',
     exportMenu: 'تصدير',
     export: 'تصدير إلى DXF',
+    exportDwg: 'تصدير إلى DWG',
     exportHtml: 'تصدير إلى HTML',
     exportPdf: 'تصدير إلى PDF',
     exportSvg: 'تصدير إلى SVG',
-    exportImage: 'تصدير إلى صورة',
-    about: 'حول'
+    exportImage: 'تصدير إلى صورة'
   },
 
   ribbon: {
@@ -854,7 +854,6 @@ export default {
       commandLine: 'سطر الأوامر',
       coordinate: 'الإحداثيات',
       entityInfo: 'معلومات العنصر',
-      languageSelector: 'اختيار اللغة',
       ribbon: 'الشريط',
       toolbar: 'شريط الأدوات',
       stats: 'الإحصائيات'

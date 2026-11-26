@@ -25,29 +25,11 @@ import zhEnity from './zh/entity'
 import zhMain from './zh/main'
 
 /**
- * Resolves the startup locale from localStorage or the browser language.
- * Matches {@link useLocale} persistence (`preferred_lang`).
+ * cad-editor-ol ships Chinese only: the startup locale is fixed to 'zh'
+ * (no browser/localStorage detection and no language switcher UI).
+ * Other locale bundles are kept solely as fallback messages.
  */
-const getInitialLocale = (): AcApLocale => {
-  const stored = localStorage.getItem('preferred_lang')
-  if (
-    stored === 'en' ||
-    stored === 'zh' ||
-    stored === 'tr' ||
-    stored === 'cs' ||
-    stored === 'ar'
-  ) {
-    return stored
-  }
-
-  const browserLang = navigator.language.toLowerCase()
-  const browserLocale = browserLang.substring(0, 2)
-  if (browserLocale === 'zh') return 'zh'
-  if (browserLocale === 'tr') return 'tr'
-  if (browserLocale === 'cs') return 'cs'
-  if (browserLocale === 'ar') return 'ar'
-  return 'en'
-}
+const getInitialLocale = (): AcApLocale => 'zh'
 
 const messages = {
   en: {
