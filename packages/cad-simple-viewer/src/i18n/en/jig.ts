@@ -308,26 +308,181 @@ export default {
     notExplodable: '{count} object(s) could not be exploded',
     minsert: '{count} block(s) inserted with MINSERT cannot be exploded'
   },
+  trim: {
+    selectObject: 'Select object to trim or shift-select to extend or',
+    selectEdges: 'Select cutting edges or <select all>',
+    modePrompt: 'Enter a trim mode option'
+  },
+  extend: {
+    selectObject: 'Select object to extend or shift-select to trim or',
+    selectEdges: 'Select boundary edges or <select all>',
+    modePrompt: 'Enter an extend mode option'
+  },
+  trimExtend: {
+    currentSettings:
+      'Current settings: Projection={projection}, Edge={edge}, Mode={mode}',
+    settingValue: {
+      none: 'None',
+      ucs: 'UCS',
+      view: 'View',
+      extend: 'Extend',
+      noExtend: 'None',
+      quick: 'Quick',
+      standard: 'Standard'
+    },
+    projectPrompt: 'Enter a projection option',
+    edgePrompt: 'Enter an implied edge extension mode',
+    fenceFirst: 'Specify first fence point',
+    fenceNext: 'Specify next fence point',
+    crossingFirst: 'Specify first corner',
+    crossingSecond: 'Specify opposite corner',
+    erasePrompt: 'Select objects to erase or <exit>',
+    noObject: 'No object found.',
+    noIntersection: 'Object does not intersect an edge.',
+    noEdgeInDirection: 'No edge in that direction.',
+    cannotTrim: 'Cannot trim this object.',
+    cannotExtend: 'Cannot extend this object.',
+    lockedLayer: 'The object is on a locked layer.',
+    nothingToUndo: 'All operations have been undone.',
+    keywords: {
+      cuttingEdges: {
+        display: 'cuTting edges(T)',
+        local: 'cuTting',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: 'Boundary edges(B)',
+        local: 'Boundary',
+        global: 'Boundary'
+      },
+      fence: {
+        display: 'Fence(F)',
+        local: 'Fence',
+        global: 'Fence'
+      },
+      crossing: {
+        display: 'Crossing(C)',
+        local: 'Crossing',
+        global: 'Crossing'
+      },
+      mode: {
+        display: 'mOde(O)',
+        local: 'mOde',
+        global: 'mOde'
+      },
+      project: {
+        display: 'Project(P)',
+        local: 'Project',
+        global: 'Project'
+      },
+      edge: {
+        display: 'Edge(E)',
+        local: 'Edge',
+        global: 'Edge'
+      },
+      erase: {
+        display: 'eRase(R)',
+        local: 'eRase',
+        global: 'eRase'
+      },
+      undo: {
+        display: 'Undo(U)',
+        local: 'Undo',
+        global: 'Undo'
+      },
+      quick: {
+        display: 'Quick(Q)',
+        local: 'Quick',
+        global: 'Quick'
+      },
+      standard: {
+        display: 'Standard(S)',
+        local: 'Standard',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: 'None(N)',
+        local: 'None',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'Ucs(U)',
+        local: 'Ucs',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: 'View(V)',
+        local: 'View',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: 'Extend(E)',
+        local: 'Extend',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: 'No extend(N)',
+        local: 'No',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo: 'Select at least two lines, arcs, or polylines to join.',
+    noneJoined: 'No objects could be joined.',
+    eraseFailed: 'Could not erase all source objects. The join was cancelled.',
+    joined: 'Joined {count} objects.'
+  },
   hatch: {
     prompt: 'Select boundary object or',
     pickPoint: 'Specify internal point (or press Enter to finish)',
+    originPoint: 'Specify origin point for hatch pattern',
     select: 'Select objects to hatch',
     patternName: 'Enter hatch pattern name',
     scale: 'Specify hatch pattern scale',
     angle: 'Specify hatch pattern angle',
     style: 'Enter hatch style',
     associative: 'Specify associativity',
+    separate: 'Create separate hatches?',
+    nothingToUndo: 'No hatch to undo.',
+    remove: 'Select objects to remove from boundary',
+    nothingToRemove: 'No boundary objects to remove.',
+    recreateType: 'Enter type of boundary object',
+    recreateAssociate: 'Associate hatch with new boundary?',
+    nothingToRecreate: 'No hatch selected to recreate boundary.',
+    regionUnsupported:
+      'Region boundaries are not supported yet; creating a polyline instead.',
     invalidBoundary: 'Selected objects do not form a closed boundary.',
     keywords: {
       pick: {
-        display: 'Pick points(P)',
+        display: 'Pick points(PP)',
         local: 'Pick points',
         global: 'PickPoints'
       },
       select: {
-        display: 'Select objects(S)',
+        display: 'Select objects(SO)',
         local: 'Select objects',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: 'Remove boundaries(R)',
+        local: 'Remove boundaries',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: 'Polyline(P)',
+        local: 'Polyline',
+        global: 'Polyline'
+      },
+      region: {
+        display: 'Region(R)',
+        local: 'Region',
+        global: 'Region'
+      },
+      undo: {
+        display: 'Undo(U)',
+        local: 'Undo',
+        global: 'Undo'
       },
       cancel: {
         display: 'Cancel(C)',
@@ -350,7 +505,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: 'Style(T)',
+        display: 'Style(HS)',
         local: 'Style',
         global: 'HatchStyle'
       },
@@ -358,6 +513,11 @@ export default {
         display: 'Associative(AS)',
         local: 'Associative',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: 'Separate(SE)',
+        local: 'Separate',
+        global: 'SEparate'
       },
       normal: {
         display: 'Normal(N)',
@@ -896,6 +1056,21 @@ export default {
       chooseFile: 'Choose a markup sidecar JSON file'
     }
   },
+  stretch: {
+    crossingFirst: 'Specify first corner of crossing window',
+    crossingSecond: 'Specify opposite corner',
+    basePointOrDisplacement: 'Specify base point or',
+    secondPointOrDisplacement: 'Specify second point or',
+    displacement: 'Specify displacement',
+    nothingStretched: 'No objects were stretched.',
+    keywords: {
+      displacement: {
+        display: 'Displacement(D)',
+        local: 'Displacement',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: 'Specify base point or',
     secondPointOrDisplacement: 'Specify second point or',
@@ -915,6 +1090,160 @@ export default {
     invalidDistance: 'Offset distance must be greater than 0.',
     invalidSelection: 'Selected object cannot be offset.',
     offsetFailed: 'Unable to create an offset curve for the specified side.'
+  },
+  fillet: {
+    currentSettings: 'Current settings: Mode = {mode}, Radius = {radius}',
+    modeTrim: 'TRIM',
+    modeNoTrim: 'NO TRIM',
+    selectFirst: 'Select first object or [Undo/Polyline/Radius/Trim/Multiple]',
+    selectSecond:
+      'Select second object or shift-select to apply corner or [Radius]',
+    selectPolyline: 'Select 2D polyline',
+    specifyRadius: 'Specify fillet radius',
+    trimPrompt: 'Enter trim mode option [Trim/No trim]',
+    rejectObject: 'Object cannot be filleted.',
+    rejectPolyline: 'Selected object is not a 2D polyline.',
+    invalidRadius: 'Fillet radius must be zero or greater.',
+    eraseFailed:
+      'Could not erase all converted objects. The fillet was cancelled.',
+    nothingToUndo: 'Command has been completely undone.',
+    polylineResult: 'Filleted {filleted} vertex/vertices; skipped {skipped}.',
+    keywords: {
+      undo: {
+        display: 'Undo(U)',
+        local: 'Undo',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'Polyline(P)',
+        local: 'Polyline',
+        global: 'Polyline'
+      },
+      radius: {
+        display: 'Radius(R)',
+        local: 'Radius',
+        global: 'Radius'
+      },
+      trim: {
+        display: 'Trim(T)',
+        local: 'Trim',
+        global: 'Trim'
+      },
+      multiple: {
+        display: 'Multiple(M)',
+        local: 'Multiple',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'Trim(T)',
+        local: 'Trim',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'No trim(N)',
+        local: 'No trim',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: 'Invalid fillet radius.',
+      parallel: 'Lines are parallel and cannot form a corner fillet.',
+      noIntersection: 'Objects do not intersect.',
+      radiusTooLarge: 'Fillet radius is too large for the selected objects.',
+      noSolution: 'Unable to create fillet for the selected objects.',
+      unsupported: 'Selected object type is not supported for fillet.'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '({mode} mode) Current chamfer Dist1 = {dist1}, Dist2 = {dist2}',
+    currentSettingsAngle:
+      '({mode} mode) Current chamfer Length = {length}, Angle = {angle}',
+    modeTrim: 'TRIM',
+    modeNoTrim: 'NO TRIM',
+    selectFirst:
+      'Select first line or [Undo/Polyline/Distance/Angle/Trim/mEthod/Multiple]',
+    selectSecond:
+      'Select second line or shift-select to apply corner or [Distance/Angle/Method]',
+    selectPolyline: 'Select 2D polyline',
+    specifyDist1: 'Specify first chamfer distance',
+    specifyDist2: 'Specify second chamfer distance',
+    specifyLength: 'Specify chamfer length on the first line',
+    specifyAngle: 'Specify chamfer angle from the first line',
+    trimPrompt: 'Enter trim mode option [Trim/No trim]',
+    methodPrompt: 'Enter chamfer method [Distance/Angle]',
+    rejectObject: 'Object cannot be chamfered.',
+    rejectPolyline: 'Selected object is not a 2D polyline.',
+    eraseFailed:
+      'Could not erase all converted objects. The chamfer was cancelled.',
+    nothingToUndo: 'Command has been completely undone.',
+    polylineResult: 'Chamfered {chamfered} vertex/vertices; skipped {skipped}.',
+    keywords: {
+      undo: {
+        display: 'Undo(U)',
+        local: 'Undo',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'Polyline(P)',
+        local: 'Polyline',
+        global: 'Polyline'
+      },
+      distance: {
+        display: 'Distance(D)',
+        local: 'Distance',
+        global: 'Distance'
+      },
+      angle: {
+        display: 'Angle(A)',
+        local: 'Angle',
+        global: 'Angle'
+      },
+      trim: {
+        display: 'Trim(T)',
+        local: 'Trim',
+        global: 'Trim'
+      },
+      method: {
+        display: 'mEthod(E)',
+        local: 'mEthod',
+        global: 'Method'
+      },
+      multiple: {
+        display: 'Multiple(M)',
+        local: 'Multiple',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'Trim(T)',
+        local: 'Trim',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'No trim(N)',
+        local: 'No trim',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: 'Distance(D)',
+        local: 'Distance',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: 'Angle(A)',
+        local: 'Angle',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: 'Invalid chamfer distance or angle.',
+      parallel: 'Lines are parallel and cannot be chamfered.',
+      noIntersection: 'Objects do not intersect.',
+      distanceTooLarge:
+        'Chamfer distance is too large for the selected objects.',
+      noSolution: 'Unable to create chamfer for the selected objects.',
+      unsupported: 'Selected object type is not supported for chamfer.'
+    }
   },
   leader: {
     startPoint: 'Specify leader start point',
@@ -1272,12 +1601,32 @@ export default {
       }
     }
   },
+  mirror: {
+    firstPoint: 'Specify first point of mirror line',
+    secondPoint: 'Specify second point of mirror line',
+    eraseSource: 'Erase source objects?',
+    keywords: {
+      yes: {
+        display: 'Yes(Y)',
+        local: 'Yes',
+        global: 'Yes'
+      },
+      no: {
+        display: 'No(N)',
+        local: 'No',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: 'Invalid mirror line: points must be different.'
+    }
+  },
   rotate: {
     basePoint: 'Specify base point',
     rotationAngleOrOptions: 'Specify rotation angle or',
-    referenceAngleOrPoints: 'Specify reference angle or',
     firstReferencePoint: 'Specify first point of reference angle',
     secondReferencePoint: 'Specify second point',
+    referenceAngleOrPoints: 'Specify reference angle or',
     newAngle: 'Specify new angle',
     keywords: {
       copy: {

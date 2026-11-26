@@ -171,6 +171,8 @@ MLightCAD extends modified events with an optional `changes` field (`AcDbEntityM
 
 Because of this wiring, **application code normally should not manually refresh the scene** after a committed database edit.
 
+`AcDbDatabase.hatchAssociationIndex` also listens to `entityModified` / `entityErased` so associative hatches rebuild (or disassociate) when their DXF 330 boundary soft-pointers change. Rebuilds are deferred past commit dispatch via `queueMicrotask`, then run through `runDatabaseEdit` + `openEntityForWrite` like any other undoable edit.
+
 ### Event batching
 
 `database.beginEventBatch()` / `endEventBatch()` suppress and coalesce events during bulk operations. The outermost `endEventBatch()` flushes accumulated `entityAppended`, `entityErased`, and `entityModified` notifications. Prefer batching when importing or regenerating large drawings.
@@ -307,6 +309,16 @@ acapRunDatabaseEdit(db, 'Grip Edit', () => {
   entity.subMoveGripPointsAt([gripIndex], offset)
 })
 ```
+
+### STRETCH
+
+`STRETCH` does not hard-code per-entity geometry edits. After a window or
+crossing box selects stretch-point indices, the command calls
+`AcDbEntity.subMoveStretchPointsAt` (or `transformBy` when the entity is
+fully enclosed). Prefer `AcApEntityService.stretchEntities` from the command
+transaction rather than opening entities ad hoc. When the active layout is
+paper space, map stretch points and displacement through the viewport the
+entity was selected in before calling the service.
 
 ### Example: ribbon color change
 

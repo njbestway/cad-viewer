@@ -88,6 +88,30 @@ export default {
       description:
         'Řídí barevný motiv uživatelského rozhraní (tmavý nebo světlý)'
     },
+    commandpreview: {
+      description:
+        'Řídí, zda se zobrazuje náhled možného výsledku určitých příkazů'
+    },
+    comparehatch: {
+      description:
+        'Řídí, zda jsou objekty šrafování zahrnuty do porovnání výkresů'
+    },
+    compareprops: {
+      description:
+        'Řídí, které změny negeometrických vlastností se identifikují jako rozdíly mezi výkresy'
+    },
+    comparercmargin: {
+      description:
+        'Nastaví ofset mezi hranicí sady změn a revizním oblakem v porovnávacím výkresu'
+    },
+    comparetext: {
+      description:
+        'Řídí, zda jsou textové objekty zahrnuty do porovnání výkresů'
+    },
+    comparetolerance: {
+      description:
+        'Nastaví toleranci počtu desetinných míst při porovnání dvou výkresů'
+    },
     copy: {
       description:
         'Kopíruje vybrané objekty vytvořením kopií na nových pozicích',
@@ -187,8 +211,24 @@ export default {
       description: 'Rozloží složený objekt na jednotlivé objekty',
       prompt: 'Vyberte objekty k rozložení'
     },
+    join: {
+      description:
+        'Spojí koncové body úseček, oblouků a křivek do jednoho objektu',
+      prompt: 'Vyberte objekty ke spojení'
+    },
+    extend: {
+      description:
+        'Prodlouží objekty tak, aby se setkaly s hranami jiných objektů'
+    },
+    trim: {
+      description: 'Ořízne objekty tak, aby se setkaly s hranami jiných objektů'
+    },
     group: {
       description: 'Vytváří a spravuje uložené sady objektů nazývané skupiny'
+    },
+    groupdisplaymode: {
+      description:
+        'Řídí zobrazení úchytů, když je zapnutý výběr skupiny a je vybrán člen skupiny'
     },
     '-bsearch': {
       description:
@@ -315,6 +355,12 @@ export default {
       description:
         'Řídí, zda se pro více hranic vytvoří jeden nebo samostatné objekty šrafování'
     },
+    hpquickpreview: {
+      description: 'Určuje, zda se při zadávání oblasti šrafování zobrazí náhled šrafování'
+    },
+    hpquickprevtimeout: {
+      description: 'Nastaví maximální dobu ve vteřinách pro generování náhledu šrafování, než bude zrušen'
+    },
     hptransparency: {
       description:
         'Nastaví výchozí průhlednost pro nově vytvářená šrafování a výplně'
@@ -429,6 +475,14 @@ export default {
     measurementcolor: {
       description: 'Nastaví barvu použitou pro překryvy měření'
     },
+    mirrtext: {
+      description:
+        'Určuje, zda příkaz MIRROR skutečně zrcadlí text: 0 ponechá text čitelný, 1 text zrcadlí'
+    },
+    mirror: {
+      description: 'Vytvoří zrcadlenou kopii vybraných objektů',
+      prompt: 'Vyberte objekty'
+    },
     modelbkcolor: {
       description: 'Nastaví barvu pozadí kreslicí oblasti modelového prostoru'
     },
@@ -448,6 +502,10 @@ export default {
       description:
         'Vytvoří několik rovnoběžných čar jako jeden objekt multičáry'
     },
+    stretch: {
+      description: 'Roztáhne objekty protnuté výběrovým oknem',
+      prompt: 'Vyberte objekty k roztažení křížovým oknem'
+    },
     move: {
       description: 'Posune vybrané objekty o vektor přemístění',
       prompt: 'Vyberte objekty'
@@ -456,6 +514,35 @@ export default {
       description:
         'Přidá nebo odstraní podporovaná měřítka poznámek u vybraných poznámkových objektů',
       prompt: 'Vyberte poznámkové objekty'
+    },
+    fillet: {
+      description: 'Zaoblí hrany objektů'
+    },
+    filletpolyarc: {
+      description:
+        'Řídí, zda možnost Polyline příkazu FILLET zaoblí obloukové segmenty v křivkách'
+    },
+    filletrad: {
+      description: 'Ukládá aktuální poloměr zaoblení pro 2D objekty'
+    },
+    chamfer: {
+      description: 'Zkosí hrany objektů'
+    },
+    chamfera: {
+      description: 'Nastaví první vzdálenost zkosení, když je CHAMMODE 0'
+    },
+    chamferb: {
+      description: 'Nastaví druhou vzdálenost zkosení, když je CHAMMODE 0'
+    },
+    chamferc: {
+      description: 'Nastaví délku zkosení, když je CHAMMODE 1'
+    },
+    chamferd: {
+      description: 'Nastaví úhel zkosení, když je CHAMMODE 1'
+    },
+    chammode: {
+      description:
+        'Nastaví metodu vstupu pro CHAMFER: 0 = dvě vzdálenosti, 1 = délka a úhel'
     },
     offset: {
       description:
@@ -504,6 +591,9 @@ export default {
       description:
         'Nastaví velikost (v pixelech) výběrového rámečku pro výběr objektů'
     },
+    pickstyle: {
+      description: 'Řídí výběr skupin a výběr asociativních šrafování'
+    },
     pline: {
       description: 'Vytvoří křivku zadáním více bodů'
     },
@@ -523,6 +613,22 @@ export default {
     polarmode: {
       description:
         'Řídí nastavení polárního sledování a sledování uchopení objektů'
+    },
+    projmode: {
+      description:
+        'Nastaví aktuální režim projekce pro oříznutí nebo prodloužení'
+    },
+    edgemode: {
+      description:
+        'Určuje, zda se při oříznutí nebo prodloužení řezné a hraniční hrany prodlužují na svou přirozenou geometrii'
+    },
+    trimedges: {
+      description:
+        'Určuje, zda čáry šrafovacího vzoru slouží v rychlém režimu příkazů TRIM a EXTEND jako řezné hrany'
+    },
+    trimextendmode: {
+      description:
+        'Určuje, zda příkazy TRIM a EXTEND používají rychlý, nebo standardní režim'
     },
     polygon: {
       description:
@@ -613,6 +719,13 @@ export default {
     },
     textstyle: {
       description: 'Nastaví název aktuálního textového stylu'
+    },
+    tilemode: {
+      description:
+        'Řídí, zda je aktivní karta Model, nebo rozvržení výkresového prostoru'
+    },
+    trimmode: {
+      description: 'Řídí, zda se vybrané hrany pro zkosení a zaoblení oříznou'
     },
     unitmode: {
       description:

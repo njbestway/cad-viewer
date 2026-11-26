@@ -60,7 +60,7 @@
     "prepublishOnly": "rimraf lib dist && pnpm run build && node scripts/verify-package.mjs"
   },
   "devDependencies": {
-    "@mlightcad/data-model": "1.16.4",
+    "@mlightcad/data-model": "1.16.5",
     "@types/node": "^24.0.0",
     "@types/rollup-plugin-peer-deps-external": "^2.2.5",
     "rimraf": "^6.0.1",

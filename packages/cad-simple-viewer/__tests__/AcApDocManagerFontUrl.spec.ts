@@ -230,6 +230,10 @@ jest.mock('../src/command', () => {
     'AcApObjectScaleCmd',
     'AcApEraseCmd',
     'AcApExplodeCmd',
+    'AcApExtendCmd',
+    'AcApFilletCmd',
+    'AcApChamferCmd',
+    'AcApJoinCmd',
     'AcApDashBSearchCmd',
     'AcApDashGroupCmd',
     'AcApGroupCmd',
@@ -278,6 +282,7 @@ jest.mock('../src/command', () => {
     'AcApMeasurementVisibilityCmd',
     'AcApMeasurePointCmd',
     'AcApMLineCmd',
+    'AcApMirrorCmd',
     'AcApMoveCmd',
     'AcApMTextCmd',
     'AcApOffsetCmd',
@@ -300,6 +305,7 @@ jest.mock('../src/command', () => {
     'AcApSplineCmd',
     'AcApSwitchBgCmd',
     'AcApSysVarCmd',
+    'AcApTrimCmd',
     'AcApUcsCmd',
     'AcApUndoCmd',
     'AcApUngroupCmd',
@@ -519,6 +525,43 @@ describe('AcApDocManager preset fonts for open', () => {
     // Open continues while preset load is still in flight.
     expect(ensureSettled).toBe(false)
     if (settleTimer) clearTimeout(settleTimer)
+  })
+
+  it('does not preload preset fonts when opening the blank new-drawing template', async () => {
+    const manager = AcApDocManager.createInstance({ simpleUi: false })
+    const internals = manager as unknown as {
+      ensurePresetFontsForOpen: () => Promise<void>
+      ensureOpenSession: () => Promise<boolean>
+      beginOpenProgress: () => void
+      onAfterOpenDocument: () => void
+      _openFileProgress: {
+        setSeeThroughOverlay: (v: boolean) => void
+        beginOpen: (db: unknown) => Promise<void>
+      }
+      _openFileProfiler: { begin: (db: unknown) => void }
+      context: {
+        doc: {
+          database: unknown
+          openUri: () => Promise<boolean>
+          resetNewDocumentIdentity: () => void
+        }
+      }
+    }
+    const ensure = jest.fn(() => Promise.resolve())
+    internals.ensurePresetFontsForOpen = ensure
+    internals.ensureOpenSession = async () => true
+    internals.beginOpenProgress = jest.fn()
+    internals.onAfterOpenDocument = jest.fn()
+    internals._openFileProgress.setSeeThroughOverlay = jest.fn()
+    internals._openFileProgress.beginOpen = jest.fn(async () => undefined)
+    internals._openFileProfiler.begin = jest.fn()
+    internals.context.doc.openUri = jest.fn(async () => true)
+    internals.context.doc.resetNewDocumentIdentity = jest.fn()
+
+    await manager!.newDocument()
+
+    // The template has no text: fonts load lazily when text is first drawn.
+    expect(ensure).not.toHaveBeenCalled()
   })
 })
 

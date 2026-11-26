@@ -99,19 +99,24 @@ export default {
         boundary: 'Hranice',
         pattern: 'Vzor',
         properties: 'Vlastnosti',
+        origin: 'Počátek',
         options: 'Možnosti',
         close: 'Zavřít'
       },
       command: {
         pickPoints: 'Určit body',
-        selectObjects: 'Vybrat objekty',
+        select: 'Vybrat',
+        remove: 'Odstranit',
+        recreate: 'Znovu vytvořit',
+        setOrigin: 'Nastavit\npočátek',
+        storeOrigin: 'Uložit jako výchozí počátek',
         close: 'Zavřít'
       },
       field: {
         pattern: 'Vzor',
         scale: 'Měřítko',
         angle: 'Úhel',
-        style: 'Styl',
+        style: 'Detekce ostrovů',
         associative: 'Asociativní',
         fillType: 'Typ výplně',
         fillColor: 'Barva',
@@ -123,9 +128,10 @@ export default {
         imageScale: 'Měřítko obrázku'
       },
       style: {
-        normal: 'Normální',
-        outer: 'Vnější',
-        ignore: 'Ignorovat'
+        normal: 'Normální detekce ostrovů',
+        outer: 'Vnější detekce ostrovů',
+        ignore: 'Ignorovat detekci ostrovů',
+        none: 'Bez detekce ostrovů'
       },
       fillType: {
         solid: 'Plná',
@@ -138,11 +144,31 @@ export default {
       },
       tooltip: {
         pickPoints: 'Určete vnitřní body pro vytvoření šrafovaných oblastí.',
-        selectObjects: 'Vyberte uzavřené hraniční objekty ke šrafování.',
+        select:
+          'Vyberte uzavřené hraniční objekty ke šrafování. Vnitřní ostrovy se nerozpoznají automaticky.',
+        remove:
+          'Odstraní dříve přidané hraniční objekty nebo šrafování z aktuální definice hranice.',
+        recreate:
+          'Vytvoří kolem vybraného šrafování křivku a volitelně šrafování s novou hranicí asociuje.',
         pattern: 'Zvolte název vzoru šrafování.',
         scale: 'Nastavte měřítko vzoru šrafování.',
         angle: 'Nastavte úhel vzoru šrafování ve stupních.',
-        style: 'Určuje způsob detekce ostrůvků při šrafování.',
+        style: 'Určuje styl detekce ostrovů při vytváření šrafování.',
+        styleNormal:
+          'Vyplňuje od vnější hranice dovnitř; u ostrova výplň vypne a u ostrova v ostrově znovu zapne.',
+        styleOuter:
+          'Vyplňuje od vnější hranice dovnitř jen po nejvnější ostrovy.',
+        styleIgnore:
+          'Ignoruje vnitřní objekty a vyplní celou oblast uvnitř vnější hranice.',
+        styleNone: 'Tradiční styl; účinek je podobný Ignorovat.',
+        setOrigin: 'Zadejte nový počátek vzoru šrafování.',
+        originBL: 'Nastaví počátek do levého dolního rohu rozsahu šrafování.',
+        originBR: 'Nastaví počátek do pravého dolního rohu rozsahu šrafování.',
+        originTR: 'Nastaví počátek do pravého horního rohu rozsahu šrafování.',
+        originTL: 'Nastaví počátek do levého horního rohu rozsahu šrafování.',
+        originCenter: 'Nastaví počátek do středu rozsahu šrafování.',
+        originCurrent: 'Použije aktuální počátek šrafování (HPORIGIN).',
+        storeOrigin: 'Uloží aktuální počátek šrafování jako výchozí HPORIGIN.',
         associative: 'Přepne asociativní režim šrafování.',
         fillType: 'Zvolte typ výplně: plná, vzor nebo přechod.',
         fillColor: 'Zvolte barvu výplně.',
@@ -389,6 +415,9 @@ export default {
       mleaderRemove:
         'Odebere odkazovou čáru z existující vícenásobné odkazové čáry.',
       move: 'Posune vybrané objekty na novou pozici.',
+      mirror: 'Vytvoří zrcadlenou kopii vybraných objektů.',
+      trim: 'Ořízne objekty tak, aby se setkaly s hranami jiných objektů.',
+      extend: 'Prodlouží objekty tak, aby se setkaly s hranami jiných objektů.',
       rotate: 'Otočí vybrané objekty kolem základního bodu.',
       scale:
         'Zvětší nebo zmenší vybrané objekty se zachováním jejich proporcí.',
@@ -403,6 +432,10 @@ export default {
       copyBase:
         'Zkopíruje vybrané objekty do schránky se zadaným základním bodem (COPYBASE).',
       explode: 'Rozloží složený objekt na jednotlivé objekty.',
+      stretch: 'Roztáhne objekty protnuté výběrovým oknem.',
+      join: 'Spojí koncové body úseček, oblouků a křivek do jednoho objektu.',
+      fillet: 'Zaoblí hrany objektů.',
+      chamfer: 'Zkosí hrany objektů.',
       offset: 'Vytvoří rovnoběžnou kopii objektu v zadané vzdálenosti.',
       undo: 'Vrátí zpět poslední úpravu.',
       redo: 'Zopakuje poslední vrácenou úpravu.',
@@ -555,6 +588,9 @@ export default {
       mleaderAdd: 'Přidat odkaz',
       mleaderRemove: 'Odebrat odkaz',
       move: 'Posunout',
+      mirror: 'Zrcadlit',
+      trim: 'Oříznout',
+      extend: 'Prodloužit',
       rotate: 'Otočit',
       scale: 'Měřítko',
       erase: 'Vymazat',
@@ -565,6 +601,10 @@ export default {
       copyClip: 'Kopírovat',
       copyBase: 'Kopírovat se základním bodem',
       explode: 'Rozložit',
+      stretch: 'Roztáhnout',
+      join: 'Spojit',
+      fillet: 'Zaoblení',
+      chamfer: 'Zkosení',
       offset: 'Ekvidistanta',
       undo: 'Zpět',
       redo: 'Znovu',

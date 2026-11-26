@@ -92,6 +92,30 @@ export default {
       description:
         'Kullanıcı arayüzünün renk temasını denetler (koyu veya açık)'
     },
+    commandpreview: {
+      description:
+        'Belirli komutların olası sonucunun önizlemesinin görüntülenip görüntülenmeyeceğini denetler'
+    },
+    comparehatch: {
+      description:
+        'Çizim karşılaştırmasına tarama nesnelerinin dahil edilip edilmeyeceğini denetler'
+    },
+    compareprops: {
+      description:
+        'Çizimler arasında fark olarak tanımlanan geometrik olmayan özellik değişikliklerini denetler'
+    },
+    comparercmargin: {
+      description:
+        'Karşılaştırma çiziminde değişiklik kümesi sınırı ile revizyon bulutu arasındaki ofseti ayarlar'
+    },
+    comparetext: {
+      description:
+        'Çizim karşılaştırmasına metin nesnelerinin dahil edilip edilmeyeceğini denetler'
+    },
+    comparetolerance: {
+      description:
+        'İki çizimi karşılaştırırken kullanılan ondalık basamak toleransını ayarlar'
+    },
     copy: {
       description: 'Seçili varlıkları klonlayarak yeni konumlara kopyalar',
       prompt: 'Varlıkları seçin'
@@ -191,9 +215,24 @@ export default {
       description: 'Bileşik bir nesneyi bileşen nesnelerine ayırır',
       prompt: 'Patlatılacak nesneleri seçin'
     },
+    join: {
+      description:
+        'Çizgi, yay ve çoklu çizgilerin uç noktalarını birleştirerek tek bir nesne oluşturur',
+      prompt: 'Birleştirilecek nesneleri seçin'
+    },
+    extend: {
+      description: 'Nesneleri diğer nesnelerin kenarlarına kadar uzatır'
+    },
+    trim: {
+      description: 'Nesneleri diğer nesnelerin kenarlarına kadar kırpar'
+    },
     group: {
       description:
         'Grup adı verilen kaydedilmiş nesne kümeleri oluşturur ve yönetir'
+    },
+    groupdisplaymode: {
+      description:
+        'Grup seçimi açıkken ve bir grup üyesi seçildiğinde tutamaçların nasıl görüntüleneceğini denetler'
     },
     '-bsearch': {
       description:
@@ -327,6 +366,12 @@ export default {
       description:
         'Birden çok sınır için tek mi yoksa ayrı tarama nesneleri mi oluşturulacağını denetler'
     },
+    hpquickpreview: {
+      description: 'Bir tarama alanı belirtilirken tarama önizlemesinin görüntülenip görüntülenmeyeceğini denetler'
+    },
+    hpquickprevtimeout: {
+      description: 'Tarama önizlemesinin iptal edilmeden önce oluşturulması için maksimum süreyi (saniye) ayarlar'
+    },
     hptransparency: {
       description:
         'Yeni oluşturulan taramalar ve dolgular için varsayılan saydamlığı ayarlar'
@@ -445,6 +490,14 @@ export default {
     measurementcolor: {
       description: 'Ölçüm katmanları için kullanılan rengi ayarlar'
     },
+    mirrtext: {
+      description:
+        'MIRROR komutunun yazıyı gerçekten aynalayıp aynalamayacağını denetler: 0 okunabilir bırakır, 1 yazıyı aynalar'
+    },
+    mirror: {
+      description: 'Seçili nesnelerin aynalanmış bir kopyasını oluşturur',
+      prompt: 'Nesneleri seçin'
+    },
     modelbkcolor: {
       description: 'Model alanı çizim alanının arka plan rengini ayarlar'
     },
@@ -465,6 +518,10 @@ export default {
       description:
         'Tek bir çoklu çizgi nesnesi olarak birden çok paralel çizgi oluşturur'
     },
+    stretch: {
+      description: 'Kesişen seçim penceresiyle nesneleri gerer',
+      prompt: 'Germek için nesneleri kesişen pencererle seçin'
+    },
     move: {
       description: 'Seçili varlıkları bir yer değiştirme vektörüne göre taşır',
       prompt: 'Varlıkları seçin'
@@ -473,6 +530,35 @@ export default {
       description:
         'Seçili açıklamalı nesneler için desteklenen açıklama ölçeklerini ekler veya siler',
       prompt: 'Açıklamalı nesneleri seçin'
+    },
+    fillet: {
+      description: 'Nesnelerin kenarlarını yuvarlar'
+    },
+    filletpolyarc: {
+      description:
+        'FILLET Polyline seçeneğinin çoklu çizgilerdeki yay segmentlerini yuvarlayıp yuvarlamayacağını denetler'
+    },
+    filletrad: {
+      description: '2B nesneler için geçerli yuvarlama yarıçapını saklar'
+    },
+    chamfer: {
+      description: 'Nesnelerin kenarlarını pahlar'
+    },
+    chamfera: {
+      description: 'CHAMMODE 0 olduğunda birinci pah mesafesini ayarlar'
+    },
+    chamferb: {
+      description: 'CHAMMODE 0 olduğunda ikinci pah mesafesini ayarlar'
+    },
+    chamferc: {
+      description: 'CHAMMODE 1 olduğunda pah uzunluğunu ayarlar'
+    },
+    chamferd: {
+      description: 'CHAMMODE 1 olduğunda pah açısını ayarlar'
+    },
+    chammode: {
+      description:
+        'CHAMFER giriş yöntemini ayarlar: 0 = iki mesafe, 1 = uzunluk ve açı'
     },
     offset: {
       description:
@@ -522,6 +608,9 @@ export default {
       description:
         'Nesneleri seçmek için kullanılan seçim kutusunun boyutunu (piksel cinsinden) ayarlar'
     },
+    pickstyle: {
+      description: 'Grup seçimini ve ilişkili tarama seçimini denetler'
+    },
     pline: {
       description: 'Birden çok nokta belirterek bir çoklu çizgi oluşturur'
     },
@@ -540,6 +629,21 @@ export default {
     },
     polarmode: {
       description: 'Kutupsal ve nesne yakalama izleme ayarlarını denetler'
+    },
+    projmode: {
+      description: 'Kırpma veya uzatma için geçerli izdüşüm modunu ayarlar'
+    },
+    edgemode: {
+      description:
+        'Kırpma veya uzatma sırasında kesme ve sınır kenarlarının doğal geometrilerine kadar uzatılıp uzatılmayacağını denetler'
+    },
+    trimedges: {
+      description:
+        'TRIM ve EXTEND hızlı modunda tarama deseni çizgilerinin kesme kenarı olarak kullanılıp kullanılmayacağını denetler'
+    },
+    trimextendmode: {
+      description:
+        'TRIM ve EXTEND komutlarının hızlı modu mu yoksa standart modu mu kullanacağını denetler'
     },
     polygon: {
       description:
@@ -631,6 +735,14 @@ export default {
     },
     textstyle: {
       description: 'Geçerli metin stilinin adını ayarlar'
+    },
+    tilemode: {
+      description:
+        'Model sekmesinin mi yoksa kağıt alanı yerleşiminin mi etkin olduğunu denetler'
+    },
+    trimmode: {
+      description:
+        'Pah ve yuvarlama için seçilen kenarların kırpılıp kırpılmayacağını denetler'
     },
     unitmode: {
       description:

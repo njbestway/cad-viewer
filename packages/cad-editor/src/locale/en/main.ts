@@ -24,19 +24,24 @@ export default {
         boundary: 'Boundaries',
         pattern: 'Pattern',
         properties: 'Properties',
+        origin: 'Origin',
         options: 'Options',
         close: 'Close'
       },
       command: {
         pickPoints: 'Pick Points',
-        selectObjects: 'Select Objects',
+        select: 'Select',
+        remove: 'Remove',
+        recreate: 'Recreate',
+        setOrigin: 'Set\nOrigin',
+        storeOrigin: 'Store as Default Origin',
         close: 'Close'
       },
       field: {
         pattern: 'Pattern',
         scale: 'Scale',
         angle: 'Angle',
-        style: 'Style',
+        style: 'Island Detection',
         associative: 'Associative',
         fillType: 'Fill Type',
         fillColor: 'Color',
@@ -48,9 +53,10 @@ export default {
         imageScale: 'Image Scale'
       },
       style: {
-        normal: 'Normal',
-        outer: 'Outer',
-        ignore: 'Ignore'
+        normal: 'Normal Island Detection',
+        outer: 'Outer Island Detection',
+        ignore: 'Ignore Island Detection',
+        none: 'No Island Detection'
       },
       fillType: {
         solid: 'Solid',
@@ -63,11 +69,32 @@ export default {
       },
       tooltip: {
         pickPoints: 'Pick internal points to create hatch regions.',
-        selectObjects: 'Select closed boundary objects to hatch.',
+        select:
+          'Select closed boundary objects to hatch. Interior islands are not detected automatically.',
+        remove:
+          'Remove previously added boundary objects or hatch patterns from the current hatch definition.',
+        recreate:
+          'Create a polyline around the selected hatch and optionally associate the hatch with it.',
         pattern: 'Choose the hatch pattern name.',
         scale: 'Set the hatch pattern scale.',
         angle: 'Set the hatch pattern angle in degrees.',
-        style: 'Control island detection style for hatch creation.',
+        style: 'Controls island detection style for hatch creation.',
+        styleNormal:
+          'Fill from the outer boundary inward; turn hatch off at islands and on again at nested islands.',
+        styleOuter:
+          'Fill from the outer boundary inward only as far as the outermost islands.',
+        styleIgnore:
+          'Ignore internal objects and hatch the entire area inside the outer boundary.',
+        styleNone:
+          'Traditional style with no island detection; similar to Ignore.',
+        setOrigin: 'Specify a new hatch pattern origin point.',
+        originBL: 'Set origin to the bottom-left of the hatch extents.',
+        originBR: 'Set origin to the bottom-right of the hatch extents.',
+        originTR: 'Set origin to the top-right of the hatch extents.',
+        originTL: 'Set origin to the top-left of the hatch extents.',
+        originCenter: 'Set origin to the center of the hatch extents.',
+        originCurrent: 'Use the current hatch origin (HPORIGIN).',
+        storeOrigin: 'Store the current hatch origin as the default HPORIGIN.',
         associative: 'Toggle associative hatch mode.',
         fillType: 'Select fill type: solid, pattern, or gradient.',
         fillColor: 'Choose the fill color.',
@@ -313,6 +340,9 @@ export default {
       mleaderAdd: 'Add a leader line to an existing multileader.',
       mleaderRemove: 'Remove a leader line from an existing multileader.',
       move: 'Move selected objects to a new position.',
+      mirror: 'Create a mirrored copy of selected objects.',
+      trim: 'Trims objects to meet the edges of other objects.',
+      extend: 'Extends objects to meet the edges of other objects.',
       rotate: 'Rotate selected objects around a base point.',
       scale:
         'Enlarge or reduce selected objects, keeping the proportions the same after scaling.',
@@ -329,6 +359,10 @@ export default {
       copyBase:
         'Copy the selected objects to the clipboard with a specified base point (COPYBASE).',
       explode: 'Break a compound object into its component objects.',
+      stretch: 'Stretch objects crossed by a selection window.',
+      join: 'Join the endpoints of lines, arcs, and polylines to create a single object.',
+      fillet: 'Round and fillet the edges of objects.',
+      chamfer: 'Bevel the edges of objects.',
       offset: 'Create a parallel copy of an object at a specified distance.',
       undo: 'Undo the last editing operation.',
       redo: 'Redo the last undone editing operation.',
@@ -485,6 +519,9 @@ export default {
       mleaderAdd: 'Add Leader',
       mleaderRemove: 'Remove Leader',
       move: 'Move',
+      mirror: 'Mirror',
+      trim: 'Trim',
+      extend: 'Extend',
       rotate: 'Rotate',
       scale: 'Scale',
       erase: 'Erase',
@@ -495,6 +532,10 @@ export default {
       copyClip: 'Copy',
       copyBase: 'Copy with Base Point',
       explode: 'Explode',
+      stretch: 'Stretch',
+      join: 'Join',
+      fillet: 'Fillet',
+      chamfer: 'Chamfer',
       offset: 'Offset',
       undo: 'Undo',
       redo: 'Redo',

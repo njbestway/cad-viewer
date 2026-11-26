@@ -89,6 +89,30 @@ export default {
       description:
         'Controls the color theme of the user interface (dark or light)'
     },
+    commandpreview: {
+      description:
+        'Controls whether a preview of the possible outcome of certain commands is displayed'
+    },
+    comparehatch: {
+      description:
+        'Controls whether hatch objects are included in drawing comparison'
+    },
+    compareprops: {
+      description:
+        'Controls which non-geometric property changes are identified as differences between drawings'
+    },
+    comparercmargin: {
+      description:
+        'Sets the offset between a change-set boundary and the revision cloud in a comparison drawing'
+    },
+    comparetext: {
+      description:
+        'Controls whether text objects are included in drawing comparison'
+    },
+    comparetolerance: {
+      description:
+        'Sets the decimal-place tolerance used when comparing two drawings'
+    },
     copy: {
       description: 'Copies selected entities by cloning them to new positions',
       prompt: 'Select entities'
@@ -186,8 +210,23 @@ export default {
       description: 'Breaks a compound object into its component objects',
       prompt: 'Select objects to explode'
     },
+    join: {
+      description:
+        'Joins the endpoints of lines, arcs, and polylines to create a single object',
+      prompt: 'Select objects to join'
+    },
+    extend: {
+      description: 'Extends objects to meet the edges of other objects'
+    },
+    trim: {
+      description: 'Trims objects to meet the edges of other objects'
+    },
     group: {
       description: 'Creates and manages saved sets of objects called groups'
+    },
+    groupdisplaymode: {
+      description:
+        'Controls how grips are displayed when group selection is on and a group member is selected'
     },
     '-bsearch': {
       description:
@@ -313,6 +352,14 @@ export default {
       description:
         'Controls whether one or separate hatch objects are created for multiple boundaries'
     },
+    hpquickpreview: {
+      description:
+        'Controls whether a hatch preview is displayed when specifying a hatch area'
+    },
+    hpquickprevtimeout: {
+      description:
+        'Sets the maximum time in seconds for a hatch preview to generate before it is cancelled'
+    },
     hptransparency: {
       description:
         'Sets the default transparency for newly created hatches and fills'
@@ -429,6 +476,14 @@ export default {
     measurementcolor: {
       description: 'Sets the color used for measurement overlays'
     },
+    mirrtext: {
+      description:
+        'Controls how MIRROR reflects TEXT and MTEXT: 0 keeps text readable, 1 mirrors text'
+    },
+    mirror: {
+      description: 'Creates a mirrored copy of selected objects',
+      prompt: 'Select objects'
+    },
     modelbkcolor: {
       description: 'Sets the background color of the model-space drawing area'
     },
@@ -448,6 +503,10 @@ export default {
     mline: {
       description: 'Creates multiple parallel lines as one multiline object'
     },
+    stretch: {
+      description: 'Stretches objects crossed by a selection window',
+      prompt: 'Select objects to stretch by crossing-window'
+    },
     move: {
       description: 'Moves selected entities by a displacement vector',
       prompt: 'Select entities'
@@ -456,6 +515,35 @@ export default {
       description:
         'Adds or deletes supported annotation scales for selected annotative objects',
       prompt: 'Select annotative objects'
+    },
+    fillet: {
+      description: 'Rounds and fillets the edges of objects'
+    },
+    filletpolyarc: {
+      description:
+        'Controls whether the FILLET Polyline option fillets arc segments in polylines'
+    },
+    filletrad: {
+      description: 'Stores the current fillet radius for 2D objects'
+    },
+    chamfer: {
+      description: 'Bevels the edges of objects'
+    },
+    chamfera: {
+      description: 'Sets the first chamfer distance when CHAMMODE is set to 0'
+    },
+    chamferb: {
+      description: 'Sets the second chamfer distance when CHAMMODE is set to 0'
+    },
+    chamferc: {
+      description: 'Sets the chamfer length when CHAMMODE is set to 1'
+    },
+    chamferd: {
+      description: 'Sets the chamfer angle when CHAMMODE is set to 1'
+    },
+    chammode: {
+      description:
+        'Sets the input method for CHAMFER: 0 = two distances, 1 = length and angle'
     },
     offset: {
       description:
@@ -505,6 +593,9 @@ export default {
       description:
         'Sets the size (in pixels) of the selection box used to pick objects'
     },
+    pickstyle: {
+      description: 'Controls group selection and associative hatch selection'
+    },
     pline: {
       description: 'Creates a polyline by specifying multiple points'
     },
@@ -523,6 +614,21 @@ export default {
     },
     polarmode: {
       description: 'Controls polar and object snap tracking settings'
+    },
+    projmode: {
+      description: 'Sets the current Projection mode for trimming or extending'
+    },
+    edgemode: {
+      description:
+        'Controls whether cutting and boundary edges are extended to their natural geometry when trimming or extending'
+    },
+    trimedges: {
+      description:
+        'Controls whether hatch pattern lines act as cutting edges in Quick mode of TRIM and EXTEND'
+    },
+    trimextendmode: {
+      description:
+        'Controls whether TRIM and EXTEND use Quick mode or Standard mode'
     },
     polygon: {
       description:
@@ -614,6 +720,14 @@ export default {
     },
     textstyle: {
       description: 'Sets the name of the current text style'
+    },
+    tilemode: {
+      description:
+        'Controls whether the Model tab or a paper-space layout is active'
+    },
+    trimmode: {
+      description:
+        'Controls whether selected edges for chamfers and fillets are trimmed'
     },
     unitmode: {
       description:

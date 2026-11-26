@@ -170,7 +170,7 @@ MLightCAD 针对复杂图纸渲染进行了多项优化，可在保持高帧率�
 
 默认的开源 DWG 方案为 [`@njbestway/acad-rust-converter`](https://www.npmjs.com/package/@njbestway/acad-rust-converter)（自 0.2.0 起在仓库内 `packages/acad-rust-converter` 开发；npm 0.1.0 为旧版外置发布），基于 [acadrust](https://github.com/hakanaktt/acadrust) — 纯 Rust 编译为 WebAssembly，采用 **MPL-2.0** 授权。它是旧版 GPL-3.0 `@mlightcad/libredwg-converter` 的无著佐权（copyleft-free）替代：其文件级 copyleft **不会**传导到你的应用，因此闭源商业产品也能在不承担 GPL 义务的前提下解析 DWG。各 example 包在 worker 中运行它，并默认注册到 `AcDbFileType.DWG`。`@mlightcad/cad-simple-viewer` 本身仍**不依赖、也不注册**任何 DWG converter — 宿主应用需自行显式接入。
 
-Route-B 增量 DWG 补丁保存还依赖实体的 `dwgHandle` 字段，上游 `@mlightcad/data-model` 尚未提供该字段。因此 monorepo 通过仓库内置 tarball `vendor/njbestway-data-model-1.16.4.tgz`（经 `pnpm-workspace.yaml` override 接线）消费一个**本地维护的 data-model fork**（在兄弟仓库 `realdwg-web` 中开发，后续持续合并上游，**不发布到 npm**）。更新流程：重新构建 fork → 重新打包 tarball（打包前移除 `devDependencies`）→ 替换 vendor 文件并升级 override 条目。
+Route-B 增量 DWG 补丁保存还依赖实体的 `dwgHandle` 字段，上游 `@mlightcad/data-model` 尚未提供该字段。因此 monorepo 通过仓库内置 tarball `vendor/njbestway-data-model-1.16.5.tgz`（经 `pnpm-workspace.yaml` override 接线）消费一个**本地维护的 data-model fork**（在兄弟仓库 `realdwg-web` 中开发，后续持续合并上游，**不发布到 npm**）。更新流程：重新构建 fork → 重新打包 tarball（打包前移除 `devDependencies`）→ 替换 vendor 文件并升级 override 条目。
 
 旧的 [LibreDWG](https://github.com/LibreDWG/libredwg) 解析器（`@mlightcad/libredwg-converter`）作为 GPL-3.0 方案仍然可用，但已不再是推荐的开源路径：它支持的 entity 类型较少、WASM bundle 体积更大、启动更慢、内存占用更高，解析大型 DWG 时还可能内存溢出，并存在 GPL 传导问题。
 
@@ -283,13 +283,12 @@ Route-B 增量 DWG 补丁保存还依赖实体的 `dwgHandle` 字段，上游 `@
 
 #### 几何编辑
 
--   [x] 夹点（Grip Points）
--   [ ] 拉伸（Stretch）
--   [ ] 修剪（Trim）
--   [ ] 延伸（Extend）
+-   [x] 拉伸（Stretch）
+-   [x] 修剪（Trim）
+-   [x] 延伸（Extend）
 -   [x] 偏移（Offset）
--   [ ] 分解（Explode）
--   [ ] 连接 / 圆角 / 倒角（2D）
+-   [x] 分解（Explode）
+-   [x] 连接 / 圆角 / 倒角（2D）
 
 ### 绘制与创建工具
 

@@ -330,26 +330,179 @@ export default {
     notExplodable: '{count}개의 객체를 분해할 수 없습니다',
     minsert: 'MINSERT로 삽입된 블록 {count}개는 분해할 수 없습니다'
   },
+  trim: {
+    selectObject: '자를 객체 선택 또는 Shift 키를 누른 채 선택하여 연장 또는',
+    selectEdges: '절단 모서리 선택 또는 <모두 선택>',
+    modePrompt: '자르기 모드 옵션 입력'
+  },
+  extend: {
+    selectObject: '연장할 객체 선택 또는 Shift 키를 누른 채 선택하여 자르기 또는',
+    selectEdges: '경계 모서리 선택 또는 <모두 선택>',
+    modePrompt: '연장 모드 옵션 입력'
+  },
+  trimExtend: {
+    currentSettings: '현재 설정: 투영={projection}, 모서리={edge}, 모드={mode}',
+    settingValue: {
+      none: '없음',
+      ucs: 'UCS',
+      view: '뷰',
+      extend: '연장',
+      noExtend: '없음',
+      quick: '빠른 작업',
+      standard: '표준'
+    },
+    projectPrompt: '투영 옵션 입력',
+    edgePrompt: '암시적 모서리 연장 모드 입력',
+    fenceFirst: '첫 번째 울타리 점 지정',
+    fenceNext: '다음 울타리 점 지정',
+    crossingFirst: '첫 번째 구석 지정',
+    crossingSecond: '반대 구석 지정',
+    erasePrompt: '지울 객체 선택 또는 <종료>',
+    noObject: '객체를 찾을 수 없습니다.',
+    noIntersection: '객체가 모서리와 교차하지 않습니다.',
+    noEdgeInDirection: '해당 방향에 모서리가 없습니다.',
+    cannotTrim: '이 객체는 자를 수 없습니다.',
+    cannotExtend: '이 객체는 연장할 수 없습니다.',
+    lockedLayer: '객체가 잠긴 도면층에 있습니다.',
+    nothingToUndo: '모든 작업이 취소되었습니다.',
+    keywords: {
+      cuttingEdges: {
+        display: '절단 모서리(T)',
+        local: '절단 모서리',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: '경계 모서리(B)',
+        local: '경계 모서리',
+        global: 'Boundary'
+      },
+      fence: {
+        display: '울타리(F)',
+        local: '울타리',
+        global: 'Fence'
+      },
+      crossing: {
+        display: '걸치기(C)',
+        local: '걸치기',
+        global: 'Crossing'
+      },
+      mode: {
+        display: '모드(O)',
+        local: '모드',
+        global: 'mOde'
+      },
+      project: {
+        display: '투영(P)',
+        local: '투영',
+        global: 'Project'
+      },
+      edge: {
+        display: '모서리(E)',
+        local: '모서리',
+        global: 'Edge'
+      },
+      erase: {
+        display: '지우기(R)',
+        local: '지우기',
+        global: 'eRase'
+      },
+      undo: {
+        display: '명령 취소(U)',
+        local: '명령 취소',
+        global: 'Undo'
+      },
+      quick: {
+        display: '빠른 작업(Q)',
+        local: '빠른 작업',
+        global: 'Quick'
+      },
+      standard: {
+        display: '표준(S)',
+        local: '표준',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: '없음(N)',
+        local: '없음',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'UCS(U)',
+        local: 'UCS',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: '뷰(V)',
+        local: '뷰',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: '연장(E)',
+        local: '연장',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: '연장 안 함(N)',
+        local: '연장 안 함',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo: '결합하려면 선, 호 또는 폴리선을 두 개 이상 선택하십시오.',
+    noneJoined: '결합할 수 있는 객체가 없습니다.',
+    eraseFailed: '원본 객체를 모두 지울 수 없습니다. 결합이 취소되었습니다.',
+    joined: '{count}개의 객체를 결합했습니다.'
+  },
   hatch: {
     prompt: '경계 객체 선택 또는',
     pickPoint: '내부 점 지정 (또는 Enter 키를 눌러 완료)',
+    originPoint: '해치 패턴 원점 지정',
     select: '해치할 객체 선택',
     patternName: '해치 패턴 이름 입력',
     scale: '해치 패턴 축척 지정',
     angle: '해치 패턴 각도 지정',
     style: '해치 스타일 입력',
     associative: '연관성 지정',
+    separate: '개별 해치를 작성하시겠습니까?',
+    nothingToUndo: '명령 취소할 해치가 없습니다.',
+    remove: '경계에서 제거할 객체 선택',
+    nothingToRemove: '제거할 경계 객체가 없습니다.',
+    recreateType: '경계 객체 유형 입력',
+    recreateAssociate: '해치를 새 경계에 연관시키겠습니까?',
+    nothingToRecreate: '경계를 재작성할 해치가 선택되지 않았습니다.',
+    regionUnsupported: '영역 경계는 아직 지원되지 않아 폴리선으로 작성합니다.',
     invalidBoundary: '선택한 객체가 닫힌 경계를 형성하지 않습니다.',
     keywords: {
       pick: {
-        display: '점 선택(P)',
+        display: '점 선택(PP)',
         local: '점 선택',
         global: 'PickPoints'
       },
       select: {
-        display: '객체 선택(S)',
+        display: '객체 선택(SO)',
         local: '객체 선택',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: '경계 제거(R)',
+        local: '경계 제거',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: '폴리선(P)',
+        local: '폴리선',
+        global: 'Polyline'
+      },
+      region: {
+        display: '영역(R)',
+        local: '영역',
+        global: 'Region'
+      },
+      undo: {
+        display: '명령 취소(U)',
+        local: '명령 취소',
+        global: 'Undo'
       },
       cancel: {
         display: '취소(C)',
@@ -372,7 +525,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: '스타일(T)',
+        display: '스타일(HS)',
         local: '스타일',
         global: 'HatchStyle'
       },
@@ -380,6 +533,11 @@ export default {
         display: '연관(AS)',
         local: '연관',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: '개별(SE)',
+        local: '개별',
+        global: 'SEparate'
       },
       normal: {
         display: '일반(N)',
@@ -918,6 +1076,21 @@ export default {
       chooseFile: '마크업 사이드카 JSON 파일 선택'
     }
   },
+  stretch: {
+    crossingFirst: '교차 창의 첫 번째 구석 지정',
+    crossingSecond: '반대쪽 구석 지정',
+    basePointOrDisplacement: '기준점 지정 또는',
+    secondPointOrDisplacement: '두 번째 점 지정 또는',
+    displacement: '변위 지정',
+    nothingStretched: '신축된 객체가 없습니다.',
+    keywords: {
+      displacement: {
+        display: '변위(D)',
+        local: '변위',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: '기준점 지정 또는',
     secondPointOrDisplacement: '두 번째 점 지정 또는',
@@ -937,6 +1110,162 @@ export default {
     invalidDistance: '간격띄우기 거리는 0보다 커야 합니다.',
     invalidSelection: '선택한 객체는 간격띄우기할 수 없습니다.',
     offsetFailed: '지정한 쪽에 간격띄우기 곡선을 만들 수 없습니다.'
+  },
+  fillet: {
+    currentSettings: '현재 설정: 모드 = {mode}, 반지름 = {radius}',
+    modeTrim: '자르기',
+    modeNoTrim: '자르지 않음',
+    selectFirst:
+      '첫 번째 객체 선택 또는 [명령 취소(U)/폴리선(P)/반지름(R)/자르기(T)/다중(M)]',
+    selectSecond:
+      '두 번째 객체 선택 또는 Shift를 누른 채 선택하여 구석 적용 또는 [반지름(R)]',
+    selectPolyline: '2D 폴리선 선택',
+    specifyRadius: '필렛 반지름 지정',
+    trimPrompt: '자르기 모드 옵션 입력 [자르기(T)/자르지 않음(N)]',
+    rejectObject: '이 객체는 필렛할 수 없습니다.',
+    rejectPolyline: '선택한 객체가 2D 폴리선이 아닙니다.',
+    invalidRadius: '필렛 반지름은 0 이상이어야 합니다.',
+    eraseFailed:
+      '변환된 객체를 모두 지우지 못해 필렛이 취소되었습니다.',
+    nothingToUndo: '명령이 완전히 취소되었습니다.',
+    polylineResult:
+      '꼭짓점 {filleted}개를 필렛하고 {skipped}개를 건너뛰었습니다.',
+    keywords: {
+      undo: {
+        display: '명령 취소(U)',
+        local: '명령 취소',
+        global: 'Undo'
+      },
+      polyline: {
+        display: '폴리선(P)',
+        local: '폴리선',
+        global: 'Polyline'
+      },
+      radius: {
+        display: '반지름(R)',
+        local: '반지름',
+        global: 'Radius'
+      },
+      trim: {
+        display: '자르기(T)',
+        local: '자르기',
+        global: 'Trim'
+      },
+      multiple: {
+        display: '다중(M)',
+        local: '다중',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: '자르기(T)',
+        local: '자르기',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: '자르지 않음(N)',
+        local: '자르지 않음',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: '필렛 반지름이 올바르지 않습니다.',
+      parallel: '선이 평행하여 구석 필렛을 만들 수 없습니다.',
+      noIntersection: '객체가 교차하지 않습니다.',
+      radiusTooLarge: '선택한 객체에 비해 필렛 반지름이 너무 큽니다.',
+      noSolution: '선택한 객체에 필렛을 만들 수 없습니다.',
+      unsupported: '선택한 객체 유형은 필렛을 지원하지 않습니다.'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '({mode} 모드) 현재 모따기 Dist1 = {dist1}, Dist2 = {dist2}',
+    currentSettingsAngle:
+      '({mode} 모드) 현재 모따기 길이 = {length}, 각도 = {angle}',
+    modeTrim: '자르기',
+    modeNoTrim: '자르지 않음',
+    selectFirst:
+      '첫 번째 선 선택 또는 [명령 취소(U)/폴리선(P)/거리(D)/각도(A)/자르기(T)/방법(E)/다중(M)]',
+    selectSecond:
+      '두 번째 선 선택 또는 Shift를 누른 채 선택하여 구석 적용 또는 [거리(D)/각도(A)/방법(E)]',
+    selectPolyline: '2D 폴리선 선택',
+    specifyDist1: '첫 번째 모따기 거리 지정',
+    specifyDist2: '두 번째 모따기 거리 지정',
+    specifyLength: '첫 번째 선상의 모따기 길이 지정',
+    specifyAngle: '첫 번째 선에서의 모따기 각도 지정',
+    trimPrompt: '자르기 모드 옵션 입력 [자르기(T)/자르지 않음(N)]',
+    methodPrompt: '모따기 방법 입력 [거리(D)/각도(A)]',
+    rejectObject: '이 객체는 모따기할 수 없습니다.',
+    rejectPolyline: '선택한 객체가 2D 폴리선이 아닙니다.',
+    eraseFailed:
+      '변환된 객체를 모두 지우지 못해 모따기가 취소되었습니다.',
+    nothingToUndo: '명령이 완전히 취소되었습니다.',
+    polylineResult:
+      '꼭짓점 {chamfered}개를 모따기하고 {skipped}개를 건너뛰었습니다.',
+    keywords: {
+      undo: {
+        display: '명령 취소(U)',
+        local: '명령 취소',
+        global: 'Undo'
+      },
+      polyline: {
+        display: '폴리선(P)',
+        local: '폴리선',
+        global: 'Polyline'
+      },
+      distance: {
+        display: '거리(D)',
+        local: '거리',
+        global: 'Distance'
+      },
+      angle: {
+        display: '각도(A)',
+        local: '각도',
+        global: 'Angle'
+      },
+      trim: {
+        display: '자르기(T)',
+        local: '자르기',
+        global: 'Trim'
+      },
+      method: {
+        display: '방법(E)',
+        local: '방법',
+        global: 'Method'
+      },
+      multiple: {
+        display: '다중(M)',
+        local: '다중',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: '자르기(T)',
+        local: '자르기',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: '자르지 않음(N)',
+        local: '자르지 않음',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: '거리(D)',
+        local: '거리',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: '각도(A)',
+        local: '각도',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: '모따기 거리 또는 각도가 올바르지 않습니다.',
+      parallel: '선이 평행하여 모따기할 수 없습니다.',
+      noIntersection: '객체가 교차하지 않습니다.',
+      distanceTooLarge: '선택한 객체에 비해 모따기 거리가 너무 큽니다.',
+      noSolution: '선택한 객체에 모따기를 만들 수 없습니다.',
+      unsupported: '선택한 객체 유형은 모따기를 지원하지 않습니다.'
+    }
   },
   leader: {
     startPoint: '지시선 시작점 지정',
@@ -1301,6 +1630,26 @@ export default {
         local: '폭',
         global: 'Width'
       }
+    }
+  },
+  mirror: {
+    firstPoint: '대칭선의 첫 번째 점 지정',
+    secondPoint: '대칭선의 두 번째 점 지정',
+    eraseSource: '원본 객체를 지우시겠습니까?',
+    keywords: {
+      yes: {
+        display: '예(Y)',
+        local: '예',
+        global: 'Yes'
+      },
+      no: {
+        display: '아니요(N)',
+        local: '아니요',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: '잘못된 대칭선: 두 점은 서로 달라야 합니다.'
     }
   },
   rotate: {
@@ -1987,8 +2336,7 @@ export default {
   },
   pdfimport: {
     pageNumber: '페이지 번호 입력 (1-{count})',
-    insertionPoint:
-      '삽입점 지정 (축척 {scale}, 모드 {mode}, 문자 {text}) 또는',
+    insertionPoint: '삽입점 지정 (축척 {scale}, 모드 {mode}, 문자 {text}) 또는',
     modePrompt: '가져오기 방식 선택',
     modeRecover: '도면 복원',
     modeVisual: 'PDF 모양 유지',

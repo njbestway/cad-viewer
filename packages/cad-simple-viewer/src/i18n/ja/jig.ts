@@ -331,26 +331,181 @@ export default {
     notExplodable: '{count} 個のオブジェクトは分解できませんでした',
     minsert: 'MINSERT で挿入された {count} 個のブロックは分解できません'
   },
+  trim: {
+    selectObject: 'トリムするオブジェクトを選択 または Shift を押して延長するオブジェクトを選択 または',
+    selectEdges: '切り取りエッジを選択 または <すべて選択>',
+    modePrompt: 'トリム モードのオプションを入力'
+  },
+  extend: {
+    selectObject: '延長するオブジェクトを選択 または Shift を押してトリムするオブジェクトを選択 または',
+    selectEdges: '境界エッジを選択 または <すべて選択>',
+    modePrompt: '延長モードのオプションを入力'
+  },
+  trimExtend: {
+    currentSettings: '現在の設定: 投影={projection}, エッジ={edge}, モード={mode}',
+    settingValue: {
+      none: 'なし',
+      ucs: 'UCS',
+      view: 'ビュー',
+      extend: '延長',
+      noExtend: 'なし',
+      quick: 'クイック',
+      standard: '標準'
+    },
+    projectPrompt: '投影のオプションを入力',
+    edgePrompt: '暗黙のエッジ延長モードを入力',
+    fenceFirst: '最初のフェンス点を指定',
+    fenceNext: '次のフェンス点を指定',
+    crossingFirst: '1 点目のコーナーを指定',
+    crossingSecond: 'もう一方のコーナーを指定',
+    erasePrompt: '削除するオブジェクトを選択 または <終了>',
+    noObject: 'オブジェクトが見つかりません。',
+    noIntersection: 'オブジェクトがエッジと交差していません。',
+    noEdgeInDirection: 'その方向にエッジがありません。',
+    cannotTrim: 'このオブジェクトはトリムできません。',
+    cannotExtend: 'このオブジェクトは延長できません。',
+    lockedLayer: 'オブジェクトはロックされた画層上にあります。',
+    nothingToUndo: 'すべての操作が元に戻されました。',
+    keywords: {
+      cuttingEdges: {
+        display: '切り取りエッジ(T)',
+        local: '切り取りエッジ',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: '境界エッジ(B)',
+        local: '境界エッジ',
+        global: 'Boundary'
+      },
+      fence: {
+        display: 'フェンス(F)',
+        local: 'フェンス',
+        global: 'Fence'
+      },
+      crossing: {
+        display: '交差(C)',
+        local: '交差',
+        global: 'Crossing'
+      },
+      mode: {
+        display: 'モード(O)',
+        local: 'モード',
+        global: 'mOde'
+      },
+      project: {
+        display: '投影(P)',
+        local: '投影',
+        global: 'Project'
+      },
+      edge: {
+        display: 'エッジ(E)',
+        local: 'エッジ',
+        global: 'Edge'
+      },
+      erase: {
+        display: '削除(R)',
+        local: '削除',
+        global: 'eRase'
+      },
+      undo: {
+        display: '元に戻す(U)',
+        local: '元に戻す',
+        global: 'Undo'
+      },
+      quick: {
+        display: 'クイック(Q)',
+        local: 'クイック',
+        global: 'Quick'
+      },
+      standard: {
+        display: '標準(S)',
+        local: '標準',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: 'なし(N)',
+        local: 'なし',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'UCS(U)',
+        local: 'UCS',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: 'ビュー(V)',
+        local: 'ビュー',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: '延長(E)',
+        local: '延長',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: '延長しない(N)',
+        local: '延長しない',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo:
+      '結合するには、線分、円弧、またはポリラインを 2 つ以上選択してください。',
+    noneJoined: '結合できるオブジェクトがありません。',
+    eraseFailed:
+      '元のオブジェクトをすべて削除できませんでした。結合は取り消されました。',
+    joined: '{count} 個のオブジェクトを結合しました。'
+  },
   hatch: {
     prompt: '境界オブジェクトを選択 または',
     pickPoint: '内側の点を指定 (Enter キーで終了)',
+    originPoint: 'ハッチング パターンの原点を指定',
     select: 'ハッチングするオブジェクトを選択',
     patternName: 'ハッチング パターン名を入力',
     scale: 'ハッチング パターンの尺度を指定',
     angle: 'ハッチング パターンの角度を指定',
     style: 'ハッチング スタイルを入力',
     associative: '自動調整を指定',
+    separate: '個別のハッチングを作成しますか?',
+    nothingToUndo: '元に戻すハッチングはありません。',
+    remove: '境界から削除するオブジェクトを選択',
+    nothingToRemove: '削除できる境界オブジェクトがありません。',
+    recreateType: '境界オブジェクトの種類を入力',
+    recreateAssociate: 'ハッチングを新しい境界に関連付けますか?',
+    nothingToRecreate: '境界を再作成するハッチングが選択されていません。',
+    regionUnsupported: 'リージョン境界は未対応のため、ポリラインを作成します。',
     invalidBoundary: '選択したオブジェクトは閉じた境界を形成していません。',
     keywords: {
       pick: {
-        display: '点をクリック(P)',
+        display: 'ポイントを指定(PP)',
         local: '点をクリック',
         global: 'PickPoints'
       },
       select: {
-        display: 'オブジェクトを選択(S)',
+        display: 'オブジェクトを選択(SO)',
         local: 'オブジェクトを選択',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: '境界を削除(R)',
+        local: '境界を削除',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: 'ポリライン(P)',
+        local: 'ポリライン',
+        global: 'Polyline'
+      },
+      region: {
+        display: 'リージョン(R)',
+        local: 'リージョン',
+        global: 'Region'
+      },
+      undo: {
+        display: '元に戻す(U)',
+        local: '元に戻す',
+        global: 'Undo'
       },
       cancel: {
         display: 'キャンセル(C)',
@@ -373,7 +528,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: 'スタイル(T)',
+        display: 'スタイル(HS)',
         local: 'スタイル',
         global: 'HatchStyle'
       },
@@ -381,6 +536,11 @@ export default {
         display: '自動調整(AS)',
         local: '自動調整',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: '個別(SE)',
+        local: '個別',
+        global: 'SEparate'
       },
       normal: {
         display: '標準(N)',
@@ -832,7 +992,8 @@ export default {
     lockedEndPoint: '円弧の終点を指定 (Ctrl キーで優弧/劣弧を切り替え)',
     invalidPoints: '3 点が同一直線上にあるため、円弧を定義できません。',
     pickArc: '円、円弧、またはポリライン円弧を選択',
-    noArc: 'ここに円または円弧はありません。曲線をクリックするか、3 点を選択してください。',
+    noArc:
+      'ここに円または円弧はありません。曲線をクリックするか、3 点を選択してください。',
     keywords: {
       threePoint: {
         display: '3点(T)',
@@ -923,6 +1084,21 @@ export default {
       chooseFile: 'マークアップのサイドカー JSON ファイルを選択'
     }
   },
+  stretch: {
+    crossingFirst: '交差ウィンドウの 1 点目のコーナーを指定',
+    crossingSecond: 'もう一方のコーナーを指定',
+    basePointOrDisplacement: '基点を指定 または',
+    secondPointOrDisplacement: '2 点目を指定 または',
+    displacement: '変位を指定',
+    nothingStretched: 'ストレッチされたオブジェクトはありません。',
+    keywords: {
+      displacement: {
+        display: '変位(D)',
+        local: '変位',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: '基点を指定 または',
     secondPointOrDisplacement: '2 点目を指定 または',
@@ -942,6 +1118,164 @@ export default {
     invalidDistance: 'オフセット距離は 0 より大きくする必要があります。',
     invalidSelection: '選択したオブジェクトはオフセットできません。',
     offsetFailed: '指定した側にオフセット曲線を作成できません。'
+  },
+  fillet: {
+    currentSettings: '現在の設定: モード = {mode}、半径 = {radius}',
+    modeTrim: 'トリム',
+    modeNoTrim: 'トリムなし',
+    selectFirst:
+      '1 つ目のオブジェクトを選択または [元に戻す(U)/ポリライン(P)/半径(R)/トリム(T)/複数(M)]',
+    selectSecond:
+      '2 つ目のオブジェクトを選択、または Shift を押しながら選択してコーナーを適用、または [半径(R)]',
+    selectPolyline: '2D ポリラインを選択',
+    specifyRadius: 'フィレット半径を指定',
+    trimPrompt: 'トリム モード オプションを入力 [トリム(T)/トリムなし(N)]',
+    rejectObject: 'このオブジェクトはフィレットできません。',
+    rejectPolyline: '選択したオブジェクトは 2D ポリラインではありません。',
+    invalidRadius: 'フィレット半径は 0 以上である必要があります。',
+    eraseFailed:
+      '変換後のオブジェクトをすべて消去できませんでした。フィレットは取り消されました。',
+    nothingToUndo: 'コマンドは完全に元に戻されました。',
+    polylineResult:
+      '{filleted} 個の頂点をフィレットし、{skipped} 個をスキップしました。',
+    keywords: {
+      undo: {
+        display: '元に戻す(U)',
+        local: '元に戻す',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'ポリライン(P)',
+        local: 'ポリライン',
+        global: 'Polyline'
+      },
+      radius: {
+        display: '半径(R)',
+        local: '半径',
+        global: 'Radius'
+      },
+      trim: {
+        display: 'トリム(T)',
+        local: 'トリム',
+        global: 'Trim'
+      },
+      multiple: {
+        display: '複数(M)',
+        local: '複数',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'トリム(T)',
+        local: 'トリム',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'トリムなし(N)',
+        local: 'トリムなし',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: 'フィレット半径が無効です。',
+      parallel: '線分が平行なためコーナー フィレットを作成できません。',
+      noIntersection: 'オブジェクトが交差しません。',
+      radiusTooLarge:
+        '選択したオブジェクトに対してフィレット半径が大きすぎます。',
+      noSolution: '選択したオブジェクトのフィレットを作成できません。',
+      unsupported: '選択したオブジェクト タイプはフィレットに対応していません。'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '({mode} モード) 現在の面取り Dist1 = {dist1}、Dist2 = {dist2}',
+    currentSettingsAngle:
+      '({mode} モード) 現在の面取り 長さ = {length}、角度 = {angle}',
+    modeTrim: 'トリム',
+    modeNoTrim: 'トリムなし',
+    selectFirst:
+      '1 本目の線分を選択または [元に戻す(U)/ポリライン(P)/距離(D)/角度(A)/トリム(T)/方式(E)/複数(M)]',
+    selectSecond:
+      '2 本目の線分を選択、または Shift を押しながら選択してコーナーを適用、または [距離(D)/角度(A)/方式(E)]',
+    selectPolyline: '2D ポリラインを選択',
+    specifyDist1: '1 つ目の面取り距離を指定',
+    specifyDist2: '2 つ目の面取り距離を指定',
+    specifyLength: '1 本目の線分上の面取り長さを指定',
+    specifyAngle: '1 本目の線分からの面取り角度を指定',
+    trimPrompt: 'トリム モード オプションを入力 [トリム(T)/トリムなし(N)]',
+    methodPrompt: '面取り方法を入力 [距離(D)/角度(A)]',
+    rejectObject: 'このオブジェクトは面取りできません。',
+    rejectPolyline: '選択したオブジェクトは 2D ポリラインではありません。',
+    eraseFailed:
+      '変換後のオブジェクトをすべて消去できませんでした。面取りは取り消されました。',
+    nothingToUndo: 'コマンドは完全に元に戻されました。',
+    polylineResult:
+      '{chamfered} 個の頂点を面取りし、{skipped} 個をスキップしました。',
+    keywords: {
+      undo: {
+        display: '元に戻す(U)',
+        local: '元に戻す',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'ポリライン(P)',
+        local: 'ポリライン',
+        global: 'Polyline'
+      },
+      distance: {
+        display: '距離(D)',
+        local: '距離',
+        global: 'Distance'
+      },
+      angle: {
+        display: '角度(A)',
+        local: '角度',
+        global: 'Angle'
+      },
+      trim: {
+        display: 'トリム(T)',
+        local: 'トリム',
+        global: 'Trim'
+      },
+      method: {
+        display: '方式(E)',
+        local: '方式',
+        global: 'Method'
+      },
+      multiple: {
+        display: '複数(M)',
+        local: '複数',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'トリム(T)',
+        local: 'トリム',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'トリムなし(N)',
+        local: 'トリムなし',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: '距離(D)',
+        local: '距離',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: '角度(A)',
+        local: '角度',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: '面取り距離または角度が無効です。',
+      parallel: '線分が平行なため面取りできません。',
+      noIntersection: 'オブジェクトが交差しません。',
+      distanceTooLarge:
+        '選択したオブジェクトに対して面取り距離が大きすぎます。',
+      noSolution: '選択したオブジェクトの面取りを作成できません。',
+      unsupported: '選択したオブジェクト タイプは面取りに対応していません。'
+    }
   },
   leader: {
     startPoint: '引出線の始点を指定',
@@ -1307,6 +1641,26 @@ export default {
         local: '幅',
         global: 'Width'
       }
+    }
+  },
+  mirror: {
+    firstPoint: 'ミラー線の 1 点目を指定',
+    secondPoint: 'ミラー線の 2 点目を指定',
+    eraseSource: 'ソース オブジェクトを削除しますか?',
+    keywords: {
+      yes: {
+        display: 'はい(Y)',
+        local: 'はい',
+        global: 'Yes'
+      },
+      no: {
+        display: 'いいえ(N)',
+        local: 'いいえ',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: '無効なミラー線です。点は異なる位置である必要があります。'
     }
   },
   rotate: {

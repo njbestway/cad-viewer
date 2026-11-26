@@ -405,26 +405,182 @@ export default {
     notExplodable: '{count} nesne patlatılamadı',
     minsert: 'MINSERT ile eklenen {count} blok patlatılamaz'
   },
+  trim: {
+    selectObject:
+      'Kırpılacak nesneyi seçin veya uzatmak için Shift ile seçin veya',
+    selectEdges: 'Kesme kenarlarını seçin veya <tümünü seç>',
+    modePrompt: 'Bir kırpma modu seçeneği girin'
+  },
+  extend: {
+    selectObject:
+      'Uzatılacak nesneyi seçin veya kırpmak için Shift ile seçin veya',
+    selectEdges: 'Sınır kenarlarını seçin veya <tümünü seç>',
+    modePrompt: 'Bir uzatma modu seçeneği girin'
+  },
+  trimExtend: {
+    currentSettings:
+      'Geçerli ayarlar: İzdüşüm={projection}, Kenar={edge}, Mod={mode}',
+    settingValue: {
+      none: 'Yok',
+      ucs: 'UCS',
+      view: 'Görünüm',
+      extend: 'Uzat',
+      noExtend: 'Yok',
+      quick: 'Hızlı',
+      standard: 'Standart'
+    },
+    projectPrompt: 'Bir izdüşüm seçeneği girin',
+    edgePrompt: 'Örtük kenar uzatma modunu girin',
+    fenceFirst: 'İlk çit noktasını belirtin',
+    fenceNext: 'Sonraki çit noktasını belirtin',
+    crossingFirst: 'İlk köşeyi belirtin',
+    crossingSecond: 'Karşı köşeyi belirtin',
+    erasePrompt: 'Silinecek nesneleri seçin veya <çıkış>',
+    noObject: 'Nesne bulunamadı.',
+    noIntersection: 'Nesne bir kenarla kesişmiyor.',
+    noEdgeInDirection: 'Bu yönde kenar yok.',
+    cannotTrim: 'Bu nesne kırpılamaz.',
+    cannotExtend: 'Bu nesne uzatılamaz.',
+    lockedLayer: 'Nesne kilitli bir katmanda.',
+    nothingToUndo: 'Tüm işlemler geri alındı.',
+    keywords: {
+      cuttingEdges: {
+        display: 'Kesme kenarları(T)',
+        local: 'Kesme kenarları',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: 'Sınır kenarları(B)',
+        local: 'Sınır kenarları',
+        global: 'Boundary'
+      },
+      fence: {
+        display: 'Çit(F)',
+        local: 'Çit',
+        global: 'Fence'
+      },
+      crossing: {
+        display: 'Kesişen(C)',
+        local: 'Kesişen',
+        global: 'Crossing'
+      },
+      mode: {
+        display: 'Mod(O)',
+        local: 'Mod',
+        global: 'mOde'
+      },
+      project: {
+        display: 'İzdüşüm(P)',
+        local: 'İzdüşüm',
+        global: 'Project'
+      },
+      edge: {
+        display: 'Kenar(E)',
+        local: 'Kenar',
+        global: 'Edge'
+      },
+      erase: {
+        display: 'Sil(R)',
+        local: 'Sil',
+        global: 'eRase'
+      },
+      undo: {
+        display: 'Geri al(U)',
+        local: 'Geri al',
+        global: 'Undo'
+      },
+      quick: {
+        display: 'Hızlı(Q)',
+        local: 'Hızlı',
+        global: 'Quick'
+      },
+      standard: {
+        display: 'Standart(S)',
+        local: 'Standart',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: 'Yok(N)',
+        local: 'Yok',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'UCS(U)',
+        local: 'UCS',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: 'Görünüm(V)',
+        local: 'Görünüm',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: 'Uzat(E)',
+        local: 'Uzat',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: 'Uzatma(N)',
+        local: 'Uzatma',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo: 'Birleştirmek için en az iki çizgi, yay veya çoklu çizgi seçin.',
+    noneJoined: 'Birleştirilebilecek nesne yok.',
+    eraseFailed: 'Kaynak nesnelerin tümü silinemedi. Birleştirme iptal edildi.',
+    joined: '{count} nesne birleştirildi.'
+  },
   hatch: {
     prompt: 'Sınır nesnesini seçin veya',
     pickPoint: 'İç noktayı belirtin (bitirmek için Enter\'a basın)',
+    originPoint: 'Tarama deseni için başlangıç noktasını belirtin',
     select: 'Tarama yapılacak nesneleri seçin',
     patternName: 'Tarama deseni adını girin',
     scale: 'Tarama deseni ölçeğini belirtin',
     angle: 'Tarama deseni açısını belirtin',
     style: 'Tarama stilini girin',
     associative: 'İlişkiselliği belirtin',
+    separate: 'Ayrı tarama nesneleri oluşturulsun mu?',
+    nothingToUndo: 'Geri alınacak tarama yok.',
+    remove: 'Sınırdan kaldırılacak nesneleri seçin',
+    nothingToRemove: 'Kaldırılacak sınır nesnesi yok.',
+    recreateType: 'Sınır nesnesi türünü girin',
+    recreateAssociate: 'Tarama yeni sınırla ilişkilendirilsin mi?',
+    nothingToRecreate: 'Sınırı yeniden oluşturulacak tarama seçilmedi.',
+    regionUnsupported: 'Bölge sınırları henüz desteklenmiyor; bunun yerine çoklu çizgi oluşturuluyor.',
     invalidBoundary: 'Seçilen nesneler kapalı bir sınır oluşturmuyor.',
     keywords: {
       pick: {
-        display: 'Nokta seç(N)',
+        display: 'Nokta seç(PP)',
         local: 'Nokta seç',
         global: 'PickPoints'
       },
       select: {
-        display: 'Nesne seç(S)',
+        display: 'Nesneleri seç(SO)',
         local: 'Nesne seç',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: 'Sınırları kaldır(R)',
+        local: 'Sınırları kaldır',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: 'Çoklu çizgi(P)',
+        local: 'Çoklu çizgi',
+        global: 'Polyline'
+      },
+      region: {
+        display: 'Bölge(R)',
+        local: 'Bölge',
+        global: 'Region'
+      },
+      undo: {
+        display: 'Geri al(U)',
+        local: 'Geri al',
+        global: 'Undo'
       },
       cancel: {
         display: 'İptal(İ)',
@@ -447,7 +603,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: 'Stil(T)',
+        display: 'Stil(HS)',
         local: 'Stil',
         global: 'HatchStyle'
       },
@@ -455,6 +611,11 @@ export default {
         display: 'İlişkisel(İL)',
         local: 'İlişkisel',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: 'Ayrı(SE)',
+        local: 'Ayrı',
+        global: 'SEparate'
       },
       normal: {
         display: 'Normal(N)',
@@ -996,6 +1157,21 @@ export default {
       chooseFile: 'Bir işaret sidecar JSON dosyası seçin'
     }
   },
+  stretch: {
+    crossingFirst: 'Kesişen pencerenin ilk köşesini belirtin',
+    crossingSecond: 'Karşı köşeyi belirtin',
+    basePointOrDisplacement: 'Temel noktayı belirtin veya',
+    secondPointOrDisplacement: 'İkinci noktayı belirtin veya',
+    displacement: 'Yer değiştirmeyi belirtin',
+    nothingStretched: 'Hiçbir nesne gerilmedi.',
+    keywords: {
+      displacement: {
+        display: 'YerDeğiştirme(D)',
+        local: 'YerDeğiştirme',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: 'Temel noktayı belirtin veya',
     secondPointOrDisplacement: 'İkinci noktayı belirtin veya',
@@ -1015,6 +1191,160 @@ export default {
     invalidDistance: 'Öteleme mesafesi 0\'dan büyük olmalıdır.',
     invalidSelection: 'Seçilen nesne ötelenemez.',
     offsetFailed: 'Belirtilen taraf için bir öteleme eğrisi oluşturulamadı.'
+  },
+  fillet: {
+    currentSettings: 'Geçerli ayarlar: Mod = {mode}, Yarıçap = {radius}',
+    modeTrim: 'KIRP',
+    modeNoTrim: 'KIRPMA',
+    selectFirst:
+      'İlk nesneyi seçin veya [Geri Al(U)/Policizgi(P)/Yarıçap(R)/Kırp(T)/Çoklu(M)]',
+    selectSecond:
+      'İkinci nesneyi seçin veya köşe uygulamak için Shift ile seçin veya [Yarıçap(R)]',
+    selectPolyline: '2B policizgi seçin',
+    specifyRadius: 'Yuvarlama yarıçapını belirtin',
+    trimPrompt: 'Kırpma modu seçeneğini girin [Kırp(T)/Kırpma(N)]',
+    rejectObject: 'Nesne yuvarlanamaz.',
+    rejectPolyline: 'Seçilen nesne 2B policizgi değil.',
+    invalidRadius: 'Yuvarlama yarıçapı sıfır veya daha büyük olmalıdır.',
+    eraseFailed:
+      'Dönüştürülen nesnelerin tümü silinemedi. Yuvarlama iptal edildi.',
+    nothingToUndo: 'Komut tamamen geri alındı.',
+    polylineResult: '{filleted} köşe yuvarlandı; {skipped} atlandı.',
+    keywords: {
+      undo: {
+        display: 'Geri Al(U)',
+        local: 'Geri Al',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'Policizgi(P)',
+        local: 'Policizgi',
+        global: 'Polyline'
+      },
+      radius: {
+        display: 'Yarıçap(R)',
+        local: 'Yarıçap',
+        global: 'Radius'
+      },
+      trim: {
+        display: 'Kırp(T)',
+        local: 'Kırp',
+        global: 'Trim'
+      },
+      multiple: {
+        display: 'Çoklu(M)',
+        local: 'Çoklu',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'Kırp(T)',
+        local: 'Kırp',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'Kırpma(N)',
+        local: 'Kırpma',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: 'Geçersiz yuvarlama yarıçapı.',
+      parallel: 'Çizgiler paralel; köşe yuvarlaması oluşturulamaz.',
+      noIntersection: 'Nesneler kesişmiyor.',
+      radiusTooLarge: 'Yuvarlama yarıçapı seçilen nesneler için çok büyük.',
+      noSolution: 'Seçilen nesneler için yuvarlama oluşturulamadı.',
+      unsupported: 'Seçilen nesne türü yuvarlamayı desteklemiyor.'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '({mode} modu) Geçerli pah Dist1 = {dist1}, Dist2 = {dist2}',
+    currentSettingsAngle:
+      '({mode} modu) Geçerli pah Uzunluk = {length}, Açı = {angle}',
+    modeTrim: 'KIRP',
+    modeNoTrim: 'KIRPMA',
+    selectFirst:
+      'İlk çizgiyi seçin veya [Geri Al(U)/Policizgi(P)/Mesafe(D)/Açı(A)/Kırp(T)/Yöntem(E)/Çoklu(M)]',
+    selectSecond:
+      'İkinci çizgiyi seçin veya köşe uygulamak için Shift ile seçin veya [Mesafe(D)/Açı(A)/Yöntem(E)]',
+    selectPolyline: '2B policizgi seçin',
+    specifyDist1: 'İlk pah mesafesini belirtin',
+    specifyDist2: 'İkinci pah mesafesini belirtin',
+    specifyLength: 'İlk çizgideki pah uzunluğunu belirtin',
+    specifyAngle: 'İlk çizgiden pah açısını belirtin',
+    trimPrompt: 'Kırpma modu seçeneğini girin [Kırp(T)/Kırpma(N)]',
+    methodPrompt: 'Pah yöntemini girin [Mesafe(D)/Açı(A)]',
+    rejectObject: 'Nesne pahlanamaz.',
+    rejectPolyline: 'Seçilen nesne 2B policizgi değil.',
+    eraseFailed:
+      'Dönüştürülen nesnelerin tümü silinemedi. Pahlama iptal edildi.',
+    nothingToUndo: 'Komut tamamen geri alındı.',
+    polylineResult: '{chamfered} köşe pahlandı; {skipped} atlandı.',
+    keywords: {
+      undo: {
+        display: 'Geri Al(U)',
+        local: 'Geri Al',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'Policizgi(P)',
+        local: 'Policizgi',
+        global: 'Polyline'
+      },
+      distance: {
+        display: 'Mesafe(D)',
+        local: 'Mesafe',
+        global: 'Distance'
+      },
+      angle: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      },
+      trim: {
+        display: 'Kırp(T)',
+        local: 'Kırp',
+        global: 'Trim'
+      },
+      method: {
+        display: 'Yöntem(E)',
+        local: 'Yöntem',
+        global: 'Method'
+      },
+      multiple: {
+        display: 'Çoklu(M)',
+        local: 'Çoklu',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'Kırp(T)',
+        local: 'Kırp',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'Kırpma(N)',
+        local: 'Kırpma',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: 'Mesafe(D)',
+        local: 'Mesafe',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: 'Açı(A)',
+        local: 'Açı',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: 'Geçersiz pah mesafesi veya açısı.',
+      parallel: 'Çizgiler paralel; pahlanamaz.',
+      noIntersection: 'Nesneler kesişmiyor.',
+      distanceTooLarge: 'Pah mesafesi seçilen nesneler için çok büyük.',
+      noSolution: 'Seçilen nesneler için pah oluşturulamadı.',
+      unsupported: 'Seçilen nesne türü pahı desteklemiyor.'
+    }
   },
   leader: {
     startPoint: 'Kılavuz başlangıç noktasını belirtin',
@@ -1417,6 +1747,26 @@ export default {
         local: 'Genişlik',
         global: 'Width'
       }
+    }
+  },
+  mirror: {
+    firstPoint: 'Ayna çizgisinin birinci noktasını belirtin',
+    secondPoint: 'Ayna çizgisinin ikinci noktasını belirtin',
+    eraseSource: 'Kaynak nesneler silinsin mi?',
+    keywords: {
+      yes: {
+        display: 'Evet(Y)',
+        local: 'Evet',
+        global: 'Yes'
+      },
+      no: {
+        display: 'Hayır(N)',
+        local: 'Hayır',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: 'Geçersiz ayna çizgisi: noktalar farklı olmalıdır.'
     }
   },
   rotate: {
@@ -2488,9 +2838,9 @@ export default {
     applied: '{count} nesne {factor} faktörüyle ölçeklendi.'
   },
   txt2mtxt: {
-    needTwo: 'Birleştirmek için en az iki metin veya çoklu metin nesnesi seçin.',
+    needTwo:
+      'Birleştirmek için en az iki metin veya çoklu metin nesnesi seçin.',
     mergeFailed: 'Seçili metin nesneleri birleştirilemedi.',
-    eraseFailed:
-      'Kaynak metinlerin tümü silinemedi. Birleştirme iptal edildi.'
+    eraseFailed: 'Kaynak metinlerin tümü silinemedi. Birleştirme iptal edildi.'
   }
 }

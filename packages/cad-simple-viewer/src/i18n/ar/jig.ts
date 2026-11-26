@@ -405,26 +405,180 @@ export default {
     notExplodable: 'تعذر تفجير {count} من الكائنات',
     minsert: 'لا يمكن تفجير {count} من الكتل المدرجة باستخدام MINSERT'
   },
+  trim: {
+    selectObject: 'حدد الكائن المراد قصه أو اضغط Shift وحدد للتمديد أو',
+    selectEdges: 'حدد حواف القطع أو <تحديد الكل>',
+    modePrompt: 'أدخل خيار وضع القص'
+  },
+  extend: {
+    selectObject: 'حدد الكائن المراد تمديده أو اضغط Shift وحدد للقص أو',
+    selectEdges: 'حدد الحواف الحدودية أو <تحديد الكل>',
+    modePrompt: 'أدخل خيار وضع التمديد'
+  },
+  trimExtend: {
+    currentSettings:
+      'الإعدادات الحالية: الإسقاط={projection}، الحافة={edge}، الوضع={mode}',
+    settingValue: {
+      none: 'لا شيء',
+      ucs: 'UCS',
+      view: 'العرض',
+      extend: 'تمديد',
+      noExtend: 'لا شيء',
+      quick: 'سريع',
+      standard: 'قياسي'
+    },
+    projectPrompt: 'أدخل خيار الإسقاط',
+    edgePrompt: 'أدخل وضع تمديد الحافة الضمني',
+    fenceFirst: 'حدد نقطة السياج الأولى',
+    fenceNext: 'حدد نقطة السياج التالية',
+    crossingFirst: 'حدد الركن الأول',
+    crossingSecond: 'حدد الركن المقابل',
+    erasePrompt: 'حدد الكائنات المراد مسحها أو <خروج>',
+    noObject: 'لم يتم العثور على كائن.',
+    noIntersection: 'الكائن لا يتقاطع مع حافة.',
+    noEdgeInDirection: 'لا توجد حافة في هذا الاتجاه.',
+    cannotTrim: 'لا يمكن قص هذا الكائن.',
+    cannotExtend: 'لا يمكن تمديد هذا الكائن.',
+    lockedLayer: 'الكائن موجود على طبقة مقفلة.',
+    nothingToUndo: 'تم التراجع عن جميع العمليات.',
+    keywords: {
+      cuttingEdges: {
+        display: 'حواف القطع(T)',
+        local: 'حواف القطع',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: 'الحواف الحدودية(B)',
+        local: 'الحواف الحدودية',
+        global: 'Boundary'
+      },
+      fence: {
+        display: 'سياج(F)',
+        local: 'سياج',
+        global: 'Fence'
+      },
+      crossing: {
+        display: 'تقاطع(C)',
+        local: 'تقاطع',
+        global: 'Crossing'
+      },
+      mode: {
+        display: 'الوضع(O)',
+        local: 'الوضع',
+        global: 'mOde'
+      },
+      project: {
+        display: 'إسقاط(P)',
+        local: 'إسقاط',
+        global: 'Project'
+      },
+      edge: {
+        display: 'حافة(E)',
+        local: 'حافة',
+        global: 'Edge'
+      },
+      erase: {
+        display: 'مسح(R)',
+        local: 'مسح',
+        global: 'eRase'
+      },
+      undo: {
+        display: 'تراجع(U)',
+        local: 'تراجع',
+        global: 'Undo'
+      },
+      quick: {
+        display: 'سريع(Q)',
+        local: 'سريع',
+        global: 'Quick'
+      },
+      standard: {
+        display: 'قياسي(S)',
+        local: 'قياسي',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: 'لا شيء(N)',
+        local: 'لا شيء',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'UCS(U)',
+        local: 'UCS',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: 'العرض(V)',
+        local: 'العرض',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: 'تمديد(E)',
+        local: 'تمديد',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: 'بدون تمديد(N)',
+        local: 'بدون تمديد',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo: 'حدد خطين أو قوسين أو خطوط متعددة على الأقل للضم.',
+    noneJoined: 'تعذر ضم أي كائنات.',
+    eraseFailed: 'تعذر مسح جميع الكائنات المصدر. تم إلغاء الضم.',
+    joined: 'تم ضم {count} من الكائنات.'
+  },
   hatch: {
     prompt: 'حدد عنصر حدود أو',
     pickPoint: 'حدد نقطة داخلية (أو اضغط Enter للإنهاء)',
+    originPoint: 'حدد نقطة أصل نمط التهشير',
     select: 'حدد العناصر المطلوب تهشيرها',
     patternName: 'أدخل اسم نمط التهشير',
     scale: 'حدد مقياس نمط التهشير',
     angle: 'حدد زاوية نمط التهشير',
     style: 'أدخل نمط التهشير',
     associative: 'حدد حالة الترابط',
+    separate: 'هل تريد إنشاء تفقيسات منفصلة؟',
+    nothingToUndo: 'لا يوجد تفقيس للتراجع عنه.',
+    remove: 'حدد العناصر المراد إزالتها من الحدود',
+    nothingToRemove: 'لا توجد عناصر حدود لإزالتها.',
+    recreateType: 'أدخل نوع عنصر الحدود',
+    recreateAssociate: 'هل تريد ربط التهشير بالحد الجديد؟',
+    nothingToRecreate: 'لم يتم تحديد تهشير لإعادة إنشاء حدوده.',
+    regionUnsupported: 'حدود المنطقة غير مدعومة بعد؛ سيتم إنشاء خط متعدد بدلاً من ذلك.',
     invalidBoundary: 'العناصر المحددة لا تكوّن حدودًا مغلقة.',
     keywords: {
       pick: {
-        display: 'اختيار نقاط(P)',
+        display: 'التقاط نقاط(PP)',
         local: 'اختيار نقاط',
         global: 'PickPoints'
       },
       select: {
-        display: 'تحديد كائنات(S)',
+        display: 'تحديد كائنات(SO)',
         local: 'تحديد كائنات',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: 'إزالة الحدود(R)',
+        local: 'إزالة الحدود',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: 'خط متعدد(P)',
+        local: 'خط متعدد',
+        global: 'Polyline'
+      },
+      region: {
+        display: 'منطقة(R)',
+        local: 'منطقة',
+        global: 'Region'
+      },
+      undo: {
+        display: 'تراجع(U)',
+        local: 'تراجع',
+        global: 'Undo'
       },
       cancel: {
         display: 'إلغاء(C)',
@@ -447,7 +601,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: 'أسلوب(T)',
+        display: 'النمط(HS)',
         local: 'أسلوب',
         global: 'HatchStyle'
       },
@@ -455,6 +609,11 @@ export default {
         display: 'ترابطي(AS)',
         local: 'ترابطي',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: 'منفصل(SE)',
+        local: 'منفصل',
+        global: 'SEparate'
       },
       normal: {
         display: 'عادي(N)',
@@ -994,6 +1153,21 @@ export default {
       chooseFile: 'اختر ملف JSON جانبيًا يحتوي على علامات المراجعة'
     }
   },
+  stretch: {
+    crossingFirst: 'حدد الركن الأول لإطار التقاطع',
+    crossingSecond: 'حدد الزاوية المقابلة',
+    basePointOrDisplacement: 'حدد نقطة الأساس أو',
+    secondPointOrDisplacement: 'حدد النقطة الثانية أو',
+    displacement: 'حدد الإزاحة',
+    nothingStretched: 'لم يتم تمديد أي كائنات.',
+    keywords: {
+      displacement: {
+        display: 'إزاحة(D)',
+        local: 'إزاحة',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: 'حدد نقطة الأساس أو',
     secondPointOrDisplacement: 'حدد النقطة الثانية أو',
@@ -1013,6 +1187,159 @@ export default {
     invalidDistance: 'يجب أن تكون مسافة الإزاحة أكبر من 0.',
     invalidSelection: 'لا يمكن إنشاء إزاحة للعنصر المحدد.',
     offsetFailed: 'تعذر إنشاء منحنى إزاحة في الجهة المحددة.'
+  },
+  fillet: {
+    currentSettings: 'الإعدادات الحالية: الوضع = {mode}، نصف القطر = {radius}',
+    modeTrim: 'قص',
+    modeNoTrim: 'بدون قص',
+    selectFirst:
+      'حدد الكائن الأول أو [تراجع(U)/خط متعدد(P)/نصف القطر(R)/قص(T)/متعدد(M)]',
+    selectSecond:
+      'حدد الكائن الثاني أو اضغط Shift للتطبيق كزاوية أو [نصف القطر(R)]',
+    selectPolyline: 'حدد خطًا متعددًا ثنائي الأبعاد',
+    specifyRadius: 'حدد نصف قطر الشطف الدائري',
+    trimPrompt: 'أدخل خيار وضع القص [قص(T)/بدون قص(N)]',
+    rejectObject: 'لا يمكن شطف هذا الكائن دائريًا.',
+    rejectPolyline: 'الكائن المحدد ليس خطًا متعددًا ثنائي الأبعاد.',
+    invalidRadius: 'يجب أن يكون نصف قطر الشطف صفرًا أو أكبر.',
+    eraseFailed:
+      'تعذر مسح جميع الكائنات المحوّلة. تم إلغاء الشطف الدائري.',
+    nothingToUndo: 'تم التراجع عن الأمر بالكامل.',
+    polylineResult: 'تم شطف {filleted} رأسًا دائريًا؛ وتخطي {skipped}.',
+    keywords: {
+      undo: {
+        display: 'تراجع(U)',
+        local: 'تراجع',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'خط متعدد(P)',
+        local: 'خط متعدد',
+        global: 'Polyline'
+      },
+      radius: {
+        display: 'نصف القطر(R)',
+        local: 'نصف القطر',
+        global: 'Radius'
+      },
+      trim: {
+        display: 'قص(T)',
+        local: 'قص',
+        global: 'Trim'
+      },
+      multiple: {
+        display: 'متعدد(M)',
+        local: 'متعدد',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'قص(T)',
+        local: 'قص',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'بدون قص(N)',
+        local: 'بدون قص',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: 'نصف قطر الشطف غير صالح.',
+      parallel: 'الخطوط متوازية ولا يمكن إنشاء شطف زاوية.',
+      noIntersection: 'الكائنات غير متقاطعة.',
+      radiusTooLarge: 'نصف قطر الشطف كبير جدًا للكائنات المحددة.',
+      noSolution: 'تعذر إنشاء شطف للكائنات المحددة.',
+      unsupported: 'نوع الكائن المحدد لا يدعم الشطف الدائري.'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '(وضع {mode}) الشطبة الحالية Dist1 = {dist1}، Dist2 = {dist2}',
+    currentSettingsAngle:
+      '(وضع {mode}) الشطبة الحالية الطول = {length}، الزاوية = {angle}',
+    modeTrim: 'قص',
+    modeNoTrim: 'بدون قص',
+    selectFirst:
+      'حدد الخط الأول أو [تراجع(U)/خط متعدد(P)/مسافة(D)/زاوية(A)/قص(T)/طريقة(E)/متعدد(M)]',
+    selectSecond:
+      'حدد الخط الثاني أو اضغط Shift للتطبيق كزاوية أو [مسافة(D)/زاوية(A)/طريقة(E)]',
+    selectPolyline: 'حدد خطًا متعددًا ثنائي الأبعاد',
+    specifyDist1: 'حدد مسافة الشطبة الأولى',
+    specifyDist2: 'حدد مسافة الشطبة الثانية',
+    specifyLength: 'حدد طول الشطبة على الخط الأول',
+    specifyAngle: 'حدد زاوية الشطبة من الخط الأول',
+    trimPrompt: 'أدخل خيار وضع القص [قص(T)/بدون قص(N)]',
+    methodPrompt: 'أدخل طريقة الشطب [مسافة(D)/زاوية(A)]',
+    rejectObject: 'لا يمكن شطب هذا الكائن.',
+    rejectPolyline: 'الكائن المحدد ليس خطًا متعددًا ثنائي الأبعاد.',
+    eraseFailed: 'تعذر مسح جميع الكائنات المحوّلة. تم إلغاء الشطبة.',
+    nothingToUndo: 'تم التراجع عن الأمر بالكامل.',
+    polylineResult: 'تم شطب {chamfered} رأسًا؛ وتخطي {skipped}.',
+    keywords: {
+      undo: {
+        display: 'تراجع(U)',
+        local: 'تراجع',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'خط متعدد(P)',
+        local: 'خط متعدد',
+        global: 'Polyline'
+      },
+      distance: {
+        display: 'مسافة(D)',
+        local: 'مسافة',
+        global: 'Distance'
+      },
+      angle: {
+        display: 'زاوية(A)',
+        local: 'زاوية',
+        global: 'Angle'
+      },
+      trim: {
+        display: 'قص(T)',
+        local: 'قص',
+        global: 'Trim'
+      },
+      method: {
+        display: 'طريقة(E)',
+        local: 'طريقة',
+        global: 'Method'
+      },
+      multiple: {
+        display: 'متعدد(M)',
+        local: 'متعدد',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'قص(T)',
+        local: 'قص',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'بدون قص(N)',
+        local: 'بدون قص',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: 'مسافة(D)',
+        local: 'مسافة',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: 'زاوية(A)',
+        local: 'زاوية',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: 'مسافة أو زاوية الشطبة غير صالحة.',
+      parallel: 'الخطوط متوازية ولا يمكن شطبها.',
+      noIntersection: 'الكائنات غير متقاطعة.',
+      distanceTooLarge: 'مسافة الشطبة كبيرة جدًا للكائنات المحددة.',
+      noSolution: 'تعذر إنشاء شطبة للكائنات المحددة.',
+      unsupported: 'نوع الكائن المحدد لا يدعم الشطبة.'
+    }
   },
   leader: {
     startPoint: 'حدد نقطة بداية خط الإشارة',
@@ -1410,6 +1737,26 @@ export default {
         local: 'عرض المستطيل',
         global: 'Width'
       }
+    }
+  },
+  mirror: {
+    firstPoint: 'حدد النقطة الأولى لخط المرآة',
+    secondPoint: 'حدد النقطة الثانية لخط المرآة',
+    eraseSource: 'هل تريد مسح الكائنات المصدر؟',
+    keywords: {
+      yes: {
+        display: 'نعم(Y)',
+        local: 'نعم',
+        global: 'Yes'
+      },
+      no: {
+        display: 'لا(N)',
+        local: 'لا',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: 'خط مرآة غير صالح: يجب أن تكون النقطتان مختلفتين.'
     }
   },
   rotate: {

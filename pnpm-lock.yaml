@@ -5,16 +5,16 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@mlightcad/data-model': file:./vendor/njbestway-data-model-1.16.4.tgz
+  '@mlightcad/data-model': file:./vendor/njbestway-data-model-1.16.5.tgz
   '@njbestway/acad-rust-converter': workspace:*
-  '@mlightcad/libredwg-converter': 3.16.1
+  '@mlightcad/libredwg-converter': 3.16.5
   '@mlightcad/mtext-input-box': 0.3.10
   '@mlightcad/mtext-parser': 1.5.7
   '@mlightcad/mtext-renderer': 0.13.10
-  '@mlightcad/ribbon': 0.1.15
+  '@mlightcad/ribbon': 0.1.17
   '@mlightcad/ui-components': 0.1.14
   '@types/three': ^0.186.0
-  element-plus: ^2.12.0
+  element-plus: ^2.13.4
   glob: ^13.0.6
   jsdom: ^30.1.3
   lodash-es: 4.17.21
@@ -126,8 +126,8 @@ importers:
   packages/acad-rust-converter:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -154,8 +154,8 @@ importers:
   packages/cad-agent-core:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-html-plugin':
         specifier: workspace:*
@@ -185,8 +185,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.208(vue@3.5.31(typescript@5.9.3))(zod@3.25.76)
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       ai:
         specifier: ^5.0.0
         version: 5.0.208(zod@3.25.76)
@@ -246,8 +246,8 @@ importers:
   packages/cad-diff-viewer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -262,11 +262,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -286,8 +286,8 @@ importers:
   packages/cad-editor:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
@@ -341,8 +341,8 @@ importers:
         specifier: workspace:*
         version: link:../pdf-renderer
       '@mlightcad/ribbon':
-        specifier: 0.1.15
-        version: 0.1.15(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
+        specifier: 0.1.17
+        version: 0.1.17(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -359,7 +359,7 @@ importers:
         specifier: ^11.1.0
         version: 11.3.0(vue@3.5.31(typescript@5.9.3))
       element-plus:
-        specifier: ^2.12.0
+        specifier: ^2.13.4
         version: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
       lodash-es:
         specifier: 4.17.21
@@ -443,11 +443,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-converter
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -461,7 +461,7 @@ importers:
         specifier: workspace:*
         version: link:../three-renderer
       element-plus:
-        specifier: ^2.12.0
+        specifier: ^2.13.4
         version: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
       lodash-es:
         specifier: 4.17.21
@@ -501,8 +501,8 @@ importers:
   packages/cad-editor-ol:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
@@ -514,8 +514,8 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/ribbon':
-        specifier: 0.1.15
-        version: 0.1.15(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
+        specifier: 0.1.17
+        version: 0.1.17(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -538,7 +538,7 @@ importers:
         specifier: ^11.1.0
         version: 11.3.0(vue@3.5.31(typescript@5.9.3))
       element-plus:
-        specifier: ^2.12.0
+        specifier: ^2.13.4
         version: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
       lodash-es:
         specifier: 4.17.21
@@ -580,8 +580,8 @@ importers:
   packages/cad-google-drive-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -599,8 +599,8 @@ importers:
   packages/cad-html-core:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
@@ -624,11 +624,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-html-core
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/libredwg-web':
         specifier: 0.8.2
         version: 0.8.2
@@ -664,8 +664,8 @@ importers:
   packages/cad-html-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-html-core':
         specifier: workspace:*
@@ -732,11 +732,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -778,8 +778,8 @@ importers:
         specifier: ^4.12.0
         version: 4.12.0
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -804,8 +804,8 @@ importers:
   packages/cad-pdf-core:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
@@ -823,11 +823,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-pdf-core
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/libredwg-web':
         specifier: 0.8.2
         version: 0.8.2
@@ -860,8 +860,8 @@ importers:
   packages/cad-pdf-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-pdf-core':
         specifier: workspace:*
@@ -888,8 +888,8 @@ importers:
         specifier: workspace:*
         version: link:../cad-pdf-core
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       acorn:
         specifier: ^8.15.0
         version: 8.16.0
@@ -931,8 +931,8 @@ importers:
         specifier: ^6.43.14
         version: 6.43.14
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
@@ -956,8 +956,8 @@ importers:
   packages/cad-simple-viewer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/mtext-input-box':
         specifier: 0.3.10
@@ -1011,11 +1011,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-plugin
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -1093,11 +1093,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-plugin
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.1
-        version: 3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)
+        specifier: 3.16.5
+        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -1136,8 +1136,8 @@ importers:
   packages/cad-svg-converter:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       svg-parser:
         specifier: 2.1.0
         version: 2.1.0
@@ -1149,8 +1149,8 @@ importers:
   packages/cad-svg-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -1165,8 +1165,8 @@ importers:
   packages/pdf-renderer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@pdf-lib/fontkit':
         specifier: ^1.1.1
         version: 1.1.1
@@ -1187,8 +1187,8 @@ importers:
   packages/three-renderer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.4.tgz
-        version: '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
+        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
+        version: file:vendor/njbestway-data-model-1.16.5.tgz
       '@velipso/polybool':
         specifier: ^1.1.1
         version: 1.1.1
@@ -2820,6 +2820,10 @@ packages:
   '@mlightcad/common@1.16.5':
     resolution: {integrity: sha512-DuDT5AN28khFORwyxtL/OGAdD2VFUWAmZL5WMiWvBslVsFShFw0tbArnx/07fk54Km7RCnGbMYSukG+FOjTfMg==}
 
+  '@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz':
+    resolution: {integrity: sha512-PzOrmTD8l+aqBne8may/ctbDtZJrc85cL/glxSTE1KYrUENeccLmF22FP5958+itiTAwyQTTGpNd0/dx6AWYhA==, tarball: file:vendor/njbestway-data-model-1.16.5.tgz}
+    version: 1.16.5
+
   '@mlightcad/emf-converter@1.16.5':
     resolution: {integrity: sha512-XKxngyPC8qkbOUfBbWFZVPvcGmdROxg5IH5FhxLOC6VzbMsFBnj7qrp7IiOKLjlTbd+8zXKDNTUMR1ldUfeklg==}
 
@@ -2834,18 +2838,18 @@ packages:
       '@mlightcad/common': ^1.16.5
       '@mlightcad/geometry-engine': ^3.16.5
 
-  '@mlightcad/libredwg-converter@3.16.1':
-    resolution: {integrity: sha512-uIoCVKiR0ja5SHS+5mTkwXAA0Kbo2HcGJi62cxwUHd3MtldMpQzEwGxWuwJIsyIRVuCXlaZUX/Zag87cTev9fw==}
-    version: 3.16.1
+  '@mlightcad/libredwg-converter@3.16.5':
+    resolution: {integrity: sha512-S+iRg6LjhvTy7Ug3oguyexjWddW5zXOeIr/kIvmoPORI6S9YTbAhIck5fseoBlrKErwENd1kOK2UllKeOw5V2g==}
+    version: 3.16.5
     peerDependencies:
-      '@mlightcad/data-model': ^1.16.1
+      '@mlightcad/data-model': ^1.16.5
 
   '@mlightcad/libredwg-web@0.8.2':
     resolution: {integrity: sha512-0iX1lbASPEWwhljHAmaB6/mNHAPObCMmlDIza1a6B0egpm0DGfaMjXimwWmVSPE+FNEMhQxB3Tw0mupDwkWHIQ==}
     engines: {node: '>=20'}
 
-  '@mlightcad/libredwg-web@0.9.3':
-    resolution: {integrity: sha512-VpHcXjn3JzsH/xa2NplP7LW0f8nA+SOzH7mNBXwD8PndGUQkbR/TY8GZxBxrg2S1JRcFoqLx0JMosoisFkydCg==}
+  '@mlightcad/libredwg-web@0.9.4':
+    resolution: {integrity: sha512-wBgEatCasp775UftBTU+1s4LIym0ozNqhl7G1eUIu+BtKYDKV4YbA+gKBhkkxYDOVKxfXHP2Gt6eQtGWRN9BRQ==}
     engines: {node: '>=20'}
 
   '@mlightcad/mtext-input-box@0.3.10':
@@ -2864,11 +2868,11 @@ packages:
       '@mlightcad/mtext-parser': 1.5.7
       three: ^0.186.1
 
-  '@mlightcad/ribbon@0.1.15':
-    resolution: {integrity: sha512-QKMygpgvV6jXnpqh5Jz3NdBdWu8KdUB5JwjfDl/btt7WLs+VtkLBksCyoqVTO06x8XZD27K896NIzkzOubFS7Q==}
+  '@mlightcad/ribbon@0.1.17':
+    resolution: {integrity: sha512-M7lyEdzLC4eNoY7HAYGuo7MjkuYrsDzRFyqz1xZd6byFuP1UMl79SOOXCDp266lwO5M3i3wCRtPYfJnp/Aplcw==}
     peerDependencies:
       '@element-plus/icons-vue': ^2.3.2
-      element-plus: ^2.12.0
+      element-plus: ^2.13.4
       vue: ^3.4.21
 
   '@mlightcad/shx-parser@1.4.5':
@@ -2887,7 +2891,7 @@ packages:
   '@mlightcad/ui-components@0.1.14':
     resolution: {integrity: sha512-CVJJq0m+sz9ZVv5Oftmgjfk/8rEYJeoZdJsKNB534BYG2Xc9xfoIzVvp8xmx881Z2wkAsjq8Y264UKcf16/log==}
     peerDependencies:
-      element-plus: ^2.12.0
+      element-plus: ^2.13.4
       vue: ^3.4.21
 
   '@modelcontextprotocol/sdk@1.32.2':
@@ -2983,10 +2987,6 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
-
-  '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz':
-    resolution: {integrity: sha512-mVFrTMqHx7BcL9gFjPUoW1Bdp401pkoZ8lJQ91CKa5XSNo8dh4hcloHPsukMDv2SLAAmmKMf41XD5BYkbCBVwg==, tarball: file:vendor/njbestway-data-model-1.16.4.tgz}
-    version: 1.16.4
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -9541,6 +9541,14 @@ snapshots:
     dependencies:
       loglevel: 1.9.2
 
+  '@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz':
+    dependencies:
+      '@mlightcad/common': 1.16.5
+      '@mlightcad/emf-converter': 1.16.5
+      '@mlightcad/geometry-engine': 3.16.5(@mlightcad/common@1.16.5)
+      '@mlightcad/graphic-interface': 3.16.5(@mlightcad/common@1.16.5)(@mlightcad/geometry-engine@3.16.5(@mlightcad/common@1.16.5))
+      uid: 2.0.2
+
   '@mlightcad/emf-converter@1.16.5': {}
 
   '@mlightcad/geometry-engine@3.16.5(@mlightcad/common@1.16.5)':
@@ -9552,14 +9560,14 @@ snapshots:
       '@mlightcad/common': 1.16.5
       '@mlightcad/geometry-engine': 3.16.5(@mlightcad/common@1.16.5)
 
-  '@mlightcad/libredwg-converter@3.16.1(@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz)':
+  '@mlightcad/libredwg-converter@3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)':
     dependencies:
-      '@mlightcad/data-model': '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz'
-      '@mlightcad/libredwg-web': 0.9.3
+      '@mlightcad/data-model': file:vendor/njbestway-data-model-1.16.5.tgz
+      '@mlightcad/libredwg-web': 0.9.4
 
   '@mlightcad/libredwg-web@0.8.2': {}
 
-  '@mlightcad/libredwg-web@0.9.3': {}
+  '@mlightcad/libredwg-web@0.9.4': {}
 
   '@mlightcad/mtext-input-box@0.3.10(@mlightcad/mtext-parser@1.5.7)(@mlightcad/mtext-renderer@0.13.10(@mlightcad/mtext-parser@1.5.7)(three@0.186.1))(three@0.186.1)':
     dependencies:
@@ -9579,7 +9587,7 @@ snapshots:
       opentype.js: 2.0.0
       three: 0.186.1
 
-  '@mlightcad/ribbon@0.1.15(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))':
+  '@mlightcad/ribbon@0.1.17(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))':
     dependencies:
       '@element-plus/icons-vue': 2.3.2(vue@3.5.31(typescript@5.9.3))
       element-plus: 2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
@@ -9682,14 +9690,6 @@ snapshots:
       '@emnapi/runtime': 1.10.0
       '@tybys/wasm-util': 0.10.2
     optional: true
-
-  '@njbestway/data-model@file:vendor/njbestway-data-model-1.16.4.tgz':
-    dependencies:
-      '@mlightcad/common': 1.16.5
-      '@mlightcad/emf-converter': 1.16.5
-      '@mlightcad/geometry-engine': 3.16.5(@mlightcad/common@1.16.5)
-      '@mlightcad/graphic-interface': 3.16.5(@mlightcad/common@1.16.5)(@mlightcad/geometry-engine@3.16.5(@mlightcad/common@1.16.5))
-      uid: 2.0.2
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

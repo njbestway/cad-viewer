@@ -170,7 +170,7 @@ The offline HTML viewer uses about **83% less memory than AutoCAD 2020** and abo
 
 The default open-source DWG path is [`@njbestway/acad-rust-converter`](https://www.npmjs.com/package/@njbestway/acad-rust-converter), developed in-tree at `packages/acad-rust-converter` since 0.2.0 (npm 0.1.0 is the legacy external release), built on [acadrust](https://github.com/hakanaktt/acadrust) — pure Rust compiled to WebAssembly under the **MPL-2.0** license. It is a copyleft-free replacement for the legacy GPL-3.0 `@mlightcad/libredwg-converter`: its file-level copyleft does **not** propagate to your application, so closed-source commercial products can parse DWG without GPL obligations. The example packages register it for `AcDbFileType.DWG` and run it in a worker. `@mlightcad/cad-simple-viewer` itself still does **not** depend on or register any DWG converter — host apps opt in explicitly.
 
-Route-B incremental DWG patch-save additionally relies on the `dwgHandle` entity field, which upstream `@mlightcad/data-model` does not expose yet. The monorepo therefore consumes a **locally maintained fork** of data-model (developed in the sibling `realdwg-web` repository, merged with upstream over time, **not published to npm**) through the vendored tarball `vendor/njbestway-data-model-1.16.4.tgz` wired via the `pnpm-workspace.yaml` override. To refresh it: rebuild the fork, re-pack the tarball (strip `devDependencies` before packing), replace the vendor file and bump the override entry.
+Route-B incremental DWG patch-save additionally relies on the `dwgHandle` entity field, which upstream `@mlightcad/data-model` does not expose yet. The monorepo therefore consumes a **locally maintained fork** of data-model (developed in the sibling `realdwg-web` repository, merged with upstream over time, **not published to npm**) through the vendored tarball `vendor/njbestway-data-model-1.16.5.tgz` wired via the `pnpm-workspace.yaml` override. To refresh it: rebuild the fork, re-pack the tarball (strip `devDependencies` before packing), replace the vendor file and bump the override entry.
 
 The older [LibreDWG](https://github.com/LibreDWG/libredwg) converter (`@mlightcad/libredwg-converter`) remains available as a GPL-3.0 alternative, but it is no longer the recommended open-source path: its entity coverage is limited, its WASM bundle is much larger, startup is slower, memory usage is higher, very large DWG files may hit out-of-memory errors, and it carries GPL propagation considerations.
 
@@ -283,13 +283,12 @@ Legend:
 
 #### Geometry Editing
 
-* [x] Grip points
-* [ ] Stretch
-* [ ] Trim
-* [ ] Extend
+* [x] Stretch
+* [x] Trim
+* [x] Extend
 * [x] Offset
-* [ ] Explode
-* [ ] Join / fillet / chamfer (2D)
+* [x] Explode
+* [x] Join / fillet / chamfer (2D)
 
 ### Drawing & Creation Tools
 

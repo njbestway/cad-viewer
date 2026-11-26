@@ -127,6 +127,7 @@ import {
   attachImage,
   bdetect,
   bsearch,
+  chamfer,
   circleCenterDiameter,
   circleCenterRadius,
   circleTanTanRadius,
@@ -150,11 +151,14 @@ import {
   ellipseArc,
   ellipseCenter,
   explode,
+  extend,
+  fillet,
   find,
   group,
   groupEdit,
   groupSelect,
   hatch,
+  join,
   layerCurrent,
   layerFreeze,
   layerIsolate,
@@ -166,6 +170,7 @@ import {
   layerUnisolate,
   layerUnlock,
   line,
+  mirror,
   mleader,
   mleaderAdd,
   mleaderRemove,
@@ -190,7 +195,9 @@ import {
   scale,
   setting,
   splineFitPoints,
+  stretch,
   textStyle,
+  trim,
   ucs,
   ucsObject,
   ucsOrigin,
@@ -1366,6 +1373,9 @@ const buildBaseTabs = (
     mleaderAdd: t('main.ribbon.tooltip.mleaderAdd'),
     mleaderRemove: t('main.ribbon.tooltip.mleaderRemove'),
     move: t('main.ribbon.tooltip.move'),
+    mirror: t('main.ribbon.tooltip.mirror'),
+    trim: t('main.ribbon.tooltip.trim'),
+    extend: t('main.ribbon.tooltip.extend'),
     rotate: t('main.ribbon.tooltip.rotate'),
     scale: t('main.ribbon.tooltip.scale'),
     erase: t('main.ribbon.tooltip.erase'),
@@ -1377,6 +1387,10 @@ const buildBaseTabs = (
     copyBase: t('main.ribbon.tooltip.copyBase'),
     offset: t('main.ribbon.tooltip.offset'),
     explode: t('main.ribbon.tooltip.explode'),
+    join: t('main.ribbon.tooltip.join'),
+    stretch: t('main.ribbon.tooltip.stretch'),
+    fillet: t('main.ribbon.tooltip.fillet'),
+    chamfer: t('main.ribbon.tooltip.chamfer'),
     undo: t('main.ribbon.tooltip.undo'),
     redo: t('main.ribbon.tooltip.redo'),
     properties: t('main.ribbon.tooltip.properties'),
@@ -2254,86 +2268,25 @@ const buildBaseTabs = (
           ]
         },
         {
-          id: 'home-clipboard',
-          title: t('main.ribbon.group.clipboard'),
-          orientation: 'row',
-          collections: [
-            {
-              id: 'home-clipboard-main',
-              layout: 'row',
-              items: [
-                {
-                  id: 'cmd-pasteclip',
-                  type: 'dropdown',
-                  label: t('main.ribbon.command.pasteClip'),
-                  tooltip: ribbonTooltips.pasteClip,
-                  size: 'large',
-                  props: {
-                    icon: pasteClip,
-                    options: [
-                      {
-                        value: 'paste-clip',
-                        label: t('main.ribbon.command.pasteClip'),
-                        tooltip: ribbonTooltips.pasteClip,
-                        icon: pasteClip
-                      },
-                      {
-                        value: 'paste-orig',
-                        label: t('main.ribbon.command.pasteOrig'),
-                        tooltip: ribbonTooltips.pasteOrig,
-                        icon: pasteOrig
-                      },
-                      {
-                        value: 'paste-block',
-                        label: t('main.ribbon.command.pasteBlock'),
-                        tooltip: ribbonTooltips.pasteBlock,
-                        icon: pasteBlock
-                      }
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              id: 'home-clipboard-secondary',
-              layout: 'column',
-              rows: 3,
-              items: [
-                {
-                  id: 'cmd-cutclip',
-                  type: 'button',
-                  label: t('main.ribbon.command.cutClip'),
-                  tooltip: ribbonTooltips.cutClip,
-                  hideLabel: true,
-                  size: 'small',
-                  props: { icon: Scissor }
-                },
-                {
-                  id: 'cmd-copyclip',
-                  type: 'button',
-                  label: t('main.ribbon.command.copyClip'),
-                  tooltip: ribbonTooltips.copyClip,
-                  hideLabel: true,
-                  size: 'small',
-                  props: { icon: CopyDocument }
-                },
-                {
-                  id: 'cmd-copybase',
-                  type: 'button',
-                  label: t('main.ribbon.command.copyBase'),
-                  tooltip: ribbonTooltips.copyBase,
-                  hideLabel: true,
-                  size: 'small',
-                  props: { icon: copyBase }
-                }
-              ]
-            }
-          ]
-        },
-        {
           id: 'home-modify',
           title: t('main.ribbon.group.modify'),
           orientation: 'row',
+          footerMenuItems: [
+            {
+              id: 'cmd-stretch',
+              type: 'button',
+              label: t('main.ribbon.command.stretch'),
+              tooltip: ribbonTooltips.stretch,
+              props: { icon: stretch }
+            },
+            {
+              id: 'cmd-join',
+              type: 'button',
+              label: t('main.ribbon.command.join'),
+              tooltip: ribbonTooltips.join,
+              props: { icon: join }
+            }
+          ],
           collections: [
             {
               id: 'home-modify-main',
@@ -2367,6 +2320,71 @@ const buildBaseTabs = (
               ]
             },
             {
+              id: 'home-modify-edit',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-trim-extend',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.trim'),
+                  tooltip: ribbonTooltips.trim,
+                  size: 'small',
+                  props: {
+                    icon: trim,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'trim',
+                        label: t('main.ribbon.command.trim'),
+                        tooltip: ribbonTooltips.trim,
+                        icon: trim
+                      },
+                      {
+                        value: 'extend',
+                        label: t('main.ribbon.command.extend'),
+                        tooltip: ribbonTooltips.extend,
+                        icon: extend
+                      }
+                    ]
+                  }
+                },
+                {
+                  id: 'cmd-fillet-chamfer',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.fillet'),
+                  tooltip: ribbonTooltips.fillet,
+                  size: 'small',
+                  props: {
+                    icon: fillet,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'fillet',
+                        label: t('main.ribbon.command.fillet'),
+                        tooltip: ribbonTooltips.fillet,
+                        icon: fillet
+                      },
+                      {
+                        value: 'chamfer',
+                        label: t('main.ribbon.command.chamfer'),
+                        tooltip: ribbonTooltips.chamfer,
+                        icon: chamfer
+                      }
+                    ]
+                  }
+                },
+                {
+                  id: 'cmd-mirror',
+                  type: 'button',
+                  label: t('main.ribbon.command.mirror'),
+                  tooltip: ribbonTooltips.mirror,
+                  size: 'small',
+                  props: { icon: mirror }
+                }
+              ]
+            },
+            {
               id: 'home-modify-secondary',
               layout: 'column',
               rows: 3,
@@ -2376,6 +2394,7 @@ const buildBaseTabs = (
                   type: 'button',
                   label: t('main.ribbon.command.erase'),
                   tooltip: ribbonTooltips.erase,
+                  hideLabel: true,
                   size: 'small',
                   props: { icon: Delete }
                 },
@@ -2384,6 +2403,7 @@ const buildBaseTabs = (
                   type: 'button',
                   label: t('main.ribbon.command.offset'),
                   tooltip: ribbonTooltips.offset,
+                  hideLabel: true,
                   size: 'small',
                   props: { icon: offset }
                 },
@@ -2392,6 +2412,7 @@ const buildBaseTabs = (
                   type: 'button',
                   label: t('main.ribbon.command.explode'),
                   tooltip: ribbonTooltips.explode,
+                  hideLabel: true,
                   size: 'small',
                   props: { icon: explode }
                 }
@@ -2851,30 +2872,108 @@ const buildBaseTabs = (
                     labelWrapLines: 2,
                     labelWrapWidth: 'max-content'
                   }
-                },
+                }
+              ]
+            },
+            {
+              id: 'home-utilities-secondary',
+              layout: 'column',
+              rows: 3,
+              items: [
                 {
                   id: 'cmd-countlist',
                   type: 'button',
                   label: t('main.ribbon.command.countList'),
                   tooltip: ribbonTooltips.countList,
-                  size: 'large',
-                  props: {
-                    icon: countlist,
-                    labelWrapLines: 2,
-                    labelWrapWidth: 'max-content'
-                  }
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: countlist }
                 },
                 {
                   id: 'cmd-drawing-units',
                   type: 'button',
                   label: t('main.ribbon.command.drawingUnits'),
                   tooltip: ribbonTooltips.drawingUnits,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: setting }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'home-clipboard',
+          title: t('main.ribbon.group.clipboard'),
+          orientation: 'row',
+          collections: [
+            {
+              id: 'home-clipboard-main',
+              layout: 'row',
+              items: [
+                {
+                  id: 'cmd-pasteclip',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.pasteClip'),
+                  tooltip: ribbonTooltips.pasteClip,
                   size: 'large',
                   props: {
-                    icon: setting,
-                    labelWrapLines: 2,
-                    labelWrapWidth: 'max-content'
+                    icon: pasteClip,
+                    options: [
+                      {
+                        value: 'paste-clip',
+                        label: t('main.ribbon.command.pasteClip'),
+                        tooltip: ribbonTooltips.pasteClip,
+                        icon: pasteClip
+                      },
+                      {
+                        value: 'paste-orig',
+                        label: t('main.ribbon.command.pasteOrig'),
+                        tooltip: ribbonTooltips.pasteOrig,
+                        icon: pasteOrig
+                      },
+                      {
+                        value: 'paste-block',
+                        label: t('main.ribbon.command.pasteBlock'),
+                        tooltip: ribbonTooltips.pasteBlock,
+                        icon: pasteBlock
+                      }
+                    ]
                   }
+                }
+              ]
+            },
+            {
+              id: 'home-clipboard-secondary',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-cutclip',
+                  type: 'button',
+                  label: t('main.ribbon.command.cutClip'),
+                  tooltip: ribbonTooltips.cutClip,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: Scissor }
+                },
+                {
+                  id: 'cmd-copyclip',
+                  type: 'button',
+                  label: t('main.ribbon.command.copyClip'),
+                  tooltip: ribbonTooltips.copyClip,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: CopyDocument }
+                },
+                {
+                  id: 'cmd-copybase',
+                  type: 'button',
+                  label: t('main.ribbon.command.copyBase'),
+                  tooltip: ribbonTooltips.copyBase,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: copyBase }
                 }
               ]
             }
@@ -3381,6 +3480,12 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-dimstyle', 'dimstyle')
   commandByItemId.set('cmd-mleaderstyle', 'mleaderstyle')
   commandByItemId.set('cmd-move', 'move')
+  commandByItemId.set('cmd-mirror', 'mirror')
+  commandByItemId.set('cmd-trim-extend', 'trim')
+  commandByItemId.set('cmd-trim', 'trim')
+  commandByItemId.set('trim', 'trim')
+  commandByItemId.set('cmd-extend', 'extend')
+  commandByItemId.set('extend', 'extend')
   commandByItemId.set('cmd-rotate', 'rotate')
   commandByItemId.set('cmd-scale', 'scale')
   commandByItemId.set('cmd-erase', 'erase')
@@ -3393,6 +3498,13 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-copybase', 'copybase')
   commandByItemId.set('cmd-offset', 'offset')
   commandByItemId.set('cmd-explode', 'explode')
+  commandByItemId.set('cmd-join', 'join')
+  commandByItemId.set('cmd-stretch', 'stretch')
+  commandByItemId.set('cmd-fillet-chamfer', 'fillet')
+  commandByItemId.set('cmd-fillet', 'fillet')
+  commandByItemId.set('fillet', 'fillet')
+  commandByItemId.set('cmd-chamfer', 'chamfer')
+  commandByItemId.set('chamfer', 'chamfer')
   commandByItemId.set('cmd-layer', 'layer')
   commandByItemId.set('cmd-properties', 'properties')
   commandByItemId.set('cmd-group', 'group')

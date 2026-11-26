@@ -334,26 +334,181 @@ export default {
     notExplodable: 'Počet objektů, které nelze rozložit: {count}',
     minsert: 'Bloky vložené příkazem MINSERT nelze rozložit (počet: {count})'
   },
+  trim: {
+    selectObject: 'Vyberte objekt k oříznutí nebo se Shift k prodloužení nebo',
+    selectEdges: 'Vyberte řezné hrany nebo <vybrat vše>',
+    modePrompt: 'Zadejte možnost režimu oříznutí'
+  },
+  extend: {
+    selectObject: 'Vyberte objekt k prodloužení nebo se Shift k oříznutí nebo',
+    selectEdges: 'Vyberte hraniční hrany nebo <vybrat vše>',
+    modePrompt: 'Zadejte možnost režimu prodloužení'
+  },
+  trimExtend: {
+    currentSettings:
+      'Aktuální nastavení: Promítání={projection}, Hrana={edge}, Režim={mode}',
+    settingValue: {
+      none: 'Žádné',
+      ucs: 'UCS',
+      view: 'Pohled',
+      extend: 'Prodloužit',
+      noExtend: 'Žádné',
+      quick: 'Rychlý',
+      standard: 'Standardní'
+    },
+    projectPrompt: 'Zadejte možnost promítání',
+    edgePrompt: 'Zadejte režim prodloužení implicitní hrany',
+    fenceFirst: 'Určete první bod plotu',
+    fenceNext: 'Určete další bod plotu',
+    crossingFirst: 'Určete první roh',
+    crossingSecond: 'Určete protější roh',
+    erasePrompt: 'Vyberte objekty k vymazání nebo <konec>',
+    noObject: 'Nebyl nalezen žádný objekt.',
+    noIntersection: 'Objekt neprotíná žádnou hranu.',
+    noEdgeInDirection: 'V tomto směru není žádná hrana.',
+    cannotTrim: 'Tento objekt nelze oříznout.',
+    cannotExtend: 'Tento objekt nelze prodloužit.',
+    lockedLayer: 'Objekt je v uzamčené hladině.',
+    nothingToUndo: 'Všechny operace byly vráceny zpět.',
+    keywords: {
+      cuttingEdges: {
+        display: 'Řezné hrany(T)',
+        local: 'Řezné hrany',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: 'Hraniční hrany(B)',
+        local: 'Hraniční hrany',
+        global: 'Boundary'
+      },
+      fence: {
+        display: 'Plot(F)',
+        local: 'Plot',
+        global: 'Fence'
+      },
+      crossing: {
+        display: 'Křížení(C)',
+        local: 'Křížení',
+        global: 'Crossing'
+      },
+      mode: {
+        display: 'Režim(O)',
+        local: 'Režim',
+        global: 'mOde'
+      },
+      project: {
+        display: 'Promítání(P)',
+        local: 'Promítání',
+        global: 'Project'
+      },
+      edge: {
+        display: 'Hrana(E)',
+        local: 'Hrana',
+        global: 'Edge'
+      },
+      erase: {
+        display: 'Vymazat(R)',
+        local: 'Vymazat',
+        global: 'eRase'
+      },
+      undo: {
+        display: 'Zpět(U)',
+        local: 'Zpět',
+        global: 'Undo'
+      },
+      quick: {
+        display: 'Rychlý(Q)',
+        local: 'Rychlý',
+        global: 'Quick'
+      },
+      standard: {
+        display: 'Standardní(S)',
+        local: 'Standardní',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: 'Žádné(N)',
+        local: 'Žádné',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'UCS(U)',
+        local: 'UCS',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: 'Pohled(V)',
+        local: 'Pohled',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: 'Prodloužit(E)',
+        local: 'Prodloužit',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: 'Neprodlužovat(N)',
+        local: 'Neprodlužovat',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo: 'Vyberte alespoň dvě úsečky, oblouky nebo křivky ke spojení.',
+    noneJoined: 'Žádné objekty nelze spojit.',
+    eraseFailed:
+      'Nepodařilo se smazat všechny zdrojové objekty. Spojení bylo zrušeno.',
+    joined: 'Spojeno objektů: {count}.'
+  },
   hatch: {
     prompt: 'Vyberte objekt hranice nebo',
     pickPoint: 'Zadejte vnitřní bod (nebo stiskněte Enter pro dokončení)',
+    originPoint: 'Zadejte počáteční bod vzoru šrafování',
     select: 'Vyberte objekty k šrafování',
     patternName: 'Zadejte název vzoru šrafování',
     scale: 'Zadejte měřítko vzoru šrafování',
     angle: 'Zadejte úhel vzoru šrafování',
     style: 'Zadejte styl šrafování',
     associative: 'Zadejte asociativitu',
+    separate: 'Vytvořit samostatné šrafy?',
+    nothingToUndo: 'Žádná šrafa k vrácení.',
+    remove: 'Vyberte objekty k odstranění z hranice',
+    nothingToRemove: 'Nejsou žádné hraniční objekty k odstranění.',
+    recreateType: 'Zadejte typ objektu hranice',
+    recreateAssociate: 'Asociovat šrafování s novou hranicí?',
+    nothingToRecreate: 'Není vybráno šrafování pro znovuvytvoření hranice.',
+    regionUnsupported: 'Hranice typu oblast zatím nejsou podporovány; místo toho se vytvoří křivka.',
     invalidBoundary: 'Vybrané objekty netvoří uzavřenou hranici.',
     keywords: {
       pick: {
-        display: 'Vybrat body(P)',
+        display: 'Vybrat body(PP)',
         local: 'Vybrat body',
         global: 'PickPoints'
       },
       select: {
-        display: 'Vybrat objekty(S)',
+        display: 'Vybrat objekty(SO)',
         local: 'Vybrat objekty',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: 'Odstranit hranice(R)',
+        local: 'Odstranit hranice',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: 'Křivka(P)',
+        local: 'Křivka',
+        global: 'Polyline'
+      },
+      region: {
+        display: 'Oblast(R)',
+        local: 'Oblast',
+        global: 'Region'
+      },
+      undo: {
+        display: 'Zpět(U)',
+        local: 'Zpět',
+        global: 'Undo'
       },
       cancel: {
         display: 'Zrušit(C)',
@@ -376,7 +531,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: 'Styl(T)',
+        display: 'Styl(HS)',
         local: 'Styl',
         global: 'HatchStyle'
       },
@@ -384,6 +539,11 @@ export default {
         display: 'Asociativní(AS)',
         local: 'Asociativní',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: 'Samostatně(SE)',
+        local: 'Samostatně',
+        global: 'SEparate'
       },
       normal: {
         display: 'Normální(N)',
@@ -924,6 +1084,21 @@ export default {
       chooseFile: 'Vyberte sidecar JSON soubor poznámek'
     }
   },
+  stretch: {
+    crossingFirst: 'Určete první roh křížového okna',
+    crossingSecond: 'Určete protilehlý roh',
+    basePointOrDisplacement: 'Určete základní bod nebo',
+    secondPointOrDisplacement: 'Určete druhý bod nebo',
+    displacement: 'Určete posunutí',
+    nothingStretched: 'Nebyly nataženy žádné objekty.',
+    keywords: {
+      displacement: {
+        display: 'Posunutí(D)',
+        local: 'Posunutí',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: 'Zadejte základní bod nebo',
     secondPointOrDisplacement: 'Zadejte druhý bod nebo',
@@ -943,6 +1118,161 @@ export default {
     invalidDistance: 'Vzdálenost offsetu musí být větší než 0.',
     invalidSelection: 'Vybraný objekt nelze offsetovat.',
     offsetFailed: 'Nelze vytvořit offsetovou křivku na zadané straně.'
+  },
+  fillet: {
+    currentSettings: 'Aktuální nastavení: Režim = {mode}, Poloměr = {radius}',
+    modeTrim: 'OŘÍZNOUT',
+    modeNoTrim: 'NEOŘÍZNOUT',
+    selectFirst:
+      'Vyberte první objekt nebo [Zpět(U)/Křivka(P)/Poloměr(R)/Oříznout(T)/Více(M)]',
+    selectSecond:
+      'Vyberte druhý objekt nebo se Shiftem použijte roh, nebo [Poloměr(R)]',
+    selectPolyline: 'Vyberte 2D křivku',
+    specifyRadius: 'Zadejte poloměr zaoblení',
+    trimPrompt: 'Zadejte režim oříznutí [Oříznout(T)/Neoříznout(N)]',
+    rejectObject: 'Objekt nelze zaoblit.',
+    rejectPolyline: 'Vybraný objekt není 2D křivka.',
+    invalidRadius: 'Poloměr zaoblení musí být nula nebo větší.',
+    eraseFailed:
+      'Nepodařilo se smazat všechny převedené objekty. Zaoblení bylo zrušeno.',
+    nothingToUndo: 'Příkaz byl zcela vrácen.',
+    polylineResult: 'Zaobleno {filleted} vrcholů; přeskočeno {skipped}.',
+    keywords: {
+      undo: {
+        display: 'Zpět(U)',
+        local: 'Zpět',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'Křivka(P)',
+        local: 'Křivka',
+        global: 'Polyline'
+      },
+      radius: {
+        display: 'Poloměr(R)',
+        local: 'Poloměr',
+        global: 'Radius'
+      },
+      trim: {
+        display: 'Oříznout(T)',
+        local: 'Oříznout',
+        global: 'Trim'
+      },
+      multiple: {
+        display: 'Více(M)',
+        local: 'Více',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'Oříznout(T)',
+        local: 'Oříznout',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'Neoříznout(N)',
+        local: 'Neoříznout',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: 'Neplatný poloměr zaoblení.',
+      parallel: 'Úsečky jsou rovnoběžné a nelze vytvořit rohové zaoblení.',
+      noIntersection: 'Objekty se neprotínají.',
+      radiusTooLarge: 'Poloměr zaoblení je pro vybrané objekty příliš velký.',
+      noSolution: 'Nelze vytvořit zaoblení pro vybrané objekty.',
+      unsupported: 'Vybraný typ objektu nepodporuje zaoblení.'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '(režim {mode}) Aktuální zkosení Dist1 = {dist1}, Dist2 = {dist2}',
+    currentSettingsAngle:
+      '(režim {mode}) Aktuální zkosení Délka = {length}, Úhel = {angle}',
+    modeTrim: 'OŘÍZNOUT',
+    modeNoTrim: 'NEOŘÍZNOUT',
+    selectFirst:
+      'Vyberte první úsečku nebo [Zpět(U)/Křivka(P)/Vzdálenost(D)/Úhel(A)/Oříznout(T)/Metoda(E)/Více(M)]',
+    selectSecond:
+      'Vyberte druhou úsečku nebo se Shiftem použijte roh, nebo [Vzdálenost(D)/Úhel(A)/Metoda(E)]',
+    selectPolyline: 'Vyberte 2D křivku',
+    specifyDist1: 'Zadejte první vzdálenost zkosení',
+    specifyDist2: 'Zadejte druhou vzdálenost zkosení',
+    specifyLength: 'Zadejte délku zkosení na první úsečce',
+    specifyAngle: 'Zadejte úhel zkosení od první úsečky',
+    trimPrompt: 'Zadejte režim oříznutí [Oříznout(T)/Neoříznout(N)]',
+    methodPrompt: 'Zadejte metodu zkosení [Vzdálenost(D)/Úhel(A)]',
+    rejectObject: 'Objekt nelze zkosit.',
+    rejectPolyline: 'Vybraný objekt není 2D křivka.',
+    eraseFailed:
+      'Nepodařilo se smazat všechny převedené objekty. Zkosení bylo zrušeno.',
+    nothingToUndo: 'Příkaz byl zcela vrácen.',
+    polylineResult: 'Zkoseno {chamfered} vrcholů; přeskočeno {skipped}.',
+    keywords: {
+      undo: {
+        display: 'Zpět(U)',
+        local: 'Zpět',
+        global: 'Undo'
+      },
+      polyline: {
+        display: 'Křivka(P)',
+        local: 'Křivka',
+        global: 'Polyline'
+      },
+      distance: {
+        display: 'Vzdálenost(D)',
+        local: 'Vzdálenost',
+        global: 'Distance'
+      },
+      angle: {
+        display: 'Úhel(A)',
+        local: 'Úhel',
+        global: 'Angle'
+      },
+      trim: {
+        display: 'Oříznout(T)',
+        local: 'Oříznout',
+        global: 'Trim'
+      },
+      method: {
+        display: 'Metoda(E)',
+        local: 'Metoda',
+        global: 'Method'
+      },
+      multiple: {
+        display: 'Více(M)',
+        local: 'Více',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: 'Oříznout(T)',
+        local: 'Oříznout',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: 'Neoříznout(N)',
+        local: 'Neoříznout',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: 'Vzdálenost(D)',
+        local: 'Vzdálenost',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: 'Úhel(A)',
+        local: 'Úhel',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: 'Neplatná vzdálenost nebo úhel zkosení.',
+      parallel: 'Úsečky jsou rovnoběžné a nelze je zkosit.',
+      noIntersection: 'Objekty se neprotínají.',
+      distanceTooLarge:
+        'Vzdálenost zkosení je pro vybrané objekty příliš velká.',
+      noSolution: 'Nelze vytvořit zkosení pro vybrané objekty.',
+      unsupported: 'Vybraný typ objektu nepodporuje zkosení.'
+    }
   },
   leader: {
     startPoint: 'Zadejte počáteční bod odkazu',
@@ -1306,6 +1636,26 @@ export default {
         local: 'Šířka',
         global: 'Width'
       }
+    }
+  },
+  mirror: {
+    firstPoint: 'Zadejte první bod osy zrcadlení',
+    secondPoint: 'Zadejte druhý bod osy zrcadlení',
+    eraseSource: 'Odstranit zdrojové objekty?',
+    keywords: {
+      yes: {
+        display: 'Ano(Y)',
+        local: 'Ano',
+        global: 'Yes'
+      },
+      no: {
+        display: 'Ne(N)',
+        local: 'Ne',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: 'Neplatná osa zrcadlení: body musí být různé.'
     }
   },
   rotate: {

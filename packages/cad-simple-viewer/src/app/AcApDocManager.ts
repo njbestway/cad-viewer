@@ -17,6 +17,7 @@ import {
   AcApArcCmd,
   acapBindMarkupSession,
   AcApCacheFontCmd,
+  AcApChamferCmd,
   AcApCircleCmd,
   AcApCloseCmd,
   AcApConvertToBmpCmd,
@@ -43,6 +44,8 @@ import {
   AcApEntityPreviewCmd,
   AcApEraseCmd,
   AcApExplodeCmd,
+  AcApExtendCmd,
+  AcApFilletCmd,
   AcApGroupCmd,
   AcApGroupEditCmd,
   AcApHatchCmd,
@@ -50,6 +53,7 @@ import {
   AcApImageAttachCmd,
   AcApInsertCmd,
   acapInstallMarkupSessionBootstrap,
+  AcApJoinCmd,
   AcApLayerCloseCmd,
   AcApLayerCmd,
   AcApLayerCurCmd,
@@ -66,6 +70,7 @@ import {
   AcApLeaderCmd,
   AcApLineCmd,
   AcApLogCmd,
+  AcApMirrorCmd,
   AcApMLeaderCmd,
   AcApMLeaderEditCmd,
   AcApMLineCmd,
@@ -95,6 +100,7 @@ import {
   AcApSplineCmd,
   AcApSwitchBgCmd,
   AcApSysVarCmd,
+  AcApTrimCmd,
   AcApUcsCmd,
   AcApUndoCmd,
   AcApUngroupCmd,
@@ -108,6 +114,8 @@ import {
 } from '../command/index.js'
 import { registerMarkupCommands } from '../command/markup/AcApRegisterMarkupCommands.js'
 import { registerMeasureCommands } from '../command/measure/AcApRegisterMeasureCommands.js'
+import { AcApStretchCmd } from '../command/modify/AcApStretchCmd.js'
+import { acapRegisterTrimExtendSysVars } from '../command/modify/AcApTrimExtendSysVars.js'
 import { AcApTxt2MtxtCmd } from '../command/modify/AcApTxt2MtxtCmd.js'
 import {
   AcEdCalculateSizeCallback,
@@ -124,7 +132,10 @@ import {
   acapResolveLayoutFrameBox
 } from '../util/AcApLayoutViewFraming.js'
 import { acapResolveOpenFileType } from '../util/acapResolveOpenFileType.js'
-import { isScriptQuitCommand, parseScriptLines } from '../util/AcApScriptParser.js'
+import {
+  isScriptQuitCommand,
+  parseScriptLines
+} from '../util/AcApScriptParser.js'
 import { acapWithSecondaryDatabase } from '../util/AcApSecondaryDatabase.js'
 import type { AcApCompareDisplayOptions } from '../view/AcApCompareDisplay.js'
 import type { AcTrLayout } from '../view/AcTrLayout.js'
@@ -134,7 +145,10 @@ import { AcApClipboard } from './AcApClipboard.js'
 import { acapBindCommandServices } from './AcApCommandServices.js'
 import { AcApContext } from './AcApContext.js'
 import { AcApDocSession } from './AcApDocSession.js'
-import { ACAP_DEFAULT_DOCS_BASE_URL, acapSetDocsBaseUrl } from './AcApDocsUrl.js'
+import {
+  ACAP_DEFAULT_DOCS_BASE_URL,
+  acapSetDocsBaseUrl
+} from './AcApDocsUrl.js'
 import { AcApDocument } from './AcApDocument.js'
 import { AcApFontLoader } from './AcApFontLoader.js'
 import { acapHealModelLayoutLink } from './acapHealModelLayoutLink.js'
@@ -190,6 +204,13 @@ const DEFAULT_COMMAND_ALIASES: Record<string, string[]> = {
   ELLIPSE: ['EL'],
   ERASE: ['E'],
   EXPLODE: ['X'],
+  FILLET: ['F'],
+  CHAMFER: ['CHA'],
+  JOIN: ['J'],
+  EXTEND: ['EX'],
+  TRIM: ['TR'],
+  GROUP: ['G'],
+  '-GROUP': ['-G'],
   DIMLINEAR: ['DLI'],
   DIMALIGNED: ['DAL', 'DIMALI'],
   DIMRADIUS: ['DRA', 'DIMRAD'],
@@ -202,32 +223,41 @@ const DEFAULT_COMMAND_ALIASES: Record<string, string[]> = {
   MEASUREDISTANCE: ['DI', 'DIST'],
   MEASUREAREA: ['AA', 'AREA'],
   MEASUREANGLE: ['ANG'],
+  HATCH: ['H'],
   '-HATCH': ['-H'],
   IMAGEATTACH: ['IAT'],
-  '-INSERT': ['I'],
+  '-INSERT': ['I', '-I'],
   XATTACH: ['XA'],
+  XREF: ['XR'],
   LAYER: ['LA'],
   '-LAYER': ['-LA'],
   LINE: ['L'],
+  LEADER: ['LE'],
+  MLEADER: ['MLD'],
   MLINE: ['ML'],
   MLEADEREDIT: ['MLE'],
-  MTEXT: ['T'],
+  MTEXT: ['T', 'MT'],
   TXT2MTXT: ['T2M'],
   MOVE: ['M'],
   OFFSET: ['O'],
-  COPY: ['CO'],
+  COPY: ['CO', 'CP'],
+  COPYBASE: ['CB'],
+  PROPERTIES: ['PR', 'PROPS', 'CH', 'MO'],
+  MIRROR: ['MI'],
   ROTATE: ['RO'],
   SCALE: ['SC'],
-  OPEN: ['OP'],
+  STRETCH: ['S'],
+  // OPEN has no acad.pgp alias (Ctrl+O); OP is OPTIONS in AutoCAD.
   PAN: ['P'],
   POINT: ['PO'],
   POLYGON: ['POL'],
   PLINE: ['PL'],
-  RAY: ['RA'],
+  // RAY has no acad.pgp alias; RA is REDRAWALL in AutoCAD.
   RECTANG: ['REC'],
   REGEN: ['RE'],
-  SELECT: ['SE'],
+  // SELECT has no acad.pgp alias; SE is DSETTINGS in AutoCAD.
   SPLINE: ['SPL'],
+  UNITS: ['UN'],
   XLINE: ['XL'],
   ZOOM: ['Z'],
   UNDO: ['U'],
@@ -476,7 +506,9 @@ export interface AcApDocManagerOptions {
    * - `false`: do not load (use for `cad-editor`, CLI, headless)
    * - object: enable with those {@link AcUiSimpleUiOptions}
    */
-  simpleUi?: boolean | import('../ui/AcUiSimpleUiOptions.js').AcUiSimpleUiOptions
+  simpleUi?:
+    | boolean
+    | import('../ui/AcUiSimpleUiOptions.js').AcUiSimpleUiOptions
 }
 
 /**
@@ -1822,7 +1854,10 @@ export class AcApDocManager {
     })
     const created = await this.ensureOpenSession()
     this.beginOpenProgress()
-    this.onBeforeOpenDocument(openOptions, !created)
+    // The blank template has no text. Eagerly loading the full font preset
+    // (including the multi-MB CJK `simsun.woff`) made an empty drawing pay
+    // seconds of parse CPU and tens of MB of heap for glyphs it never draws.
+    this.onBeforeOpenDocument(openOptions, !created, false)
     await this._openFileProgress.beginOpen(this.context.doc.database)
     const isSuccess = await this.context.doc.openUri(templateUrl, openOptions)
     if (isSuccess) {
@@ -2066,14 +2101,12 @@ export class AcApDocManager {
       cmdLocalName: string,
       cmd: AcEdCommand
     ) => {
-      const defaults =
-        DEFAULT_COMMAND_ALIASES[cmdGlobalName.toUpperCase()] ?? []
       register.addCommand(
         AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
         cmdGlobalName,
         cmdLocalName,
         cmd,
-        this.resolveCommandAliases(cmdGlobalName, defaults)
+        this.getResolvedCommandAliases(cmdGlobalName)
       )
     }
 
@@ -2092,6 +2125,10 @@ export class AcApDocManager {
     addSystemCommand('ellipse', 'ellipse', new AcApEllipseCmd())
     addSystemCommand('erase', 'erase', new AcApEraseCmd())
     addSystemCommand('explode', 'explode', new AcApExplodeCmd())
+    addSystemCommand('fillet', 'fillet', new AcApFilletCmd())
+    addSystemCommand('chamfer', 'chamfer', new AcApChamferCmd())
+    addSystemCommand('extend', 'extend', new AcApExtendCmd())
+    addSystemCommand('join', 'join', new AcApJoinCmd())
     addSystemCommand('group', 'group', new AcApGroupCmd())
     addSystemCommand('-bsearch', '-bsearch', new AcApDashBSearchCmd())
     addSystemCommand('-group', '-group', new AcApDashGroupCmd())
@@ -2153,10 +2190,15 @@ export class AcApDocManager {
     addSystemCommand('pasteclip', 'pasteclip', new AcApPasteClipCmd())
     addSystemCommand('pasteorig', 'pasteorig', new AcApPasteOrigCmd())
     addSystemCommand('pasteblock', 'pasteblock', new AcApPasteBlockCmd())
+    addSystemCommand('mirror', 'mirror', new AcApMirrorCmd())
     addSystemCommand('move', 'move', new AcApMoveCmd())
     addSystemCommand('offset', 'offset', new AcApOffsetCmd())
     addSystemCommand('rotate', 'rotate', new AcApRotateCmd())
     addSystemCommand('scale', 'scale', new AcApScaleCmd())
+    // Leaf import (not command barrel): avoids a CJS cycle that left
+    // AcApStretchCmd undefined, and stays browser-safe (no require()).
+    addSystemCommand('stretch', 'stretch', new AcApStretchCmd())
+    addSystemCommand('trim', 'trim', new AcApTrimCmd())
     addSystemCommand('log', 'log', new AcApLogCmd())
     addSystemCommand('objectscale', 'objectscale', new AcApObjectScaleCmd())
     addSystemCommand('open', 'open', new AcApOpenCmd())
@@ -2207,6 +2249,7 @@ export class AcApDocManager {
     }
 
     // Register system variables as commands
+    acapRegisterTrimExtendSysVars()
     const sysVars = sysVarManager.getAllDescriptors()
     sysVars.forEach(sysVar => {
       register.addCommand(
@@ -2259,6 +2302,23 @@ export class AcApDocManager {
     })
 
     return map
+  }
+
+  /**
+   * Resolved aliases for a command (user `commandAliases` overrides, else
+   * built-in AutoCAD-style defaults).
+   *
+   * Hosts that register commands outside the built-in system command set (for
+   * example `LAYER` / `HATCH` in the editor UI) should pass this list as the
+   * `addCommand` alias argument so overrides and defaults stay in sync.
+   *
+   * @param commandName - Command global name
+   * @returns Final aliases used for command registration
+   */
+  getResolvedCommandAliases(commandName: string): string[] {
+    const defaults =
+      DEFAULT_COMMAND_ALIASES[commandName.trim().toUpperCase()] ?? []
+    return this.resolveCommandAliases(commandName, defaults)
   }
 
   /**
@@ -2497,11 +2557,18 @@ export class AcApDocManager {
    * This protected method is called automatically before any document opening operation.
    * It clears the current view to prepare for the new document content.
    *
+   * @param options - Options of the document being opened.
+   * @param replaceCurrent - Whether the current view content is replaced.
+   * @param preloadPresetFonts - Start loading the default/symbol font preset
+   *   right away so it overlaps parsing. Pass `false` when the source is known
+   *   to contain no text (e.g. the blank new-drawing template): fonts then load
+   *   lazily the first time text is drawn.
    * @protected
    */
   protected onBeforeOpenDocument(
     options?: AcApOpenDatabaseOptions,
-    replaceCurrent = true
+    replaceCurrent = true,
+    preloadPresetFonts = true
   ) {
     this.events.documentToBeOpened.dispatch({
       doc: this.context.doc,
@@ -2542,8 +2609,10 @@ export class AcApDocManager {
     }
     // Preset fonts are drawing-independent — start immediately so download /
     // mesh parse overlaps db.read. Glyph finalize awaits the promise; linework
-    // convert does not.
-    void this.ensurePresetFontsForOpen()
+    // convert does not. Glyph finalize starts it on demand when skipped here.
+    if (preloadPresetFonts) {
+      void this.ensurePresetFontsForOpen()
+    }
     // OPENPROF: start stage timings before db.read / entity flush.
     this._openFileProfiler.begin(this.context.doc.database)
     // Phase 2.9: the parse and the entity-registration stream that follows it

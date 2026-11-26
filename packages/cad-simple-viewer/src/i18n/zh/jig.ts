@@ -287,26 +287,179 @@ export default {
     notExplodable: '{count} 个对象无法分解',
     minsert: '{count} 个用 MINSERT 插入的块无法分解'
   },
+  trim: {
+    selectObject: '选择要修剪的对象，或按住 Shift 键选择要延伸的对象，或',
+    selectEdges: '选择剪切边或 <全部选择>',
+    modePrompt: '输入修剪模式选项'
+  },
+  extend: {
+    selectObject: '选择要延伸的对象，或按住 Shift 键选择要修剪的对象，或',
+    selectEdges: '选择边界边或 <全部选择>',
+    modePrompt: '输入延伸模式选项'
+  },
+  trimExtend: {
+    currentSettings: '当前设置：投影={projection}，边={edge}，模式={mode}',
+    settingValue: {
+      none: '无',
+      ucs: 'UCS',
+      view: '视图',
+      extend: '延伸',
+      noExtend: '无',
+      quick: '快速',
+      standard: '标准'
+    },
+    projectPrompt: '输入投影选项',
+    edgePrompt: '输入隐含边延伸模式',
+    fenceFirst: '指定第一个栏选点',
+    fenceNext: '指定下一个栏选点',
+    crossingFirst: '指定第一个角点',
+    crossingSecond: '指定对角点',
+    erasePrompt: '选择要删除的对象或 <退出>',
+    noObject: '未找到对象。',
+    noIntersection: '对象未与边相交。',
+    noEdgeInDirection: '该方向上没有边。',
+    cannotTrim: '无法修剪此对象。',
+    cannotExtend: '无法延伸此对象。',
+    lockedLayer: '对象位于锁定的图层上。',
+    nothingToUndo: '已放弃所有操作。',
+    keywords: {
+      cuttingEdges: {
+        display: '剪切边(T)',
+        local: '剪切边',
+        global: 'cuTting'
+      },
+      boundaryEdges: {
+        display: '边界边(B)',
+        local: '边界边',
+        global: 'Boundary'
+      },
+      fence: {
+        display: '栏选(F)',
+        local: '栏选',
+        global: 'Fence'
+      },
+      crossing: {
+        display: '窗交(C)',
+        local: '窗交',
+        global: 'Crossing'
+      },
+      mode: {
+        display: '模式(O)',
+        local: '模式',
+        global: 'mOde'
+      },
+      project: {
+        display: '投影(P)',
+        local: '投影',
+        global: 'Project'
+      },
+      edge: {
+        display: '边(E)',
+        local: '边',
+        global: 'Edge'
+      },
+      erase: {
+        display: '删除(R)',
+        local: '删除',
+        global: 'eRase'
+      },
+      undo: {
+        display: '放弃(U)',
+        local: '放弃',
+        global: 'Undo'
+      },
+      quick: {
+        display: '快速(Q)',
+        local: '快速',
+        global: 'Quick'
+      },
+      standard: {
+        display: '标准(S)',
+        local: '标准',
+        global: 'Standard'
+      },
+      projectNone: {
+        display: '无(N)',
+        local: '无',
+        global: 'None'
+      },
+      projectUcs: {
+        display: 'UCS(U)',
+        local: 'UCS',
+        global: 'Ucs'
+      },
+      projectView: {
+        display: '视图(V)',
+        local: '视图',
+        global: 'View'
+      },
+      edgeExtend: {
+        display: '延伸(E)',
+        local: '延伸',
+        global: 'Extend'
+      },
+      edgeNoExtend: {
+        display: '不延伸(N)',
+        local: '不延伸',
+        global: 'No'
+      }
+    }
+  },
+  join: {
+    needTwo: '请至少选择两条直线、圆弧或多段线进行合并。',
+    noneJoined: '没有可合并的对象。',
+    eraseFailed: '无法删除全部源对象，合并已取消。',
+    joined: '已合并 {count} 个对象。'
+  },
   hatch: {
     prompt: '选择边界对象或',
     pickPoint: '指定内部点（或按 Enter 结束）',
+    originPoint: '指定填充图案的原点',
     select: '选择要填充的对象',
     patternName: '输入填充图案名称',
     scale: '指定填充图案比例',
     angle: '指定填充图案角度',
     style: '输入填充样式',
     associative: '指定关联性',
+    separate: '是否创建独立的填充？',
+    nothingToUndo: '没有可撤销的填充。',
+    remove: '选择要从边界中删除的对象',
+    nothingToRemove: '没有可删除的边界对象。',
+    recreateType: '输入边界对象类型',
+    recreateAssociate: '是否将填充与新边界关联？',
+    nothingToRecreate: '没有可重建边界的填充。',
+    regionUnsupported: '暂不支持面域边界，将改为创建多段线。',
     invalidBoundary: '所选对象无法构成闭合边界。',
     keywords: {
       pick: {
-        display: '拾取点(P)',
+        display: '拾取点(PP)',
         local: '拾取点',
         global: 'PickPoints'
       },
       select: {
-        display: '选择对象(S)',
+        display: '选择对象(SO)',
         local: '选择对象',
         global: 'SelectObjects'
+      },
+      remove: {
+        display: '删除边界(R)',
+        local: '删除边界',
+        global: 'RemoveBoundaries'
+      },
+      polyline: {
+        display: '多段线(P)',
+        local: '多段线',
+        global: 'Polyline'
+      },
+      region: {
+        display: '面域(R)',
+        local: '面域',
+        global: 'Region'
+      },
+      undo: {
+        display: '撤销(U)',
+        local: '撤销',
+        global: 'Undo'
       },
       cancel: {
         display: '放弃(C)',
@@ -329,7 +482,7 @@ export default {
         global: 'Angle'
       },
       style: {
-        display: '样式(T)',
+        display: '样式(HS)',
         local: '样式',
         global: 'HatchStyle'
       },
@@ -337,6 +490,11 @@ export default {
         display: '关联(AS)',
         local: '关联',
         global: 'AssociativeMode'
+      },
+      separate: {
+        display: '独立(SE)',
+        local: '独立',
+        global: 'SEparate'
       },
       normal: {
         display: '普通(N)',
@@ -873,6 +1031,21 @@ export default {
       chooseFile: '选择批注 sidecar JSON 文件'
     }
   },
+  stretch: {
+    crossingFirst: '指定窗交的第一个角点',
+    crossingSecond: '指定对角点',
+    basePointOrDisplacement: '指定基点或',
+    secondPointOrDisplacement: '指定第二个点或',
+    displacement: '指定位移',
+    nothingStretched: '没有对象被拉伸。',
+    keywords: {
+      displacement: {
+        display: '位移(D)',
+        local: '位移',
+        global: 'Displacement'
+      }
+    }
+  },
   move: {
     basePointOrDisplacement: '指定基点或',
     secondPointOrDisplacement: '指定第二个点或',
@@ -892,6 +1065,156 @@ export default {
     invalidDistance: '偏移距离必须大于 0。',
     invalidSelection: '所选对象不能偏移。',
     offsetFailed: '无法在指定侧创建偏移曲线。'
+  },
+  fillet: {
+    currentSettings: '当前设置：模式 = {mode}，半径 = {radius}',
+    modeTrim: '修剪',
+    modeNoTrim: '不修剪',
+    selectFirst: '选择第一个对象或 [放弃(U)/多段线(P)/半径(R)/修剪(T)/多个(M)]',
+    selectSecond: '选择第二个对象，或按住 Shift 选择对象以应用角点或 [半径(R)]',
+    selectPolyline: '选择二维多段线',
+    specifyRadius: '指定圆角半径',
+    trimPrompt: '输入修剪模式选项 [修剪(T)/不修剪(N)]',
+    rejectObject: '无法对该对象进行圆角。',
+    rejectPolyline: '选定的对象不是二维多段线。',
+    invalidRadius: '圆角半径必须大于或等于零。',
+    eraseFailed: '无法删除全部转换后的对象，圆角已取消。',
+    nothingToUndo: '命令已完全放弃。',
+    polylineResult: '已对 {filleted} 个顶点圆角；跳过 {skipped} 个。',
+    keywords: {
+      undo: {
+        display: '放弃(U)',
+        local: '放弃',
+        global: 'Undo'
+      },
+      polyline: {
+        display: '多段线(P)',
+        local: '多段线',
+        global: 'Polyline'
+      },
+      radius: {
+        display: '半径(R)',
+        local: '半径',
+        global: 'Radius'
+      },
+      trim: {
+        display: '修剪(T)',
+        local: '修剪',
+        global: 'Trim'
+      },
+      multiple: {
+        display: '多个(M)',
+        local: '多个',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: '修剪(T)',
+        local: '修剪',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: '不修剪(N)',
+        local: '不修剪',
+        global: 'NoTrim'
+      }
+    },
+    error: {
+      invalidRadius: '圆角半径无效。',
+      parallel: '直线平行，无法创建角点圆角。',
+      noIntersection: '对象不相交。',
+      radiusTooLarge: '圆角半径对于选定对象过大。',
+      noSolution: '无法为选定对象创建圆角。',
+      unsupported: '选定对象类型不支持圆角。'
+    }
+  },
+  chamfer: {
+    currentSettings:
+      '（{mode} 模式）当前倒角距离 Dist1 = {dist1}，Dist2 = {dist2}',
+    currentSettingsAngle:
+      '（{mode} 模式）当前倒角长度 = {length}，角度 = {angle}',
+    modeTrim: '修剪',
+    modeNoTrim: '不修剪',
+    selectFirst:
+      '选择第一条直线或 [放弃(U)/多段线(P)/距离(D)/角度(A)/修剪(T)/方式(E)/多个(M)]',
+    selectSecond:
+      '选择第二条直线，或按住 Shift 选择对象以应用角点或 [距离(D)/角度(A)/方式(E)]',
+    selectPolyline: '选择二维多段线',
+    specifyDist1: '指定第一个倒角距离',
+    specifyDist2: '指定第二个倒角距离',
+    specifyLength: '指定第一条直线上的倒角长度',
+    specifyAngle: '指定第一条直线的倒角角度',
+    trimPrompt: '输入修剪模式选项 [修剪(T)/不修剪(N)]',
+    methodPrompt: '输入倒角方式 [距离(D)/角度(A)]',
+    rejectObject: '无法对该对象进行倒角。',
+    rejectPolyline: '选定的对象不是二维多段线。',
+    eraseFailed: '无法删除全部转换后的对象，倒角已取消。',
+    nothingToUndo: '命令已完全放弃。',
+    polylineResult: '已对 {chamfered} 个顶点倒角；跳过 {skipped} 个。',
+    keywords: {
+      undo: {
+        display: '放弃(U)',
+        local: '放弃',
+        global: 'Undo'
+      },
+      polyline: {
+        display: '多段线(P)',
+        local: '多段线',
+        global: 'Polyline'
+      },
+      distance: {
+        display: '距离(D)',
+        local: '距离',
+        global: 'Distance'
+      },
+      angle: {
+        display: '角度(A)',
+        local: '角度',
+        global: 'Angle'
+      },
+      trim: {
+        display: '修剪(T)',
+        local: '修剪',
+        global: 'Trim'
+      },
+      method: {
+        display: '方式(E)',
+        local: '方式',
+        global: 'Method'
+      },
+      multiple: {
+        display: '多个(M)',
+        local: '多个',
+        global: 'Multiple'
+      },
+      trimMode: {
+        display: '修剪(T)',
+        local: '修剪',
+        global: 'Trim'
+      },
+      noTrim: {
+        display: '不修剪(N)',
+        local: '不修剪',
+        global: 'NoTrim'
+      },
+      distanceMethod: {
+        display: '距离(D)',
+        local: '距离',
+        global: 'Distance'
+      },
+      angleMethod: {
+        display: '角度(A)',
+        local: '角度',
+        global: 'Angle'
+      }
+    },
+    error: {
+      invalidDistance: '倒角距离或角度无效。',
+      parallel: '直线平行，无法倒角。',
+      noIntersection: '对象不相交。',
+      distanceTooLarge: '倒角距离对于选定对象过大。',
+      noSolution: '无法为选定对象创建倒角。',
+      unsupported: '选定对象类型不支持倒角。'
+    }
   },
   leader: {
     startPoint: '指定引线起点',
@@ -1164,6 +1487,26 @@ export default {
     arcSecondPoint: '指定弧上的第二点',
     arcEndPoint: '指定弧的终点',
     arcRadius: '指定弧半径'
+  },
+  mirror: {
+    firstPoint: '指定镜像线的第一点',
+    secondPoint: '指定镜像线的第二点',
+    eraseSource: '是否删除源对象？',
+    keywords: {
+      yes: {
+        display: '是(Y)',
+        local: '是',
+        global: 'Yes'
+      },
+      no: {
+        display: '否(N)',
+        local: '否',
+        global: 'No'
+      }
+    },
+    invalid: {
+      mirrorLine: '镜像线无效：两点必须不同。'
+    }
   },
   rotate: {
     basePoint: '指定基点',
@@ -1922,8 +2265,7 @@ export default {
   },
   pdfimport: {
     pageNumber: '输入页码 (1-{count})',
-    insertionPoint:
-      '指定插入点（比例 {scale}，模式 {mode}，文字 {text}）或',
+    insertionPoint: '指定插入点（比例 {scale}，模式 {mode}，文字 {text}）或',
     modePrompt: '选择导入方式',
     modeRecover: '复原图纸',
     modeVisual: '保留 PDF 视觉效果',

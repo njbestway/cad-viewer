@@ -81,6 +81,24 @@ export default {
     colortheme: {
       description: '控制用户界面的颜色主题（深色或浅色）'
     },
+    commandpreview: {
+      description: '控制是否显示某些命令的可能结果预览'
+    },
+    comparehatch: {
+      description: '控制图形比较时是否包含图案填充对象'
+    },
+    compareprops: {
+      description: '控制哪些非几何特性更改会被识别为图形差异'
+    },
+    comparercmargin: {
+      description: '设置比较图形中变更集边界与修订云线之间的偏移'
+    },
+    comparetext: {
+      description: '控制图形比较时是否包含文字对象'
+    },
+    comparetolerance: {
+      description: '设置比较两个图形时使用的小数位公差'
+    },
     copy: {
       description: '通过克隆将所选图元复制到新位置',
       prompt: '选择对象'
@@ -174,8 +192,21 @@ export default {
       description: '将复合对象分解为其部件对象',
       prompt: '选择要分解的对象'
     },
+    join: {
+      description: '将直线、圆弧和多段线的端点合并为单个对象',
+      prompt: '选择要合并的对象'
+    },
+    extend: {
+      description: '延伸对象以与其他对象的边相接'
+    },
+    trim: {
+      description: '修剪对象以与其他对象的边相接'
+    },
     group: {
       description: '创建和管理称为编组的对象集合'
+    },
+    groupdisplaymode: {
+      description: '控制编组选择打开且选定编组成员时夹点的显示方式'
     },
     '-bsearch': {
       description: '查找相同的几何图形并将其转换为块（命令行）',
@@ -282,6 +313,12 @@ export default {
     },
     hpseparate: {
       description: '控制为多个边界创建单个还是独立的填充对象'
+    },
+    hpquickpreview: {
+      description: '控制在指定填充区域时是否显示填充预览'
+    },
+    hpquickprevtimeout: {
+      description: '设置生成填充预览的最长时间（秒），超时后取消预览'
     },
     hptransparency: {
       description: '设置新创建填充和填充区域的默认透明度'
@@ -391,6 +428,13 @@ export default {
     measurementcolor: {
       description: '设置测量标注覆盖图形使用的颜色'
     },
+    mirrtext: {
+      description: '控制 MIRROR 是否真正镜像文字：0 保持可读，1 镜像文字'
+    },
+    mirror: {
+      description: '创建选定对象的镜像副本',
+      prompt: '选择对象'
+    },
     modelbkcolor: {
       description: '设置模型空间绘图区域的背景颜色'
     },
@@ -409,6 +453,10 @@ export default {
     mline: {
       description: '创建由多条平行线组成的多线对象'
     },
+    stretch: {
+      description: '拉伸与选择窗口相交的对象',
+      prompt: '用窗交选择要拉伸的对象'
+    },
     move: {
       description: '通过位移向量移动所选图元',
       prompt: '选择对象'
@@ -416,6 +464,33 @@ export default {
     objectscale: {
       description: '为选定的注释性对象添加或删除支持的注释比例',
       prompt: '选择注释性对象'
+    },
+    fillet: {
+      description: '给对象的边倒圆角'
+    },
+    filletpolyarc: {
+      description: '控制 FILLET 的“多段线”选项是否对圆弧段倒圆角'
+    },
+    filletrad: {
+      description: '存储当前二维对象的圆角半径'
+    },
+    chamfer: {
+      description: '给对象的边倒角'
+    },
+    chamfera: {
+      description: '设置第一个倒角距离（CHAMMODE 为 0 时）'
+    },
+    chamferb: {
+      description: '设置第二个倒角距离（CHAMMODE 为 0 时）'
+    },
+    chamferc: {
+      description: '设置倒角长度（CHAMMODE 为 1 时）'
+    },
+    chamferd: {
+      description: '设置倒角角度（CHAMMODE 为 1 时）'
+    },
+    chammode: {
+      description: '设置 CHAMFER 的输入方式：0 = 两个距离，1 = 长度和角度'
     },
     offset: {
       description: '按指定距离创建平行曲线、多段线或圆'
@@ -457,6 +532,9 @@ export default {
     pickbox: {
       description: '控制用于选择对象的拾取框大小（像素）'
     },
+    pickstyle: {
+      description: '控制编组选择和关联填充选择'
+    },
     pline: {
       description: '通过指定多个点创建多段线'
     },
@@ -474,6 +552,18 @@ export default {
     },
     polarmode: {
       description: '控制极轴追踪和对象捕捉追踪设置'
+    },
+    projmode: {
+      description: '设置修剪或延伸的当前投影模式'
+    },
+    edgemode: {
+      description: '控制修剪和延伸时剪切边和边界边是否延伸到其自然几何图形'
+    },
+    trimedges: {
+      description: '控制在 TRIM 和 EXTEND 的快速模式下填充图案线是否用作剪切边'
+    },
+    trimextendmode: {
+      description: '控制 TRIM 和 EXTEND 使用快速模式还是标准模式'
     },
     polygon: {
       description: '通过中心和半径或指定一条边创建正多边形'
@@ -560,6 +650,12 @@ export default {
     },
     textstyle: {
       description: '设置当前文字样式的名称'
+    },
+    tilemode: {
+      description: '控制是激活模型选项卡还是图纸空间布局'
+    },
+    trimmode: {
+      description: '控制倒角和圆角时是否修剪选定的边'
     },
     unitmode: {
       description: '当 LUNITS 为建筑或分数格式时，控制坐标的分数显示格式'

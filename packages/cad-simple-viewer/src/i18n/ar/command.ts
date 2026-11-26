@@ -85,6 +85,26 @@ export default {
     colortheme: {
       description: 'التحكم في سمة ألوان واجهة المستخدم بين الوضع الداكن والفاتح'
     },
+    commandpreview: {
+      description: 'التحكم في عرض معاينة للنتيجة المحتملة لأوامر معينة'
+    },
+    comparehatch: {
+      description: 'التحكم في تضمين كائنات التظليل عند مقارنة الرسومات'
+    },
+    compareprops: {
+      description:
+        'التحكم في تغييرات الخصائص غير الهندسية التي تُعرَّف كفروق بين الرسومات'
+    },
+    comparercmargin: {
+      description:
+        'تعيين الإزاحة بين حد مجموعة التغييرات وسحابة المراجعة في رسم المقارنة'
+    },
+    comparetext: {
+      description: 'التحكم في تضمين كائنات النص عند مقارنة الرسومات'
+    },
+    comparetolerance: {
+      description: 'تعيين تسامح المنازل العشرية المستخدم عند مقارنة رسمين'
+    },
     copy: {
       description: 'نسخ العناصر المحددة إلى مواضع جديدة',
       prompt: 'حدد العناصر'
@@ -179,8 +199,23 @@ export default {
       description: 'تفجير كائن مركب إلى الكائنات المكونة له',
       prompt: 'حدد الكائنات المراد تفجيرها'
     },
+    join: {
+      description:
+        'ضم نقاط نهاية الخطوط والأقواس والخطوط المتعددة لإنشاء كائن واحد',
+      prompt: 'حدد الكائنات المراد ضمها'
+    },
+    extend: {
+      description: 'يمدد الكائنات لتلتقي بحواف كائنات أخرى'
+    },
+    trim: {
+      description: 'يقص الكائنات لتلتقي بحواف كائنات أخرى'
+    },
     group: {
       description: 'إنشاء مجموعات كائنات محفوظة وإدارتها'
+    },
+    groupdisplaymode: {
+      description:
+        'التحكم في كيفية عرض المقابض عند تفعيل اختيار المجموعة وتحديد عضو من المجموعة'
     },
     '-bsearch': {
       description: 'يبحث عن الأشكال المتطابقة ويحولها إلى كتل (سطر الأوامر)',
@@ -296,6 +331,12 @@ export default {
       description:
         'التحكم في إنشاء عنصر تهشير واحد أو عناصر منفصلة عند وجود عدة حدود'
     },
+    hpquickpreview: {
+      description: 'التحكم في عرض معاينة التهشير عند تحديد منطقة التهشير'
+    },
+    hpquickprevtimeout: {
+      description: 'تعيين الحد الأقصى للوقت بالثواني لإنشاء معاينة التهشير قبل إلغائها'
+    },
     hptransparency: {
       description: 'تحديد الشفافية الافتراضية للتهشير والتعبئة الجديدة'
     },
@@ -406,6 +447,14 @@ export default {
     measurementcolor: {
       description: 'تحديد اللون المستخدم لتراكبات القياس'
     },
+    mirrtext: {
+      description:
+        'يتحكم في ما إذا كان أمر MIRROR يعكس النص فعليًا: 0 يبقي النص قابلاً للقراءة، و1 يعكس النص'
+    },
+    mirror: {
+      description: 'إنشاء نسخة معكوسة من الكائنات المحددة',
+      prompt: 'حدد الكائنات'
+    },
     modelbkcolor: {
       description: 'تحديد لون خلفية مساحة النموذج'
     },
@@ -424,6 +473,10 @@ export default {
     mline: {
       description: 'إنشاء عدة خطوط متوازية كعنصر متعدد الخطوط واحد'
     },
+    stretch: {
+      description: 'يمدد الكائنات التي يعبرها إطار التحديد',
+      prompt: 'حدد الكائنات للتمديد بإطار التقاطع'
+    },
     move: {
       description: 'نقل العناصر المحددة باستخدام متجه إزاحة',
       prompt: 'حدد العناصر'
@@ -432,6 +485,35 @@ export default {
       description:
         'إضافة مقاييس التعليقات التوضيحية المدعومة أو حذفها للكائنات التوضيحية المحددة',
       prompt: 'حدد الكائنات التوضيحية'
+    },
+    fillet: {
+      description: 'يقوم بتقويس حواف الكائنات'
+    },
+    filletpolyarc: {
+      description:
+        'التحكم في ما إذا كان خيار الخطوط المتعددة في FILLET يقوم بتقويس مقاطع القوس'
+    },
+    filletrad: {
+      description: 'تخزين نصف قطر التقويس الحالي للكائنات ثنائية الأبعاد'
+    },
+    chamfer: {
+      description: 'يقوم بشطبة حواف الكائنات'
+    },
+    chamfera: {
+      description: 'تعيين مسافة الشطبة الأولى عندما يكون CHAMMODE بقيمة 0'
+    },
+    chamferb: {
+      description: 'تعيين مسافة الشطبة الثانية عندما يكون CHAMMODE بقيمة 0'
+    },
+    chamferc: {
+      description: 'تعيين طول الشطبة عندما يكون CHAMMODE بقيمة 1'
+    },
+    chamferd: {
+      description: 'تعيين زاوية الشطبة عندما يكون CHAMMODE بقيمة 1'
+    },
+    chammode: {
+      description:
+        'تعيين طريقة الإدخال لأمر CHAMFER: 0 = مسافتان، 1 = طول وزاوية'
     },
     offset: {
       description:
@@ -475,6 +557,9 @@ export default {
     pickbox: {
       description: 'تحديد حجم مربع التحديد المستخدم لاختيار العناصر بالبكسل'
     },
+    pickstyle: {
+      description: 'التحكم في اختيار المجموعة واختيار التظليل المرتبط'
+    },
     pline: {
       description: 'إنشاء متعدد خطوط باستخدام عدة نقاط'
     },
@@ -493,6 +578,21 @@ export default {
     },
     polarmode: {
       description: 'التحكم في إعدادات التتبع القطبي وتتبع Object Snap'
+    },
+    projmode: {
+      description: 'تعيين وضع الإسقاط الحالي للقص أو التمديد'
+    },
+    edgemode: {
+      description:
+        'يتحكم في ما إذا كانت حواف القطع والحواف الحدودية تُمدَّد إلى هندستها الطبيعية عند القص أو التمديد'
+    },
+    trimedges: {
+      description:
+        'يتحكم في ما إذا كانت خطوط نمط التهشير تعمل كحواف قطع في الوضع السريع للأمرين TRIM و EXTEND'
+    },
+    trimextendmode: {
+      description:
+        'يتحكم في ما إذا كان الأمران TRIM و EXTEND يستخدمان الوضع السريع أو الوضع القياسي'
     },
     polygon: {
       description:
@@ -582,6 +682,12 @@ export default {
     },
     textstyle: {
       description: 'تحديد اسم نمط النص الحالي'
+    },
+    tilemode: {
+      description: 'التحكم في تفعيل علامة تبويب النموذج أو تخطيط مساحة الورق'
+    },
+    trimmode: {
+      description: 'التحكم في قص الحواف المحددة للشطبة والتقويس'
     },
     unitmode: {
       description:

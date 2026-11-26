@@ -15,7 +15,10 @@ import { debounce } from 'lodash-es'
 
 import { AcApDocManager } from '../../app/index.js'
 import { AcApI18n } from '../../i18n/index.js'
-import { acapExpandSelectionByGroups } from '../../service/AcApGroup.js'
+import {
+  acapExpandSelectionByAssociativeHatches,
+  acapExpandSelectionByGroups
+} from '../../service/AcApGroup.js'
 import { excludeLockedLayerIds } from '../../service/AcApLockedLayer.js'
 import type { AcTrSpatialSearchOptions } from '../../spatialIndex/AcTrSpatialIndex.js'
 import type {
@@ -259,6 +262,12 @@ export abstract class AcEdBaseView {
    * `allowGroupSelection` (e.g. GROUPEDIT Remove).
    */
   private _allowGroupSelection = true
+  /**
+   * When false, {@link applySelection} skips associative hatch ↔ boundary
+   * expansion even if `PICKSTYLE` bit 2 is on. Selection prompts set this from
+   * `allowAssociativeHatchSelection` (e.g. Hatch Remove Boundaries).
+   */
+  private _allowAssociativeHatchSelection = true
   /** Input manager for handling user interactions */
   private _editor: AcEditor
   /** Size of selection box in pixels for entity picking */
@@ -353,6 +362,14 @@ export abstract class AcEdBaseView {
     this._canvas.addEventListener(
       'mousemove',
       event => this.onMouseMove(event),
+      { signal: domSignal }
+    )
+    // Leaving the canvas (e.g. to click a ribbon control) must drop the live
+    // cursor flag; otherwise the next point prompt seeds jigs from the last
+    // in-canvas sample (HPQUICKPREVIEW appearing in a circle never hovered).
+    this._canvas.addEventListener(
+      'mouseleave',
+      () => this.clearCursorPos(),
       { signal: domSignal }
     )
     // Touch does not fire `mousemove`. Keep cursor (and therefore the next
@@ -1024,11 +1041,13 @@ export abstract class AcEdBaseView {
   applySelection(ids: AcDbObjectId[], action: AcEdSelectionAction) {
     if (!this.entitySelectionEnabled) return
     ids = this.selectableIds(ids, action)
-    // Expand selectable groups when PICKSTYLE enables group selection (1/3).
-    // Associative hatch co-selection (PICKSTYLE 2/3) is intentionally a no-op
-    // until hatch boundary soft-pointers exist on AcDbHatch.
+    // Expand selectable groups (PICKSTYLE 1/3) and associative hatch
+    // co-selection (PICKSTYLE 2/3) unless the active prompt disabled them.
     if (action !== 'remove') {
       ids = this.expandGroupSelectionIds(ids)
+      if (this._allowAssociativeHatchSelection) {
+        ids = this.expandAssociativeHatchSelectionIds(ids)
+      }
     }
     if (action === 'replace') {
       this.selectionSet.clear()
@@ -1057,6 +1076,18 @@ export abstract class AcEdBaseView {
     const db = AcApDocManager.tryGetInstance?.()?.curDocument?.database
     if (!db || ids.length === 0) return ids
     return acapExpandSelectionByGroups(db, ids)
+  }
+
+  /**
+   * Expands selection by associative hatch boundary soft-pointers when
+   * `PICKSTYLE` bit 2 is enabled.
+   */
+  protected expandAssociativeHatchSelectionIds(
+    ids: AcDbObjectId[]
+  ): AcDbObjectId[] {
+    const db = AcApDocManager.tryGetInstance?.()?.curDocument?.database
+    if (!db || ids.length === 0) return ids
+    return acapExpandSelectionByAssociativeHatches(db, ids)
   }
 
   /**
@@ -1092,6 +1123,17 @@ export abstract class AcEdBaseView {
   }
 
   /**
+   * Collects entity ids that a window or crossing box would select.
+   *
+   * Used by STRETCH and other commands that need box hits without applying a
+   * selection action. Crossing results are refined the same way as interactive
+   * box selection (AABB hits that miss curve geometry are dropped).
+   */
+  collectSelectionIdsForBox(box: AcGeBox2d, mode: AcEdSelectionMode) {
+    return this.collectSelectionIdsByBox(box, mode)
+  }
+
+  /**
    * Collects ids using window or crossing selection rules.
    *
    * Crossing hits come from entity AABBs in the spatial index. Long polylines
@@ -1099,6 +1141,7 @@ export abstract class AcEdBaseView {
    * Subclasses with access to the drawing database should override
    * {@link refineCrossingSelectionHits} to drop those false positives.
    */
+
   protected collectSelectionIdsByBox(box: AcGeBox2d, mode: AcEdSelectionMode) {
     const results = this.search(box, { selectionMode: mode }).filter(
       isEffectiveSpatialQueryHit
@@ -1330,6 +1373,18 @@ export abstract class AcEdBaseView {
   }
   set allowGroupSelection(value: boolean) {
     this._allowGroupSelection = value
+  }
+
+  /**
+   * Whether associative hatch ↔ boundary expansion runs during
+   * {@link applySelection}. Defaults to `true`; selection prompts may set it
+   * from {@link AcEdPromptSelectionOptions.allowAssociativeHatchSelection}.
+   */
+  get allowAssociativeHatchSelection() {
+    return this._allowAssociativeHatchSelection
+  }
+  set allowAssociativeHatchSelection(value: boolean) {
+    this._allowAssociativeHatchSelection = value
   }
 
   /**

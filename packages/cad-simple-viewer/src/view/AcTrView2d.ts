@@ -3974,6 +3974,12 @@ export class AcTrView2d extends AcEdBaseView {
    * Attribute entities are drawn as part of their owning INSERT, so attribute
    * edits are remapped to the parent {@link AcDbBlockReference} before the
    * scene is updated.
+   *
+   * Multi-entity edits (MOVE, etc.) dispatch one `entityModified` per entity.
+   * They are coalesced through {@link AcTrEntityUpdateQueue} into one wave
+   * ({@link applyEntityUpdates}) sharing a single serial convert chain, instead
+   * of launching parallel {@link batchConvert} runs that race on shared INSERT
+   * templates and hierarchical spatial indexes.
    */
   updateEntity(entity: AcDbEntity | AcDbEntity[]) {
     const entities = this.resolveSceneUpdateEntities(

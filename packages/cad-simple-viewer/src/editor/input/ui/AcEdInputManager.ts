@@ -40,6 +40,7 @@ import {
 } from '../handler/index.js'
 import { AcEdMarkerManager } from '../marker/index.js'
 import {
+  type AcEdEntityHoverSample,
   AcEdPromptAngleOptions,
   AcEdPromptBoxOptions,
   AcEdPromptBoxResult,
@@ -1509,8 +1510,11 @@ export class AcEdInputManager {
           this.entitySelectionActive = true
           const previousAllowLocked = this.view.allowSelectOnLockedLayer
           const previousAllowGroup = this.view.allowGroupSelection
+          const previousAllowHatchAssoc = this.view.allowAssociativeHatchSelection
           this.view.allowSelectOnLockedLayer = options.allowObjectOnLockedLayer
           this.view.allowGroupSelection = options.allowGroupSelection
+          this.view.allowAssociativeHatchSelection =
+            options.allowAssociativeHatchSelection
           const keywordSession = this.startKeywordSession(options, true)
           if (!keywordSession) {
             this._commandLine.setPrompt(options.message)
@@ -1594,6 +1598,7 @@ export class AcEdInputManager {
             this.view.setNavigationEnabled(true)
             this.view.allowSelectOnLockedLayer = previousAllowLocked
             this.view.allowGroupSelection = previousAllowGroup
+            this.view.allowAssociativeHatchSelection = previousAllowHatchAssoc
 
             document.removeEventListener('keydown', keyHandler)
             this.view.canvas.removeEventListener('mousedown', mouseDown)
@@ -1892,7 +1897,10 @@ export class AcEdInputManager {
             }
             options.jig?.end()
             document.removeEventListener('keydown', keyHandler)
+            document.removeEventListener('keydown', modifierHandler)
+            document.removeEventListener('keyup', modifierHandler)
             this.view.canvas.removeEventListener('mousedown', mouseDownHandler)
+            this.view.canvas.removeEventListener('mousemove', mouseMoveHandler)
             this.view.canvas.removeEventListener('click', clickHandler)
             this.view.canvas.removeEventListener(
               'contextmenu',
@@ -1932,6 +1940,9 @@ export class AcEdInputManager {
             rejector(new AcEdKeywordInputError(keyword))
           })
 
+          // Declared early so cleanup can remove listeners; body assigned below.
+          let modifierHandler: (e: KeyboardEvent) => void = () => {}
+
           const mouseDownHandler = (e: MouseEvent) => {
             if (e.button === 2) {
               if (this.shouldUseRightClickEnter() && options.allowNone) {
@@ -1943,9 +1954,57 @@ export class AcEdInputManager {
             }
           }
 
+          /**
+           * Last hover sample for COMMANDPREVIEW jigs. Kept so Shift / other
+           * modifier key changes can refresh the preview without waiting for
+           * another mousemove (FILLET/CHAMFER shift-corner).
+           */
+          let lastHoverSample: AcEdEntityHoverSample | null = null
+          const refreshHoverJig = (sample: AcEdEntityHoverSample) => {
+            if (!options.jig) return
+            lastHoverSample = sample
+            options.jig.update(sample)
+            options.jig.render()
+          }
+
+          /**
+           * Hover → drive COMMANDPREVIEW-style result jigs when attached.
+           * Clears the preview when the cursor is not over a valid candidate.
+           */
+          const mouseMoveHandler = (e: MouseEvent) => {
+            if (!options.jig || settled) return
+            this.updateModifierStateFromEvent(e)
+            const pos = this.view.screenToWorld(
+              this.view.viewportToCanvas({ x: e.clientX, y: e.clientY })
+            )
+            const pickedPointSample = { x: pos.x, y: pos.y, z: 0 }
+            const picked = this.view.pick(pos, undefined, true)
+            if (picked.length === 0) {
+              refreshHoverJig({ pickedPoint: pickedPointSample })
+              return
+            }
+            const entity = this.getEntityById(picked[0].id)
+            if (
+              !entity ||
+              (!options.allowObjectOnLockedLayer &&
+                this.isEntityOnLockedLayer(entity)) ||
+              !this.isEntityClassAllowed(entity, options)
+            ) {
+              refreshHoverJig({ pickedPoint: pickedPointSample })
+              return
+            }
+            refreshHoverJig({
+              objectId: picked[0].id,
+              pickedPoint: pickedPointSample
+            })
+          }
+
           /** Mouse click → try select entity */
           const clickHandler = (e: MouseEvent) => {
             if (e.button !== 0) return
+
+            // Capture Shift/Ctrl at pick time (FILLET/CHAMFER shift-corner).
+            this.updateModifierStateFromEvent(e)
 
             const pos = this.view.screenToWorld(
               this.view.viewportToCanvas({ x: e.clientX, y: e.clientY })
@@ -1996,6 +2055,14 @@ export class AcEdInputManager {
             }
           }
 
+          modifierHandler = (e: KeyboardEvent) => {
+            if (!options.jig || settled) return
+            if (this.updateModifierStateFromEvent(e) && lastHoverSample) {
+              options.jig.update(lastHoverSample)
+              options.jig.render()
+            }
+          }
+
           const contextMenuHandler = (e: MouseEvent) => {
             if (this.shouldUseRightClickEnter()) {
               e.preventDefault()
@@ -2003,6 +2070,11 @@ export class AcEdInputManager {
           }
 
           document.addEventListener('keydown', keyHandler)
+          if (options.jig) {
+            document.addEventListener('keydown', modifierHandler)
+            document.addEventListener('keyup', modifierHandler)
+            this.view.canvas.addEventListener('mousemove', mouseMoveHandler)
+          }
           this.view.canvas.addEventListener('mousedown', mouseDownHandler)
           this.view.canvas.addEventListener('click', clickHandler)
           this.view.canvas.addEventListener('contextmenu', contextMenuHandler)
@@ -2078,6 +2150,8 @@ export class AcEdInputManager {
 
     const drawPreview = (pos: AcGePoint2dLike) => {
       const cwcsP2 = this.view.worldToScreen(pos)
+      const mode = this.view.getSelectionMode(cwcsP1, cwcsP2)
+      const style = this.view.getSelectionPreviewStyle(mode, 'add')
       const left = Math.min(cwcsP2.x, cwcsP1.x)
       const top = Math.min(cwcsP2.y, cwcsP1.y)
       const width = Math.abs(cwcsP2.x - cwcsP1.x)
@@ -2087,8 +2161,11 @@ export class AcEdInputManager {
         left: `${left}px`,
         top: `${top}px`,
         width: `${width}px`,
-        height: `${height}px`
+        height: `${height}px`,
+        borderStyle: style.borderStyle,
+        background: style.background
       })
+      previewEl.style.setProperty('--line-color', style.lineColor)
     }
 
     const message2 =
@@ -2102,7 +2179,11 @@ export class AcEdInputManager {
     const p2 = await this.getPointInternal(options2, cleanup, drawPreview)
 
     const box = new AcGeBox2d().expandByPoint(p1).expandByPoint(p2)
-    return new AcEdPromptBoxResult(AcEdPromptStatus.OK, box)
+    const mode = this.view.getSelectionMode(
+      cwcsP1,
+      this.view.worldToScreen(p2)
+    )
+    return new AcEdPromptBoxResult(AcEdPromptStatus.OK, box, undefined, mode)
   }
 
   /**
@@ -2192,8 +2273,9 @@ export class AcEdInputManager {
         const box = new AcGeBox2d()
           .expandByPoint(startWcs)
           .expandByPoint(endWcs)
+        const mode = this.view.getSelectionMode(startCanvas, endCanvas)
         cleanup()
-        resolve(new AcEdPromptBoxResult(AcEdPromptStatus.OK, box))
+        resolve(new AcEdPromptBoxResult(AcEdPromptStatus.OK, box, undefined, mode))
         return true
       }
 
@@ -2784,10 +2866,18 @@ export class AcEdInputManager {
         basePoint = promptDefaults.basePoint
       }
 
+      const disableTracking =
+        'disableTracking' in options.promptOptions &&
+        Boolean(
+          (options.promptOptions as { disableTracking?: boolean })
+            .disableTracking
+        )
       const orthoReferencePoint =
         promptDefaults.useBasePoint && promptDefaults.basePoint
           ? promptDefaults.basePoint
-          : (this.lastPoint ?? undefined)
+          : disableTracking
+            ? undefined
+            : (this.lastPoint ?? undefined)
       const allowNone =
         'allowNone' in options.promptOptions
           ? (options.promptOptions as { allowNone: boolean }).allowNone

@@ -24,19 +24,24 @@ export default {
         boundary: '경계',
         pattern: '패턴',
         properties: '특성',
+        origin: '원점',
         options: '옵션',
         close: '닫기'
       },
       command: {
         pickPoints: '점 선택',
-        selectObjects: '객체 선택',
+        select: '선택',
+        remove: '제거',
+        recreate: '재작성',
+        setOrigin: '원점\n설정',
+        storeOrigin: '기본 원점으로 저장',
         close: '닫기'
       },
       field: {
         pattern: '패턴',
         scale: '축척',
         angle: '각도',
-        style: '스타일',
+        style: '섬 감지',
         associative: '연관',
         fillType: '채우기 유형',
         fillColor: '색상',
@@ -48,9 +53,10 @@ export default {
         imageScale: '이미지 축척'
       },
       style: {
-        normal: '일반',
-        outer: '외부',
-        ignore: '무시'
+        normal: '일반 섬 감지',
+        outer: '외부 섬 감지',
+        ignore: '섬 감지 무시',
+        none: '섬 감지 없음'
       },
       fillType: {
         solid: '솔리드',
@@ -63,11 +69,30 @@ export default {
       },
       tooltip: {
         pickPoints: '내부 점을 선택하여 해치 영역을 작성합니다.',
-        selectObjects: '해치할 닫힌 경계 객체를 선택합니다.',
+        select:
+          '해치할 닫힌 경계 객체를 선택합니다. 내부 섬은 자동으로 감지되지 않습니다.',
+        remove:
+          '현재 해치 경계 정의에서 이전에 추가된 경계 객체 또는 해치 패턴을 제거합니다.',
+        recreate:
+          '선택한 해치 주위에 폴리선을 작성하고 필요하면 해치를 새 경계에 연관시킵니다.',
         pattern: '해치 패턴 이름을 선택합니다.',
         scale: '해치 패턴 축척을 설정합니다.',
         angle: '해치 패턴 각도(도)를 설정합니다.',
-        style: '해치 작성 시 고립 영역 검출 스타일을 제어합니다.',
+        style: '해치 작성 시 섬 감지 스타일을 조정합니다.',
+        styleNormal:
+          '바깥 경계에서 안쪽으로 채우며, 내부 섬에서는 채우기를 끄고 섬 안의 섬에서 다시 켭니다.',
+        styleOuter:
+          '바깥 경계에서 안쪽으로 채우되 가장 바깥 섬까지만 채우고 더 안쪽은 무시합니다.',
+        styleIgnore: '내부 객체를 무시하고 바깥 경계 안 전체를 채웁니다.',
+        styleNone: '전통적인 스타일로, 효과는 "무시"와 비슷합니다.',
+        setOrigin: '새 해치 패턴 원점을 지정합니다.',
+        originBL: '원점을 해치 범위의 왼쪽 아래로 설정합니다.',
+        originBR: '원점을 해치 범위의 오른쪽 아래로 설정합니다.',
+        originTR: '원점을 해치 범위의 오른쪽 위로 설정합니다.',
+        originTL: '원점을 해치 범위의 왼쪽 위로 설정합니다.',
+        originCenter: '원점을 해치 범위의 중심으로 설정합니다.',
+        originCurrent: '현재 해치 원점(HPORIGIN)을 사용합니다.',
+        storeOrigin: '현재 해치 원점을 기본 HPORIGIN으로 저장합니다.',
         associative: '연관 해치 모드를 전환합니다.',
         fillType: '채우기 유형(솔리드, 패턴, 그라데이션)을 선택합니다.',
         fillColor: '채우기 색상을 선택합니다.',
@@ -310,6 +335,9 @@ export default {
       mleaderAdd: '기존 다중 지시선에 지시선을 추가합니다.',
       mleaderRemove: '기존 다중 지시선에서 지시선을 제거합니다.',
       move: '선택한 객체를 새 위치로 이동합니다.',
+      mirror: '선택한 객체의 대칭 복사본을 작성합니다.',
+      trim: '다른 객체의 모서리에 맞도록 객체를 자릅니다.',
+      extend: '다른 객체의 모서리에 맞도록 객체를 연장합니다.',
       rotate: '선택한 객체를 기준점을 중심으로 회전합니다.',
       scale:
         '선택한 객체를 축척 후에도 비율이 유지되도록 확대 또는 축소합니다.',
@@ -324,6 +352,10 @@ export default {
       copyBase:
         '지정한 기준점을 사용하여 선택한 객체를 클립보드에 복사합니다(COPYBASE).',
       explode: '복합 객체를 구성 요소 객체로 분해합니다.',
+      stretch: '교차 창으로 선택한 객체를 신축합니다.',
+      join: '선, 호, 폴리선의 끝점을 결합하여 단일 객체를 만듭니다.',
+      fillet: '객체의 모서리를 필렛합니다.',
+      chamfer: '객체의 모서리를 모따기합니다.',
       offset: '지정한 거리에 객체의 평행 사본을 작성합니다.',
       undo: '마지막 편집 작업을 명령 취소합니다.',
       redo: '마지막으로 취소한 편집 작업을 명령 복구합니다.',
@@ -459,6 +491,9 @@ export default {
       mleaderAdd: '지시선 추가',
       mleaderRemove: '지시선 제거',
       move: '이동',
+      mirror: '대칭',
+      trim: '자르기',
+      extend: '연장',
       rotate: '회전',
       scale: '축척',
       erase: '지우기',
@@ -469,6 +504,10 @@ export default {
       copyClip: '복사',
       copyBase: '기준점을 사용하여 복사',
       explode: '분해',
+      stretch: '신축',
+      join: '결합',
+      fillet: '필렛',
+      chamfer: '모따기',
       offset: '간격띄우기',
       undo: '명령 취소',
       redo: '명령 복구',

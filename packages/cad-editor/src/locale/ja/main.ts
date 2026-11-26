@@ -24,19 +24,24 @@ export default {
         boundary: '境界',
         pattern: 'パターン',
         properties: 'プロパティ',
+        origin: '原点',
         options: 'オプション',
         close: '閉じる'
       },
       command: {
         pickPoints: '点をクリック',
-        selectObjects: 'オブジェクトを選択',
+        select: '選択',
+        remove: '削除',
+        recreate: '再作成',
+        setOrigin: '原点を\n設定',
+        storeOrigin: '既定の原点として保存',
         close: '閉じる'
       },
       field: {
         pattern: 'パターン',
         scale: '尺度',
         angle: '角度',
-        style: 'スタイル',
+        style: '島検出',
         associative: '自動調整',
         fillType: '塗り潰しの種類',
         fillColor: '色',
@@ -48,9 +53,10 @@ export default {
         imageScale: 'イメージの尺度'
       },
       style: {
-        normal: '標準',
-        outer: '外側',
-        ignore: '無視'
+        normal: '標準の島検出',
+        outer: '外側の島検出',
+        ignore: '島検出を無視',
+        none: '島検出なし'
       },
       fillType: {
         solid: '塗り潰し',
@@ -63,11 +69,31 @@ export default {
       },
       tooltip: {
         pickPoints: '内側の点をクリックしてハッチング領域を作成します。',
-        selectObjects: 'ハッチングする閉じた境界オブジェクトを選択します。',
+        select:
+          'ハッチングする閉じた境界オブジェクトを選択します。内部の島は自動検出しません。',
+        remove:
+          '現在のハッチング境界定義から、以前に追加した境界オブジェクトまたはハッチングを削除します。',
+        recreate:
+          '選択したハッチングの周囲にポリラインを作成し、必要に応じてハッチングを新しい境界に関連付けます。',
         pattern: 'ハッチング パターン名を選択します。',
         scale: 'ハッチング パターンの尺度を設定します。',
         angle: 'ハッチング パターンの角度を度単位で設定します。',
-        style: 'ハッチング作成時の領域検出スタイルを指定します。',
+        style: 'ハッチング作成時の島検出スタイルをコントロールします。',
+        styleNormal:
+          '外側境界から内側へ塗り潰し、島に当たると塗り潰しをオフにし、島の中の島で再びオンにします。',
+        styleOuter:
+          '外側境界から内側へ塗り潰しますが、最も外側の島までで止め、より内側は無視します。',
+        styleIgnore:
+          '内部オブジェクトを無視し、外側境界内の領域全体を塗り潰します。',
+        styleNone: '従来のスタイルで、効果は「無視」に似ています。',
+        setOrigin: '新しいハッチング パターンの原点を指定します。',
+        originBL: '原点をハッチング範囲の左下に設定します。',
+        originBR: '原点をハッチング範囲の右下に設定します。',
+        originTR: '原点をハッチング範囲の右上に設定します。',
+        originTL: '原点をハッチング範囲の左上に設定します。',
+        originCenter: '原点をハッチング範囲の中央に設定します。',
+        originCurrent: '現在のハッチング原点 (HPORIGIN) を使用します。',
+        storeOrigin: '現在のハッチング原点を既定の HPORIGIN として保存します。',
         associative: '自動調整ハッチング モードを切り替えます。',
         fillType:
           '塗り潰しの種類 (塗り潰し、パターン、グラデーション) を選択します。',
@@ -313,6 +339,9 @@ export default {
       mleaderAdd: '既存のマルチ引出線に引出線を追加します。',
       mleaderRemove: '既存のマルチ引出線から引出線を削除します。',
       move: '選択したオブジェクトを新しい位置に移動します。',
+      mirror: '選択したオブジェクトのミラーコピーを作成します。',
+      trim: '他のオブジェクトのエッジに合わせてオブジェクトをトリムします。',
+      extend: '他のオブジェクトのエッジまでオブジェクトを延長します。',
       rotate: '選択したオブジェクトを基点を中心に回転します。',
       scale: '選択したオブジェクトを縦横比を保ったまま拡大または縮小します。',
       erase: '選択したオブジェクトを図面から削除します。',
@@ -329,6 +358,10 @@ export default {
       copyBase:
         '指定した基点で選択したオブジェクトをクリップボードにコピーします (COPYBASE)。',
       explode: '複合オブジェクトを構成要素のオブジェクトに分解します。',
+      stretch: '交差ウィンドウで選択したオブジェクトをストレッチします。',
+      join: '線分、円弧、ポリラインの端点を結合して 1 つのオブジェクトにします。',
+      fillet: 'オブジェクトのエッジをフィレットします。',
+      chamfer: 'オブジェクトのエッジを面取りします。',
       offset: '指定した距離にオブジェクトの平行コピーを作成します。',
       undo: '直前の編集操作を元に戻します。',
       redo: '元に戻した直前の編集操作をやり直します。',
@@ -472,6 +505,9 @@ export default {
       mleaderAdd: '引出線を追加',
       mleaderRemove: '引出線を削除',
       move: '移動',
+      mirror: 'ミラー',
+      trim: 'トリム',
+      extend: '延長',
       rotate: '回転',
       scale: '尺度変更',
       erase: '削除',
@@ -482,6 +518,10 @@ export default {
       copyClip: 'コピー',
       copyBase: '基点コピー',
       explode: '分解',
+      stretch: 'ストレッチ',
+      join: '結合',
+      fillet: 'フィレット',
+      chamfer: '面取り',
       offset: 'オフセット',
       undo: '元に戻す',
       redo: 'やり直し',
