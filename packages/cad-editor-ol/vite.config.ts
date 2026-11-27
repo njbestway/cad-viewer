@@ -9,6 +9,7 @@ import { visualizer } from 'rollup-plugin-visualizer'
 import {
   type ConfigEnv,
   type Connect,
+  createLogger,
   defineConfig,
   type LibraryFormats,
   type Plugin,
@@ -123,6 +124,35 @@ const acadRustWasmSrc = resolve(
   ACADRUST_WASM_FILE
 )
 
+/**
+ * The shared dist bundles keep runtime dynamic imports (the plugin folder
+ * loader and the converter's main-thread transcode) whose `@vite-ignore`
+ * comments were stripped by minification. Vite cannot analyze them and warns
+ * on every dev start, but leaves the imports as-is for the browser to execute
+ * natively — the intended behavior. Silence just these two known-harmless
+ * warnings; everything else logs normally.
+ */
+function quietDistImportWarnings() {
+  const logger = createLogger()
+  const isKnownDistWarning = (msg: string) => {
+    const normalized = msg.replace(/\\/g, '/')
+    return (
+      normalized.includes('dynamic import cannot be analyzed') &&
+      (normalized.includes('cad-simple-viewer/dist/') ||
+        normalized.includes('acad-rust-converter/dist/'))
+    )
+  }
+  const warn = logger.warn.bind(logger)
+  logger.warn = (msg, options) => {
+    if (!isKnownDistWarning(msg)) warn(msg, options)
+  }
+  const warnOnce = logger.warnOnce.bind(logger)
+  logger.warnOnce = (msg, options) => {
+    if (!isKnownDistWarning(msg)) warnOnce(msg, options)
+  }
+  return logger
+}
+
 /** MTEXT layout/shaping worker shipped by `@mlightcad/cad-simple-viewer`. */
 const pinnedMtextWorkerSrc = `./node_modules/@mlightcad/cad-simple-viewer/dist/${MTEXT_RENDERER_WORKER_FILE}`
 
@@ -193,6 +223,7 @@ export default defineConfig(({ command, mode }: ConfigEnv) => {
 
   return {
     outDir: 'dist',
+    customLogger: quietDistImportWarnings(),
     resolve: {
       alias: [
         // Must stay first: every consumer in the graph (this package, the
