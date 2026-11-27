@@ -11,6 +11,7 @@ import {
   AcApAttEditCmd,
   AcApClassicGroupCmd,
   AcApCountListCmd,
+  AcApDimStyleCmd,
   AcApDrawingUnitsCmd,
   AcApFindCmd,
   AcApInsertPaletteCmd,
@@ -19,6 +20,7 @@ import {
   AcApMeasurementPanelCmd,
   AcApMemCmd,
   AcApMissedDataCmd,
+  AcApMLeaderStyleCmd,
   AcApOpenPerfCmd,
   AcApPointStyleCmd,
   AcApPropertiesCmd,
@@ -33,7 +35,9 @@ import {
   MlAttDefDlg,
   MlAttEditDlg,
   MlClassicGroupDlg,
+  MlDimStyleDlg,
   MlDrawingUnitsDlg,
+  MlMLeaderStyleDlg,
   MlPointStyleDlg,
   MlQuickSelectDlg,
   MlTextStyleDlg
@@ -173,6 +177,23 @@ export const registerCmds = () => {
       'classicgroup',
       new AcApClassicGroupCmd()
     )
+    // DIMSTYLE is also registered as a sysvar command. Replace it so the
+    // name opens the Dimension Style Manager instead of a value prompt.
+    register.removeCmd(AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME, 'dimstyle')
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'dimstyle',
+      'dimstyle',
+      new AcApDimStyleCmd(),
+      'ddim'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'mleaderstyle',
+      'mleaderstyle',
+      new AcApMLeaderStyleCmd(),
+      'mls'
+    )
     isCommandRegistered = true
   }
 }
@@ -214,6 +235,16 @@ export const registerDialogs = () => {
     registerDialog({
       name: 'ClassicGroupDlg',
       component: markRaw(MlClassicGroupDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'DimStyleDlg',
+      component: markRaw(MlDimStyleDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'MLeaderStyleDlg',
+      component: markRaw(MlMLeaderStyleDlg),
       props: {}
     })
     isDialogRegistered = true

@@ -118,6 +118,16 @@ import {
   copyBase,
   countlist,
   defineAttribute,
+  dimAligned,
+  dimAngular,
+  dimArc,
+  dimBaseline,
+  dimContinue,
+  dimDiameter,
+  dimLinear,
+  dimOrdinate,
+  dimRadius,
+  dimStyle,
   editAttribute,
   ellipseArc,
   ellipseCenter,
@@ -142,6 +152,10 @@ import {
   layerUnlock,
   line,
   mirror,
+  mleader,
+  mleaderAdd,
+  mleaderRemove,
+  mleaderStyle,
   mline,
   move,
   mtext,
@@ -161,6 +175,7 @@ import {
   setting,
   splineFitPoints,
   stretch,
+  textStyle,
   trim,
   ungroup,
   xline
@@ -1271,6 +1286,22 @@ const buildBaseTabs = (
     cutClip: t('main.ribbon.tooltip.cutClip'),
     copyClip: t('main.ribbon.tooltip.copyClip'),
     copyBase: t('main.ribbon.tooltip.copyBase'),
+    textStyle: t('main.ribbon.tooltip.textStyle'),
+    dimstyle: t('main.ribbon.tooltip.dimstyle'),
+    mleaderStyle: t('main.ribbon.tooltip.mleaderStyle'),
+    dimension: t('main.ribbon.tooltip.dimension'),
+    dimlinear: t('main.ribbon.tooltip.dimlinear'),
+    dimaligned: t('main.ribbon.tooltip.dimaligned'),
+    dimradius: t('main.ribbon.tooltip.dimradius'),
+    dimdiameter: t('main.ribbon.tooltip.dimdiameter'),
+    dimangular: t('main.ribbon.tooltip.dimangular'),
+    dimarc: t('main.ribbon.tooltip.dimarc'),
+    dimordinate: t('main.ribbon.tooltip.dimordinate'),
+    dimcontinue: t('main.ribbon.tooltip.dimcontinue'),
+    dimbaseline: t('main.ribbon.tooltip.dimbaseline'),
+    mleader: t('main.ribbon.tooltip.mleader'),
+    mleaderAdd: t('main.ribbon.tooltip.mleaderAdd'),
+    mleaderRemove: t('main.ribbon.tooltip.mleaderRemove'),
     undo: t('main.ribbon.tooltip.undo'),
     redo: t('main.ribbon.tooltip.redo'),
     properties: t('main.ribbon.tooltip.properties'),
@@ -2601,6 +2632,29 @@ const buildBaseTabs = (
           id: 'home-annotation',
           title: t('main.ribbon.group.annotation'),
           orientation: 'row',
+          footerMenuItems: [
+            {
+              id: 'cmd-style',
+              type: 'button',
+              label: t('main.ribbon.command.textStyle'),
+              tooltip: ribbonTooltips.textStyle,
+              props: { icon: textStyle }
+            },
+            {
+              id: 'cmd-dimstyle',
+              type: 'button',
+              label: t('main.ribbon.command.dimstyle'),
+              tooltip: ribbonTooltips.dimstyle,
+              props: { icon: dimStyle }
+            },
+            {
+              id: 'cmd-mleaderstyle',
+              type: 'button',
+              label: t('main.ribbon.command.mleaderStyle'),
+              tooltip: ribbonTooltips.mleaderStyle,
+              props: { icon: mleaderStyle }
+            }
+          ],
           collections: [
             {
               id: 'home-annotation-main',
@@ -2613,6 +2667,111 @@ const buildBaseTabs = (
                   tooltip: ribbonTooltips.text,
                   size: 'large',
                   props: { icon: mtext }
+                }
+              ]
+            },
+            {
+              id: 'home-annotation-dimension',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-dimension',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.dimension'),
+                  tooltip: ribbonTooltips.dimension,
+                  size: 'small',
+                  props: {
+                    icon: dimLinear,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'dimlinear',
+                        label: t('main.ribbon.command.dimlinear'),
+                        tooltip: ribbonTooltips.dimlinear,
+                        icon: dimLinear
+                      },
+                      {
+                        value: 'dimaligned',
+                        label: t('main.ribbon.command.dimaligned'),
+                        tooltip: ribbonTooltips.dimaligned,
+                        icon: dimAligned
+                      },
+                      {
+                        value: 'dimradius',
+                        label: t('main.ribbon.command.dimradius'),
+                        tooltip: ribbonTooltips.dimradius,
+                        icon: dimRadius
+                      },
+                      {
+                        value: 'dimdiameter',
+                        label: t('main.ribbon.command.dimdiameter'),
+                        tooltip: ribbonTooltips.dimdiameter,
+                        icon: dimDiameter
+                      },
+                      {
+                        value: 'dimangular',
+                        label: t('main.ribbon.command.dimangular'),
+                        tooltip: ribbonTooltips.dimangular,
+                        icon: dimAngular
+                      },
+                      {
+                        value: 'dimarc',
+                        label: t('main.ribbon.command.dimarc'),
+                        tooltip: ribbonTooltips.dimarc,
+                        icon: dimArc
+                      },
+                      {
+                        value: 'dimordinate',
+                        label: t('main.ribbon.command.dimordinate'),
+                        tooltip: ribbonTooltips.dimordinate,
+                        icon: dimOrdinate
+                      },
+                      {
+                        value: 'dimcontinue',
+                        label: t('main.ribbon.command.dimcontinue'),
+                        tooltip: ribbonTooltips.dimcontinue,
+                        icon: dimContinue
+                      },
+                      {
+                        value: 'dimbaseline',
+                        label: t('main.ribbon.command.dimbaseline'),
+                        tooltip: ribbonTooltips.dimbaseline,
+                        icon: dimBaseline
+                      }
+                    ]
+                  }
+                },
+                {
+                  id: 'cmd-mleader',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.mleader'),
+                  tooltip: ribbonTooltips.mleader,
+                  size: 'small',
+                  props: {
+                    icon: mleader,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'mleader',
+                        label: t('main.ribbon.command.mleader'),
+                        tooltip: ribbonTooltips.mleader,
+                        icon: mleader
+                      },
+                      {
+                        value: 'mleader-add',
+                        label: t('main.ribbon.command.mleaderAdd'),
+                        tooltip: ribbonTooltips.mleaderAdd,
+                        icon: mleaderAdd
+                      },
+                      {
+                        value: 'mleader-remove',
+                        label: t('main.ribbon.command.mleaderRemove'),
+                        tooltip: ribbonTooltips.mleaderRemove,
+                        icon: mleaderRemove
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -3045,6 +3204,23 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-cutclip', 'cutclip')
   commandByItemId.set('cmd-copyclip', 'copyclip')
   commandByItemId.set('cmd-copybase', 'copybase')
+  commandByItemId.set('cmd-style', 'style')
+  commandByItemId.set('cmd-dimstyle', 'dimstyle')
+  commandByItemId.set('cmd-mleaderstyle', 'mleaderstyle')
+  commandByItemId.set('cmd-dimension', 'dimlinear')
+  commandByItemId.set('dimlinear', 'dimlinear')
+  commandByItemId.set('dimaligned', 'dimaligned')
+  commandByItemId.set('dimradius', 'dimradius')
+  commandByItemId.set('dimdiameter', 'dimdiameter')
+  commandByItemId.set('dimangular', 'dimangular')
+  commandByItemId.set('dimarc', 'dimarc')
+  commandByItemId.set('dimordinate', 'dimordinate')
+  commandByItemId.set('dimcontinue', 'dimcontinue')
+  commandByItemId.set('dimbaseline', 'dimbaseline')
+  commandByItemId.set('cmd-mleader', 'mleader')
+  commandByItemId.set('mleader', 'mleader')
+  commandByItemId.set('mleader-add', 'mleaderedit')
+  commandByItemId.set('mleader-remove', 'mleadereditremove')
   commandByItemId.set('cmd-layer', 'layer')
   commandByItemId.set('cmd-properties', 'properties')
   commandByItemId.set('cmd-qselect', 'qselect')
