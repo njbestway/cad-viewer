@@ -24,6 +24,7 @@ export default {
       ...enMain.ribbon.tab,
       home: 'الرئيسية',
       insert: 'إدراج',
+      view: 'عرض',
       review: 'مراجعة',
       measurement: 'القياس',
       hatchContext: 'التهشير',
@@ -32,6 +33,7 @@ export default {
 
     group: {
       ...enMain.ribbon.group,
+      navigate: 'تنقل',
       draw: 'رسم',
       modify: 'تعديل',
       layer: 'الطبقات',
@@ -105,6 +107,13 @@ export default {
       attachImage: 'إرفاق\nصورة',
       editAttributes: 'تعديل\nالسمات',
       defineAttribute: 'تعريف\nسمة',
+      pan: 'تحريك',
+      zoom: 'تكبير',
+      zoomExtents: 'الامتداد',
+      zoomWindow: 'نافذة',
+      zoomPrevious: 'السابق',
+      zoomSaved: 'محفوظ',
+      zoomSmart: 'ذكي',
       agent: 'وكيل\nCAD'
 ,
   mline: 'خط متعدد',
@@ -468,6 +477,20 @@ export default {
 
       defineAttribute:
         'أنشئ تعريف سمة لاستخدامه داخل كتلة (ATTDEF).',
+
+      pan: 'تحريك عرض الرسم دون تغيير التكبير.',
+
+      zoom: 'تكبير عرض الرسم أو تصغيره.',
+
+      zoomExtents: 'التكبير لعرض أقصى امتداد لجميع العناصر.',
+
+      zoomWindow: 'التكبير لعرض منطقة محددة بنافذة.',
+
+      zoomPrevious: 'التكبير لعرض العرض السابق.',
+
+      zoomSaved: 'التكبير إلى عرض VPORT / التخطيط المحفوظ.',
+
+      zoomSmart: 'التكبير إلى مجموعة الهندسة الرئيسية.',
 
       agent:
         'افتح لوحة CAD Agent لإنشاء هندسة باستخدام اللغة الطبيعية.',

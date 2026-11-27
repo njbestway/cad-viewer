@@ -16,6 +16,7 @@ export default {
     tab: {
       home: 'Domů',
       insert: 'Vložit',
+      view: 'Pohled',
       review: 'Kontrola',
       measurement: 'Měření',
       hatchContext: 'Šrafování',
@@ -209,6 +210,7 @@ export default {
       }
     },
     group: {
+      navigate: 'Navigace',
       draw: 'Kreslení',
       modify: 'Úpravy',
       layer: 'Hladiny',
@@ -313,6 +315,13 @@ export default {
         'Otevře Rozšířený editor atributů pro úpravu hodnot a zobrazovacích vlastností atributů bloku (ATTEDIT).',
       defineAttribute:
         'Vytvoří definici atributu pro použití v bloku (ATTDEF).',
+      pan: 'Posune pohled na výkres beze změny zvětšení.',
+      zoom: 'Zvětší nebo zmenší zobrazení výkresu.',
+      zoomExtents: 'Zobrazí maximální rozsah všech objektů.',
+      zoomWindow: 'Zobrazí oblast zadanou oknem.',
+      zoomPrevious: 'Zobrazí předchozí pohled.',
+      zoomSaved: 'Zobrazí uložený pohled VPORT / rozvržení.',
+      zoomSmart: 'Zobrazí převládající shluk geometrie.',
       agent:
         'Otevře kartu palety CAD Agent pro kreslení geometrie přirozeným jazykem.',
       propertyColor: 'Nastaví barvu nových nebo vybraných objektů.',
@@ -416,6 +425,13 @@ export default {
       insert: 'Vložit',
       editAttributes: 'Upravit\natributy',
       defineAttribute: 'Definovat\natribut',
+      pan: 'Posun',
+      zoom: 'Zoom',
+      zoomExtents: 'Rozsah',
+      zoomWindow: 'Okno',
+      zoomPrevious: 'Předchozí',
+      zoomSaved: 'Uložený',
+      zoomSmart: 'Chytrý',
       agent: 'CAD\nAgent'
     }
   },

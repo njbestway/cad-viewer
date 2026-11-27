@@ -16,6 +16,7 @@ export default {
     tab: {
       home: '常用',
       insert: '插入',
+      view: '视图',
       review: '审阅',
       measurement: '测量',
       hatchContext: '填充',
@@ -206,6 +207,7 @@ export default {
       }
     },
     group: {
+      navigate: '导航',
       draw: '绘制',
       modify: '修改',
       layer: '图层',
@@ -302,6 +304,13 @@ export default {
       insert: '打开块工具选项板以浏览并插入块定义（INSERT）。',
       editAttributes: '打开增强属性编辑器，编辑块属性值与显示特性（ATTEDIT）。',
       defineAttribute: '创建用于块的属性定义（ATTDEF）。',
+      pan: '在不改变缩放比例的情况下平移图形显示。',
+      zoom: '缩放图形显示。',
+      zoomExtents: '缩放到显示所有对象的最大范围。',
+      zoomWindow: '缩放到由窗口指定的区域。',
+      zoomPrevious: '缩放到上一个视图。',
+      zoomSaved: '缩放到已保存的 VPORT / 布局视图。',
+      zoomSmart: '缩放到主要几何聚类区域。',
       agent: '打开 CAD Agent 工具面板，使用自然语言描述并绘制图形。',
       propertyColor: '设置新建对象或当前选中对象使用的颜色。',
       propertyLineType: '设置新建对象或当前选中对象使用的线型。',
@@ -386,6 +395,13 @@ export default {
       insert: '插入',
       editAttributes: '编辑属性',
       defineAttribute: '定义属性',
+      pan: '平移',
+      zoom: '缩放',
+      zoomExtents: '范围',
+      zoomWindow: '窗口',
+      zoomPrevious: '上一个',
+      zoomSaved: '已保存',
+      zoomSmart: '智能',
       agent: 'CAD Agent'
     }
   },

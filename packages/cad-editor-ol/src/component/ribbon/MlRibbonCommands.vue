@@ -160,10 +160,12 @@ import {
   measureDistance,
   measurementPanel,
   measurePoint,
+  pan as panIcon,
   revCircle,
   revCloud,
   revRect,
-  revText
+  revText,
+  zoomToExtent
 } from '../../svg/toolbarIcons'
 import MlBlockInsertGallery from '../common/MlBlockInsertGallery.vue'
 import MlLayerSelect from '../common/MlLayerSelect.vue'
@@ -1201,6 +1203,13 @@ const buildBaseTabs = (
     insert: t('main.ribbon.tooltip.insert'),
     editAttributes: t('main.ribbon.tooltip.editAttributes'),
     defineAttribute: t('main.ribbon.tooltip.defineAttribute'),
+    pan: t('main.ribbon.tooltip.pan'),
+    zoom: t('main.ribbon.tooltip.zoom'),
+    zoomExtents: t('main.ribbon.tooltip.zoomExtents'),
+    zoomWindow: t('main.ribbon.tooltip.zoomWindow'),
+    zoomPrevious: t('main.ribbon.tooltip.zoomPrevious'),
+    zoomSaved: t('main.ribbon.tooltip.zoomSaved'),
+    zoomSmart: t('main.ribbon.tooltip.zoomSmart'),
     propertyColor: t('main.ribbon.tooltip.propertyColor'),
     propertyLineType: t('main.ribbon.tooltip.propertyLineType'),
     propertyLineWeight: t('main.ribbon.tooltip.propertyLineWeight')
@@ -2485,6 +2494,82 @@ const buildBaseTabs = (
   ]
 
   tabs.push({
+    id: 'view',
+    title: t('main.ribbon.tab.view'),
+    groups: [
+      {
+        id: 'view-navigate',
+        title: t('main.ribbon.group.navigate'),
+        orientation: 'row',
+        collections: [
+          {
+            id: 'view-navigate-main',
+            layout: 'row',
+            items: [
+              {
+                id: 'cmd-pan',
+                type: 'button',
+                label: t('main.ribbon.command.pan'),
+                tooltip: ribbonTooltips.pan,
+                size: 'large',
+                props: {
+                  icon: panIcon,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-zoom',
+                type: 'dropdown',
+                label: t('main.ribbon.command.zoom'),
+                tooltip: ribbonTooltips.zoom,
+                size: 'large',
+                props: {
+                  icon: zoomToExtent,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content',
+                  options: [
+                    {
+                      id: 'zoom-extents',
+                      label: t('main.ribbon.command.zoomExtents'),
+                      value: 'zoom-extents',
+                      tooltip: ribbonTooltips.zoomExtents
+                    },
+                    {
+                      id: 'zoom-window',
+                      label: t('main.ribbon.command.zoomWindow'),
+                      value: 'zoom-window',
+                      tooltip: ribbonTooltips.zoomWindow
+                    },
+                    {
+                      id: 'zoom-previous',
+                      label: t('main.ribbon.command.zoomPrevious'),
+                      value: 'zoom-previous',
+                      tooltip: ribbonTooltips.zoomPrevious
+                    },
+                    {
+                      id: 'zoom-saved',
+                      label: t('main.ribbon.command.zoomSaved'),
+                      value: 'zoom-saved',
+                      tooltip: ribbonTooltips.zoomSaved
+                    },
+                    {
+                      id: 'zoom-smart',
+                      label: t('main.ribbon.command.zoomSmart'),
+                      value: 'zoom-smart',
+                      tooltip: ribbonTooltips.zoomSmart
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  })
+
+  tabs.push({
     id: 'review',
     title: t('main.ribbon.tab.review'),
     groups: reviewGroups
@@ -2610,6 +2695,13 @@ const ribbonData = computed(() => {
   commandByItemId.set('layer-action-thaw', 'laythw')
   commandByItemId.set('layer-action-unlock', 'layulk')
   commandByItemId.set('layer-action-restore', 'layerp')
+  commandByItemId.set('cmd-pan', 'pan')
+  commandByItemId.set('cmd-zoom', 'zoom\\nall')
+  commandByItemId.set('zoom-extents', 'zoom\\nall')
+  commandByItemId.set('zoom-window', 'zoom\\nwindow')
+  commandByItemId.set('zoom-previous', 'zoom\\nprevious')
+  commandByItemId.set('zoom-saved', 'zoom\\nsaved')
+  commandByItemId.set('zoom-smart', 'zoom\\nsmart')
 
   const tabs: RibbonTabModel[] = buildBaseTabs(
     openMode,

@@ -16,6 +16,7 @@ export default {
     tab: {
       home: 'Home',
       insert: 'Insert',
+      view: 'View',
       review: 'Review',
       measurement: 'Measurement',
       hatchContext: 'Hatch',
@@ -209,6 +210,7 @@ export default {
       }
     },
     group: {
+      navigate: 'Navigate',
       draw: 'Draw',
       modify: 'Modify',
       layer: 'Layer',
@@ -314,6 +316,14 @@ export default {
         'Open the Enhanced Attribute Editor to edit block attribute values and display properties (ATTEDIT).',
       defineAttribute:
         'Create an attribute definition for use in a block (ATTDEF).',
+      pan: 'Moves the view of the drawing without changing magnification.',
+      zoom: 'Zooms the drawing display.',
+      zoomExtents:
+        'Zooms to display the maximum extents of all entities.',
+      zoomWindow: 'Zooms to display an area specified by a window.',
+      zoomPrevious: 'Zooms to display the previous view.',
+      zoomSaved: 'Zooms to the saved VPORT / layout view.',
+      zoomSmart: 'Zooms to the dominant geometry cluster.',
       agent:
         'Open the CAD Agent palette tab to draw geometry using natural language.',
       propertyColor:
@@ -422,6 +432,13 @@ export default {
       insert: 'Insert',
       editAttributes: 'Edit\nAttributes',
       defineAttribute: 'Define\nAttribute',
+      pan: 'Pan',
+      zoom: 'Zoom',
+      zoomExtents: 'Extents',
+      zoomWindow: 'Window',
+      zoomPrevious: 'Previous',
+      zoomSaved: 'Saved',
+      zoomSmart: 'Smart',
       agent: 'CAD\nAgent'
     }
   },

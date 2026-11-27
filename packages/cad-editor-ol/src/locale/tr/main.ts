@@ -16,6 +16,7 @@ export default {
     tab: {
       home: 'Ana Sayfa',
       insert: 'Ekle',
+      view: 'Görünüm',
       review: 'İnceleme',
       measurement: 'Ölçüm',
       hatchContext: 'Tarama',
@@ -210,6 +211,7 @@ export default {
       }
     },
     group: {
+      navigate: 'Gezinme',
       draw: 'Çiz',
       modify: 'Düzenle',
       layer: 'Katman',
@@ -320,6 +322,15 @@ export default {
         'Blok öznitelik değerlerini ve görüntü özelliklerini düzenlemek için Gelişmiş Öznitelik Düzenleyiciyi açın (ATTEDIT).',
       defineAttribute:
         'Bir blokta kullanılacak öznitelik tanımı oluşturun (ATTDEF).',
+      pan: 'Büyütmeyi değiştirmeden çizimin görünümünü taşır.',
+      zoom: 'Çizim görüntüsünü yakınlaştırır veya uzaklaştırır.',
+      zoomExtents:
+        'Tüm varlıkların maksimum sınırlarını görüntülemek için yakınlaştırır.',
+      zoomWindow:
+        'Bir pencereyle belirtilen alanı görüntülemek için yakınlaştırır.',
+      zoomPrevious: 'Önceki görünümü görüntülemek için yakınlaştırır.',
+      zoomSaved: 'Kayıtlı VPORT / düzen görünümüne yakınlaştırır.',
+      zoomSmart: 'Baskın geometri kümesine yakınlaştırır.',
       agent:
         'Doğal dil kullanarak geometri çizmek için CAD Ajanı panel sekmesini açın.',
       propertyColor:
@@ -426,6 +437,13 @@ export default {
       insert: 'Ekle',
       editAttributes: 'Öznitelikleri\nDüzenle',
       defineAttribute: 'Öznitelik\nTanımla',
+      pan: 'Kaydır',
+      zoom: 'Yakınlaştır',
+      zoomExtents: 'Sınırlar',
+      zoomWindow: 'Pencere',
+      zoomPrevious: 'Önceki',
+      zoomSaved: 'Kayıtlı',
+      zoomSmart: 'Akıllı',
       agent: 'CAD\nAjanı'
     }
   },
