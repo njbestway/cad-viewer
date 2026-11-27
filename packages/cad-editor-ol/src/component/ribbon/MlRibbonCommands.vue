@@ -3,6 +3,7 @@ import '@mlightcad/ribbon/style.css'
 
 import {
   ChatLineSquare,
+  CopyDocument,
   Delete,
   DocumentChecked,
   DocumentCopy,
@@ -10,6 +11,7 @@ import {
   RefreshLeft,
   RefreshRight,
   Right,
+  Scissor,
   Stamp,
   View
 } from '@element-plus/icons-vue'
@@ -66,6 +68,7 @@ import {
   AcDbHatch,
   AcDbLinearUnits,
   AcDbObjectId,
+  AcDbSystemVariables,
   AcDbSysVarManager,
   AcGiLineWeight
 } from '@mlightcad/data-model'
@@ -105,19 +108,28 @@ import {
   arcThreePoints,
   attachDwg,
   attachImage,
+  chamfer,
   circleCenterDiameter,
   circleCenterRadius,
   circleTanTanRadius,
   circleTanTanTan,
   circleThreePoints,
   circleTwoPoints,
+  copyBase,
   countlist,
   defineAttribute,
   editAttribute,
   ellipseArc,
   ellipseCenter,
+  explode,
+  extend,
+  fillet,
   find,
+  group,
+  groupEdit,
+  groupSelect,
   hatch,
+  join,
   layerCurrent,
   layerFreeze,
   layerIsolate,
@@ -129,11 +141,15 @@ import {
   layerUnisolate,
   layerUnlock,
   line,
+  mirror,
   mline,
   move,
   mtext,
   multiPoints,
   offset,
+  pasteBlock,
+  pasteClip,
+  pasteOrig,
   polygon,
   polyline,
   properties,
@@ -141,8 +157,12 @@ import {
   ray,
   rect,
   revFreeDraw,
+  scale,
   setting,
   splineFitPoints,
+  stretch,
+  trim,
+  ungroup,
   xline
 } from '../../svg'
 import {
@@ -445,6 +465,38 @@ const handleObservedEntityChange = (args: {
   syncMTextActiveEditorContext()
 }
 
+/** Whether PICKSTYLE group-selection bit is on (values 1 or 3). */
+const pickstyleGroupOn = ref(true)
+
+const syncPickstyleGroupOn = (database?: AcDbDatabase) => {
+  const db = database ?? getCurrentDatabase()
+  if (!db) {
+    pickstyleGroupOn.value = true
+    return
+  }
+  const raw = AcDbSysVarManager.instance().getVar(
+    AcDbSystemVariables.PICKSTYLE,
+    db
+  )
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  pickstyleGroupOn.value = Number.isFinite(value)
+    ? (Math.trunc(value) & 1) !== 0
+    : true
+}
+
+const togglePickstyleGroupSelection = () => {
+  const db = getCurrentDatabase()
+  if (!db) return
+  const raw = AcDbSysVarManager.instance().getVar(
+    AcDbSystemVariables.PICKSTYLE,
+    db
+  )
+  const current = typeof raw === 'number' ? Math.trunc(raw) : 1
+  const next = (current & 1) !== 0 ? current & ~1 : current | 1
+  AcDbSysVarManager.instance().setVar(AcDbSystemVariables.PICKSTYLE, next, db)
+  pickstyleGroupOn.value = (next & 1) !== 0
+}
+
 /**
  * Updates ribbon property controls when document default drawing properties change.
  *
@@ -461,6 +513,9 @@ const handleSysVarChange = (args: RibbonSysVarChangeEvent) => {
       break
     case 'CLAYER':
       syncRibbonProperties(args.database)
+      break
+    case 'PICKSTYLE':
+      syncPickstyleGroupOn(args.database)
       break
     case 'LUNITS':
     case 'LUPREC':
@@ -559,6 +614,7 @@ const handleDocumentActivated = () => {
   syncMeasurementUnitControls()
   syncRibbonProperties(AcApDocManager.instance?.curDocument?.database)
   syncHatchSelectionContext(AcApDocManager.instance?.curDocument?.database)
+  syncPickstyleGroupOn(AcApDocManager.instance?.curDocument?.database)
 }
 
 /**
@@ -1191,6 +1247,30 @@ const buildBaseTabs = (
     copy: t('main.ribbon.tooltip.copy'),
     erase: t('main.ribbon.tooltip.erase'),
     offset: t('main.ribbon.tooltip.offset'),
+    stretch: t('main.ribbon.tooltip.stretch'),
+    array: t('main.ribbon.tooltip.array'),
+    arrayrect: t('main.ribbon.tooltip.arrayrect'),
+    arraypolar: t('main.ribbon.tooltip.arraypolar'),
+    arraypath: t('main.ribbon.tooltip.arraypath'),
+    join: t('main.ribbon.tooltip.join'),
+    scale: t('main.ribbon.tooltip.scale'),
+    trim: t('main.ribbon.tooltip.trim'),
+    extend: t('main.ribbon.tooltip.extend'),
+    fillet: t('main.ribbon.tooltip.fillet'),
+    chamfer: t('main.ribbon.tooltip.chamfer'),
+    mirror: t('main.ribbon.tooltip.mirror'),
+    explode: t('main.ribbon.tooltip.explode'),
+    group: t('main.ribbon.tooltip.group'),
+    ungroup: t('main.ribbon.tooltip.ungroup'),
+    groupEdit: t('main.ribbon.tooltip.groupEdit'),
+    groupSelect: t('main.ribbon.tooltip.groupSelect'),
+    classicGroup: t('main.ribbon.tooltip.classicGroup'),
+    pasteClip: t('main.ribbon.tooltip.pasteClip'),
+    pasteOrig: t('main.ribbon.tooltip.pasteOrig'),
+    pasteBlock: t('main.ribbon.tooltip.pasteBlock'),
+    cutClip: t('main.ribbon.tooltip.cutClip'),
+    copyClip: t('main.ribbon.tooltip.copyClip'),
+    copyBase: t('main.ribbon.tooltip.copyBase'),
     undo: t('main.ribbon.tooltip.undo'),
     redo: t('main.ribbon.tooltip.redo'),
     properties: t('main.ribbon.tooltip.properties'),
@@ -2051,6 +2131,44 @@ const buildBaseTabs = (
           id: 'home-modify',
           title: t('main.ribbon.group.modify'),
           orientation: 'row',
+          footerMenuItems: [
+            {
+              id: 'cmd-stretch',
+              type: 'button',
+              label: t('main.ribbon.command.stretch'),
+              tooltip: ribbonTooltips.stretch,
+              props: { icon: stretch }
+            },
+            {
+              id: 'cmd-array',
+              type: 'dropdown',
+              label: t('main.ribbon.command.array'),
+              tooltip: ribbonTooltips.array,
+              props: {
+                icon: CopyDocument,
+                options: [
+                  {
+                    value: 'array-rectangular',
+                    label: t('main.ribbon.array.rectangular'),
+                    tooltip: ribbonTooltips.arrayrect,
+                    icon: CopyDocument
+                  },
+                  {
+                    value: 'array-polar',
+                    label: t('main.ribbon.array.polar'),
+                    tooltip: ribbonTooltips.arraypolar,
+                    icon: CopyDocument
+                  },
+                  {
+                    value: 'array-path',
+                    label: t('main.ribbon.array.path'),
+                    tooltip: ribbonTooltips.arraypath,
+                    icon: CopyDocument
+                  }
+                ]
+              }
+            }
+          ],
           collections: [
             {
               id: 'home-modify-main',
@@ -2080,6 +2198,102 @@ const buildBaseTabs = (
                   tooltip: ribbonTooltips.copy,
                   size: 'small',
                   props: { icon: DocumentCopy }
+                }
+              ]
+            },
+            {
+              id: 'home-modify-edit',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-trim-extend',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.trim'),
+                  tooltip: ribbonTooltips.trim,
+                  size: 'small',
+                  props: {
+                    icon: trim,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'trim',
+                        label: t('main.ribbon.command.trim'),
+                        tooltip: ribbonTooltips.trim,
+                        icon: trim
+                      },
+                      {
+                        value: 'extend',
+                        label: t('main.ribbon.command.extend'),
+                        tooltip: ribbonTooltips.extend,
+                        icon: extend
+                      }
+                    ]
+                  }
+                },
+                {
+                  id: 'cmd-fillet-chamfer',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.fillet'),
+                  tooltip: ribbonTooltips.fillet,
+                  size: 'small',
+                  props: {
+                    icon: fillet,
+                    syncLabelWithSelection: true,
+                    options: [
+                      {
+                        value: 'fillet',
+                        label: t('main.ribbon.command.fillet'),
+                        tooltip: ribbonTooltips.fillet,
+                        icon: fillet
+                      },
+                      {
+                        value: 'chamfer',
+                        label: t('main.ribbon.command.chamfer'),
+                        tooltip: ribbonTooltips.chamfer,
+                        icon: chamfer
+                      }
+                    ]
+                  }
+                },
+                {
+                  id: 'cmd-mirror',
+                  type: 'button',
+                  label: t('main.ribbon.command.mirror'),
+                  tooltip: ribbonTooltips.mirror,
+                  size: 'small',
+                  props: { icon: mirror }
+                }
+              ]
+            },
+            {
+              id: 'home-modify-transform',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-scale',
+                  type: 'button',
+                  label: t('main.ribbon.command.scale'),
+                  tooltip: ribbonTooltips.scale,
+                  size: 'small',
+                  props: { icon: scale }
+                },
+                {
+                  id: 'cmd-join',
+                  type: 'button',
+                  label: t('main.ribbon.command.join'),
+                  tooltip: ribbonTooltips.join,
+                  size: 'small',
+                  props: { icon: join }
+                },
+                {
+                  id: 'cmd-explode',
+                  type: 'button',
+                  label: t('main.ribbon.command.explode'),
+                  tooltip: ribbonTooltips.explode,
+                  size: 'small',
+                  props: { icon: explode }
                 }
               ]
             },
@@ -2312,6 +2526,78 @@ const buildBaseTabs = (
           ]
         },
         {
+          id: 'home-groups',
+          title: t('main.ribbon.group.groups'),
+          orientation: 'row',
+          footerMenuItems: [
+            {
+              id: 'cmd-classicgroup',
+              type: 'button',
+              label: t('main.ribbon.command.classicGroup'),
+              tooltip: ribbonTooltips.classicGroup,
+              props: { icon: group }
+            }
+          ],
+          collections: [
+            {
+              id: 'home-groups-button',
+              layout: 'row',
+              items: [
+                {
+                  id: 'cmd-group',
+                  type: 'button',
+                  label: t('main.ribbon.command.group'),
+                  tooltip: ribbonTooltips.group,
+                  size: 'large',
+                  props: { icon: group }
+                }
+              ]
+            },
+            {
+              id: 'home-groups-main',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-ungroup',
+                  type: 'button',
+                  label: t('main.ribbon.command.ungroup'),
+                  tooltip: ribbonTooltips.ungroup,
+                  size: 'small',
+                  hideLabel: true,
+                  props: { icon: ungroup }
+                },
+                {
+                  id: 'cmd-groupedit',
+                  type: 'button',
+                  label: t('main.ribbon.command.groupEdit'),
+                  tooltip: ribbonTooltips.groupEdit,
+                  size: 'small',
+                  hideLabel: true,
+                  props: { icon: groupEdit }
+                },
+                {
+                  id: 'cmd-group-select',
+                  type: 'toggle',
+                  label: t('main.ribbon.command.groupSelect'),
+                  tooltip: ribbonTooltips.groupSelect,
+                  size: 'small',
+                  hideLabel: true,
+                  props: {
+                    modelValue: pickstyleGroupOn.value,
+                    activeIcon: groupSelect,
+                    inactiveIcon: groupSelect,
+                    activeLabel: t('main.ribbon.command.groupSelect'),
+                    inactiveLabel: t('main.ribbon.command.groupSelect'),
+                    activeValue: 'cmd-group-select',
+                    inactiveValue: 'cmd-group-select'
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
           id: 'home-annotation',
           title: t('main.ribbon.group.annotation'),
           orientation: 'row',
@@ -2388,6 +2674,83 @@ const buildBaseTabs = (
                     labelWrapLines: 2,
                     labelWrapWidth: 'max-content'
                   }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'home-clipboard',
+          title: t('main.ribbon.group.clipboard'),
+          orientation: 'row',
+          collections: [
+            {
+              id: 'home-clipboard-main',
+              layout: 'row',
+              items: [
+                {
+                  id: 'cmd-pasteclip',
+                  type: 'dropdown',
+                  label: t('main.ribbon.command.pasteClip'),
+                  tooltip: ribbonTooltips.pasteClip,
+                  size: 'large',
+                  props: {
+                    icon: pasteClip,
+                    options: [
+                      {
+                        value: 'paste-clip',
+                        label: t('main.ribbon.command.pasteClip'),
+                        tooltip: ribbonTooltips.pasteClip,
+                        icon: pasteClip
+                      },
+                      {
+                        value: 'paste-orig',
+                        label: t('main.ribbon.command.pasteOrig'),
+                        tooltip: ribbonTooltips.pasteOrig,
+                        icon: pasteOrig
+                      },
+                      {
+                        value: 'paste-block',
+                        label: t('main.ribbon.command.pasteBlock'),
+                        tooltip: ribbonTooltips.pasteBlock,
+                        icon: pasteBlock
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              id: 'home-clipboard-secondary',
+              layout: 'column',
+              rows: 3,
+              items: [
+                {
+                  id: 'cmd-cutclip',
+                  type: 'button',
+                  label: t('main.ribbon.command.cutClip'),
+                  tooltip: ribbonTooltips.cutClip,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: Scissor }
+                },
+                {
+                  id: 'cmd-copyclip',
+                  type: 'button',
+                  label: t('main.ribbon.command.copyClip'),
+                  tooltip: ribbonTooltips.copyClip,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: CopyDocument }
+                },
+                {
+                  id: 'cmd-copybase',
+                  type: 'button',
+                  label: t('main.ribbon.command.copyBase'),
+                  tooltip: ribbonTooltips.copyBase,
+                  hideLabel: true,
+                  size: 'small',
+                  props: { icon: copyBase }
                 }
               ]
             }
@@ -2586,6 +2949,8 @@ const buildBaseTabs = (
 
 const ribbonData = computed(() => {
   locale.value
+  // Track PICKSTYLE group bit for the Groups panel toggle.
+  pickstyleGroupOn.value
   const openMode = docOpenMode.value
   const markupVisible = isMarkupOverlayVisible.value
   const measurementVisible = isMeasurementOverlayVisible.value
@@ -2651,6 +3016,35 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-copy', 'copy')
   commandByItemId.set('cmd-erase', 'erase')
   commandByItemId.set('cmd-offset', 'offset')
+  commandByItemId.set('cmd-mirror', 'mirror')
+  commandByItemId.set('cmd-trim-extend', 'trim')
+  commandByItemId.set('cmd-trim', 'trim')
+  commandByItemId.set('trim', 'trim')
+  commandByItemId.set('cmd-extend', 'extend')
+  commandByItemId.set('extend', 'extend')
+  commandByItemId.set('cmd-scale', 'scale')
+  commandByItemId.set('cmd-fillet-chamfer', 'fillet')
+  commandByItemId.set('cmd-fillet', 'fillet')
+  commandByItemId.set('fillet', 'fillet')
+  commandByItemId.set('cmd-chamfer', 'chamfer')
+  commandByItemId.set('chamfer', 'chamfer')
+  commandByItemId.set('cmd-join', 'join')
+  commandByItemId.set('cmd-stretch', 'stretch')
+  commandByItemId.set('cmd-explode', 'explode')
+  commandByItemId.set('array-rectangular', 'arrayrect')
+  commandByItemId.set('array-polar', 'arraypolar')
+  commandByItemId.set('array-path', 'arraypath')
+  commandByItemId.set('cmd-group', 'group')
+  commandByItemId.set('cmd-ungroup', 'ungroup')
+  commandByItemId.set('cmd-groupedit', 'groupedit')
+  commandByItemId.set('cmd-classicgroup', 'classicgroup')
+  commandByItemId.set('cmd-pasteclip', 'pasteclip')
+  commandByItemId.set('paste-clip', 'pasteclip')
+  commandByItemId.set('paste-orig', 'pasteorig')
+  commandByItemId.set('paste-block', 'pasteblock')
+  commandByItemId.set('cmd-cutclip', 'cutclip')
+  commandByItemId.set('cmd-copyclip', 'copyclip')
+  commandByItemId.set('cmd-copybase', 'copybase')
   commandByItemId.set('cmd-layer', 'layer')
   commandByItemId.set('cmd-properties', 'properties')
   commandByItemId.set('cmd-qselect', 'qselect')
@@ -2825,6 +3219,10 @@ const handleRibbonItemClick = (payload: {
   if (isRibbonDisabled.value) return
   if (handleHatchItem(payload.itemId)) return
   if (handleMTextItem(payload.itemId)) return
+  if (payload.itemId === 'cmd-group-select') {
+    togglePickstyleGroupSelection()
+    return
+  }
   if (
     payload.groupId === 'home-layer' &&
     ribbonLayerOptions.value.some(item => item.value === payload.itemId)

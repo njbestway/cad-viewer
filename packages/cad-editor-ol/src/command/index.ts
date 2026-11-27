@@ -1,5 +1,6 @@
 export * from './AcApAttDefCmd'
 export * from './AcApAttEditCmd'
+export * from './AcApClassicGroupCmd'
 export * from './AcApCountListCmd'
 export * from './AcApHatchRibbonCmd'
 export * from './AcApInsertPaletteCmd'
