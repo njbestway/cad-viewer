@@ -278,6 +278,8 @@ export default {
       arc: 'Eliptik Yay'
     },
     tooltip: {
+      searchConvert: 'Seçili nesnelerin tüm kopyalarını bulur ve bloklara dönüştürür (BSEARCH).',
+      detectConvert: 'Çizimin her yerindeki yinelenen nesneleri bulur ve bloklara dönüştürür (BDETECT).',
       ucs: 'Geçerli kullanıcı koordinat sisteminin orijinini ve yönünü ayarlar.',
       namedUcs: 'Adlı UCS tanımlarını ve UCS simgesi ayarlarını yönetir.',
       ucsWorld: 'UCS\'yi dünya koordinat sistemine ayarlar.',
@@ -463,6 +465,8 @@ export default {
       path: 'Yol Dizisi'
     },
     command: {
+      searchConvert: 'Ara ve\nDönüştür',
+      detectConvert: 'Algıla ve\nDönüştür',
       ucs: 'UCS',
       namedUcs: 'Adlı\nUCS',
       ucsWorld: 'Dünya',
@@ -558,6 +562,73 @@ export default {
       zoomSmart: 'Akıllı',
       agent: 'CAD\nAjanı'
     }
+  },
+  bsearch: {
+    found: '{count} örnek bulundu, {included} tanesi dahil',
+    previous: 'Önceki örnek',
+    next: 'Sonraki örnek',
+    convert: 'Bloğa dönüştür…',
+    cancel: 'İptal',
+    rotation: 'Döndürülmüş',
+    mirror: 'Aynalanmış',
+    scale: 'Ölçeklenmiş',
+    sameLayer: 'Aynı katman',
+    existingBlocks: 'Mevcut bloklar',
+    textVariations: 'Metin farkları',
+    pickPrompt: 'Dahil etmek veya hariç tutmak için bir örneğe tıklayın ya da',
+    source: 'Seçili nesneler: {count}',
+    options: 'Arama seçenekleri',
+    none: 'Başka örnek bulunamadı. Arama seçeneklerini değiştirin veya yalnızca seçimi dönüştürün.',
+    includeAll: 'Tümünü dahil et',
+    include: 'Bu örneği dahil et',
+    instance: 'Örnek {index}',
+    blockReference: 'Blok referansı',
+    rotatedBy: '{angle}° döndürülmüş',
+    mirrored: 'Aynalanmış',
+    scaledBy: 'Ölçek {scale}',
+    hint: 'Örneğe yakınlaştırmak için bir satıra tıklayın. Dahil etmek veya hariç tutmak için çizimde bir örneğe tıklayın.'
+  },
+  bdetect: {
+    detecting: 'Çizimde yinelenen nesneler aranıyor…',
+    foundSoFar: 'Şu ana kadar {count} grup bulundu',
+    stop: 'Durdur',
+    ready: 'Seçenekleri ayarlayın, ardından Algıla’ya tıklayın.',
+    detect: 'Algıla',
+    detectAgain: 'Yeniden algıla',
+    options: 'Algılama seçenekleri',
+    explain: '{option} açıklaması',
+    rotation: 'Döndürülmüş',
+    mirror: 'Aynalanmış',
+    scale: 'Ölçeklenmiş',
+    sameLayer: 'Aynı katman',
+    textVariations: 'Metin farklılıkları',
+    minInstances: 'En az örnek',
+    minSavings: 'En az tasarruf',
+    maxEntities: 'En fazla nesne',
+    help: {
+      rotation: 'Herhangi bir açıyla döndürülmüş kopyalar aynı nesne sayılır. Kapatırsanız yalnızca aynı yöne bakan kopyalar gruplanır.',
+      mirror: 'Ters çevrilmiş kopyalar da aynı nesne sayılır; örneğin diğer yana açılan bir kapı. Kapatırsanız aynalanmış kopyalar gruba alınmaz.',
+      scale: 'Oran korunarak büyütülmüş veya küçültülmüş kopyalar aynı nesne sayılır. Kapatırsanız yalnızca aynı boyuttaki kopyalar gruplanır. Gerilmiş veya ezilmiş şekiller hiç eşleşmez.',
+      sameLayer: 'Bir kopyadaki her şekil, karşılık gelen şekille aynı katmanda olmalıdır. PDF’den gelen çizimlerde katmanlar çoğu zaman renge göre ayrılır ve bir simge birkaç katmana dağılır. Bu durumda kapatın.',
+      textVariations: 'Oda numarası gibi, kopyalar arasında farklı tek satırlık metinlere izin verilir. Grup dönüştürülünce bu metinler blok özniteliği olur. Kapatırsanız metnin harfi harfine aynı olması gerekir. Çok satırlı metin her zaman birebir aynı olmalıdır ve öznitelik olmaz.',
+      minInstances: 'Özgün nesne dahil en az bu kadar kopya bulunursa grup listelenir. En küçük değer 2’dir. Yükseltirseniz yalnızca ikili tekrarlar yok sayılır ve daha sık tekrarlanan nesneler kalır.',
+      minSavings: 'Bir grup, bloğa dönüştürünce en az bu kadar nesne kaldırılacaksa tutulur. Tasarruf, kopya sayısı çarpı (bir kopyadaki nesne sayısı eksi 1) kadardır: bir kopya blok olur, diğer her kopya tek bir blok referansıyla değiştirilir. Örneğin 3 nesneli 5 kopya 10 nesne kazandırır. Yükseltirseniz küçük gruplar gizlenir; 0 yaparsanız her tekrar listelenir.',
+      maxEntities: 'Bir kopyanın içerebileceği en fazla nesne sayısıdır. Algılama bu boyuta ulaşınca parça eklemeyi durdurur; daha çok parçadan oluşan bir simge yalnızca kısmen alınır. Büyük ve karmaşık tekrarları atlamak için düşürün; aradığınız simgenin daha çok parçası varsa yükseltin. Varsayılan 64’tür.'
+    },
+    groups: '{count} yinelenen nesne grubu',
+    none: 'Yinelenen nesne bulunamadı.',
+    selectAll: 'Tümünü seç',
+    instances: '{count} örnek × {objects} nesne',
+    layers: 'Katmanlar: {layers}',
+    attributes: 'Öznitelikler',
+    attributesHint: 'Örnekler arasında farklı olan metinler öznitelik olur',
+    blockName: 'Blok adı',
+    review: 'Bu grubu incele ve dönüştür…',
+    convertSelected: 'Seçilenleri dönüştür ({count})',
+    close: 'Kapat',
+    pickPrompt: 'Grubunu göstermek için bir nesneye tıklayın veya',
+    summary: '{groups} grup {count} blok referansına dönüştürüldü',
+    nameDuplicate: '"{name}" blok adı seçili başka bir grup tarafından kullanılıyor'
   },
   verticalToolbar: {
     measure: {
@@ -750,6 +821,13 @@ export default {
       toolbar: 'Araç Çubuğu',
       stats: 'İstatistikler'
     },
+    cannoscale: {
+      tooltip: 'Açıklama ölçeği (CANNOSCALE)'
+    },
+    annoallvisible: {
+      on: 'Geçerli ölçeği desteklemeyen açıklamalı nesneleri gizle',
+      off: 'Tüm açıklamalı nesneleri göster (ANNOALLVISIBLE)'
+    },
     osnap: {
       tooltip: 'Nesne Yakalama',
       endpoint: 'Uç Nokta',
@@ -897,6 +975,14 @@ export default {
         leader: 'Kılavuz',
         table: 'Tablo'
       }
+    },
+    bdetect: {
+      tab: 'Algılama',
+      title: 'Algıla ve Dönüştür'
+    },
+    bsearch: {
+      tab: 'Arama',
+      title: 'Ara ve Dönüştür'
     },
     countList: {
       tab: 'Sayım',

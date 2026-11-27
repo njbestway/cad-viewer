@@ -1,5 +1,18 @@
 export default {
   ACAD: {
+    bsearch: {
+      description: 'Akıllı Bloklar: aynı geometriyi bulur ve bloklara dönüştürür',
+      prompt: 'Aranacak nesneleri seçin'
+    },
+    bdetect: {
+      description: 'Akıllı Bloklar: çizimdeki yinelenen nesneleri bulur ve bloklara dönüştürür'
+    },
+    mleaderstyle: {
+      description: 'Çoklu önder stilleri oluşturur ve çoklu önder nesneleri için değiştirir'
+    },
+    classicgroup: {
+      description: 'Grup oluşturmak ve yönetmek için Nesne Gruplama iletişim kutusunu açar'
+    },
     hatch: {
       description:
         'Şerit tabanlı bağlamsal iş akışıyla tarama dolgusu oluşturur'

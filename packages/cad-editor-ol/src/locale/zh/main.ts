@@ -274,6 +274,8 @@ export default {
       arc: '椭圆弧'
     },
     tooltip: {
+      searchConvert: '查找所选对象的所有副本并将其转换为块（BSEARCH）。',
+      detectConvert: '在整个图形中查找重复对象并将其转换为块（BDETECT）。',
       ucs: '设置当前用户坐标系的原点和方向。',
       namedUcs: '管理命名 UCS 定义和 UCS 图标设置。',
       ucsWorld: '将 UCS 设置为世界坐标系。',
@@ -421,6 +423,8 @@ export default {
       path: '路径阵列'
     },
     command: {
+      searchConvert: '搜索并\n转换',
+      detectConvert: '检测并\n转换',
       ucs: 'UCS',
       namedUcs: '命名\nUCS',
       ucsWorld: '世界',
@@ -516,6 +520,73 @@ export default {
       zoomSmart: '智能',
       agent: 'CAD Agent'
     }
+  },
+  bsearch: {
+    found: '找到 {count} 个实例，已包含 {included} 个',
+    previous: '上一个实例',
+    next: '下一个实例',
+    convert: '转换为块…',
+    cancel: '取消',
+    rotation: '旋转',
+    mirror: '镜像',
+    scale: '缩放',
+    sameLayer: '相同图层',
+    existingBlocks: '现有块',
+    textVariations: '文字变化',
+    pickPrompt: '单击实例以包含或排除，或',
+    source: '已选择对象：{count} 个',
+    options: '搜索选项',
+    none: '未找到其他实例。请更改搜索选项，或仅转换所选对象。',
+    includeAll: '全部包含',
+    include: '包含此实例',
+    instance: '实例 {index}',
+    blockReference: '块参照',
+    rotatedBy: '旋转 {angle}°',
+    mirrored: '已镜像',
+    scaledBy: '比例 {scale}',
+    hint: '单击列表行可缩放到该实例；在图形中单击实例可包含或排除它。'
+  },
+  bdetect: {
+    detecting: '正在搜索图形中的重复对象…',
+    foundSoFar: '已找到 {count} 组',
+    stop: '停止',
+    ready: '调整选项，然后单击“检测”。',
+    detect: '检测',
+    detectAgain: '重新检测',
+    options: '检测选项',
+    explain: '“{option}”的说明',
+    rotation: '旋转',
+    mirror: '镜像',
+    scale: '缩放',
+    sameLayer: '同一图层',
+    textVariations: '文字变化',
+    minInstances: '最少实例数',
+    minSavings: '最少节省数',
+    maxEntities: '最大对象数',
+    help: {
+      rotation: '任意角度旋转后的副本仍算同一个对象。关闭后，只把朝向相同的副本归为一组。',
+      mirror: '镜像后的副本仍算同一个对象，例如朝另一侧开启的门。关闭后，翻转过的副本不会被归入同一组。',
+      scale: '等比放大或缩小的副本仍算同一个对象。关闭后，只把尺寸相同的副本归为一组。被拉长或压扁的形状不会被认作相同。',
+      sameLayer: '副本中的每个图形必须与对应图形位于同一图层。从 PDF 导入的图常常按颜色分层，同一个符号会散在多个图层上，这时请关闭此项。',
+      textVariations: '副本中的单行文字可以不同，例如房间号。转换时，这些不同的文字会变成块的属性。关闭后，文字必须完全相同才会被归为一组。多行文字始终必须逐字相同，也不会变成属性。',
+      minInstances: '只有找到至少这么多个副本（含原来的那一个）时，才会列出这一组。最小值为 2。调高后，成对出现的对象会被忽略，只保留重复更多次的对象。',
+      minSavings: '只有转换成块后至少能少掉这么多个对象时，才会保留这一组。节省数等于副本个数乘以（每个副本的对象数减 1）：一份留作块，其余每一份都换成一个块参照。例如 5 个由 3 个对象组成的副本，可节省 10 个对象。调高可隐藏收益很小的组，设为 0 则列出所有重复。',
+      maxEntities: '一个副本最多可以包含的对象数。检测长大到这个数量就停止，因此零件更多的符号只会纳入一部分。调低可跳过又大又复杂的重复；要找的符号零件更多时再调高。默认值为 64。'
+    },
+    groups: '{count} 组重复对象',
+    none: '未找到重复对象。',
+    selectAll: '全选',
+    instances: '{count} 个实例 × {objects} 个对象',
+    layers: '图层：{layers}',
+    attributes: '属性',
+    attributesHint: '各实例中不同的文字将转换为属性',
+    blockName: '块名',
+    review: '查看并转换此组…',
+    convertSelected: '转换所选 ({count})',
+    close: '关闭',
+    pickPrompt: '单击对象以显示其所在组，或',
+    summary: '已将 {groups} 组转换为 {count} 个块参照',
+    nameDuplicate: '块名“{name}”已被另一个选定组使用'
   },
   verticalToolbar: {
     measure: {
@@ -702,6 +773,13 @@ export default {
       toolbar: '工具栏',
       stats: '性能面板'
     },
+    cannoscale: {
+      tooltip: '注释比例 (CANNOSCALE)'
+    },
+    annoallvisible: {
+      on: '隐藏不支持当前比例的注释性对象',
+      off: '显示全部注释性对象 (ANNOALLVISIBLE)'
+    },
     osnap: {
       tooltip: '对象捕捉',
       endpoint: '端点',
@@ -849,6 +927,14 @@ export default {
         leader: '引线',
         table: '表格'
       }
+    },
+    bdetect: {
+      tab: '检测',
+      title: '检测并转换'
+    },
+    bsearch: {
+      tab: '搜索',
+      title: '搜索并转换'
     },
     countList: {
       tab: '计数',

@@ -277,6 +277,8 @@ export default {
       arc: 'Eliptický oblouk'
     },
     tooltip: {
+      searchConvert: 'Vyhledá všechny kopie vybraných objektů a převede je na bloky (BSEARCH).',
+      detectConvert: 'Vyhledá opakující se objekty v celém výkresu a převede je na bloky (BDETECT).',
       ucs: 'Nastaví počátek a orientaci aktuálního uživatelského souřadnicového systému.',
       namedUcs: 'Spravuje pojmenované definice USS a nastavení ikony USS.',
       ucsWorld: 'Nastaví USS na globální souřadnicový systém.',
@@ -451,6 +453,8 @@ export default {
       path: 'Pole na trajektorii'
     },
     command: {
+      searchConvert: 'Vyhledat a\npřevést',
+      detectConvert: 'Detekovat a\npřevést',
       ucs: 'USS',
       namedUcs: 'Pojmenované\nUSS',
       ucsWorld: 'Globální',
@@ -546,6 +550,74 @@ export default {
       zoomSmart: 'Chytrý',
       agent: 'CAD\nAgent'
     }
+  },
+  bsearch: {
+    found: 'Nalezeno {count} instancí, zahrnuto {included}',
+    previous: 'Předchozí instance',
+    next: 'Další instance',
+    convert: 'Převést na blok…',
+    cancel: 'Zrušit',
+    rotation: 'Otočené',
+    mirror: 'Zrcadlené',
+    array: 'Pole',
+    scale: 'V měřítku',
+    sameLayer: 'Stejná hladina',
+    existingBlocks: 'Existující bloky',
+    textVariations: 'Rozdílný text',
+    pickPrompt: 'Klepnutím na instanci ji zahrňte nebo vylučte, nebo',
+    source: 'Vybrané objekty: {count}',
+    options: 'Možnosti hledání',
+    none: 'Žádné další instance nebyly nalezeny. Změňte možnosti hledání, nebo převeďte pouze výběr.',
+    includeAll: 'Zahrnout vše',
+    include: 'Zahrnout tuto instanci',
+    instance: 'Instance č. {index}',
+    blockReference: 'Reference bloku',
+    rotatedBy: 'Otočeno o {angle}°',
+    mirrored: 'Zrcadleno',
+    scaledBy: 'Měřítko {scale}',
+    hint: 'Klepnutím na řádek přiblížíte instanci. Klepnutím na instanci ve výkresu ji zahrnete nebo vyloučíte.'
+  },
+  bdetect: {
+    detecting: 'Vyhledávání opakujících se objektů ve výkresu…',
+    foundSoFar: 'Zatím nalezeno skupin: {count}',
+    stop: 'Zastavit',
+    ready: 'Upravte možnosti a klepněte na Detekovat.',
+    detect: 'Detekovat',
+    detectAgain: 'Detekovat znovu',
+    options: 'Možnosti detekce',
+    explain: 'Vysvětlení: {option}',
+    rotation: 'Otočené',
+    mirror: 'Zrcadlené',
+    scale: 'Měřítko',
+    sameLayer: 'Stejná hladina',
+    textVariations: 'Odlišné texty',
+    minInstances: 'Min. počet instancí',
+    minSavings: 'Min. úspora',
+    maxEntities: 'Max. počet objektů',
+    help: {
+      rotation: 'Kopie otočené o libovolný úhel se stále počítají jako stejný objekt. Vypnutím se seskupí jen kopie se stejnou orientací.',
+      mirror: 'Zrcadlené kopie se stále počítají jako stejný objekt, například dveře otevírané na druhou stranu. Vypnutím se zrcadlené kopie do skupiny nezařadí.',
+      scale: 'Kopie rovnoměrně zvětšené nebo zmenšené se stále počítají jako stejný objekt. Vypnutím se seskupí jen kopie stejné velikosti. Natažené nebo zploštělé tvary se neshodují.',
+      sameLayer: 'Každý tvar v kopii musí ležet na stejné hladině jako odpovídající tvar. Po importu z PDF se hladiny často dělí podle barvy a jeden symbol je rozprostřen na několik hladin. V tom případě volbu vypněte.',
+      textVariations: 'Kopie mohou obsahovat různý jednořádkový text, například čísla místností. Při převodu se z těchto textů stanou atributy bloku. Vypnutím musí text znít úplně stejně. Víceřádkový text se musí vždy shodovat doslova a atributem se nestane.',
+      minInstances: 'Skupina se zobrazí, jen když se najde alespoň tolik kopií včetně původního objektu. Nejmenší hodnota je 2. Zvýšením se ignorují pouhé dvojice a zůstanou objekty, které se opakují častěji.',
+      minSavings: 'Skupina zůstane, jen když by její převod odebral alespoň tolik objektů. Úspora je počet kopií krát (objekty v jedné kopii minus 1): jedna kopie se stane blokem a každá další se nahradí jedním odkazem na blok. Například 5 kopií symbolu ze 3 objektů ušetří 10 objektů. Zvýšením se skryjí malé skupiny; hodnota 0 vypíše každé opakování.',
+      maxEntities: 'Nejvyšší počet objektů v jedné kopii. Detekce přestane přidávat díly na této velikosti, takže symbol z více dílů se zahrne jen zčásti. Snížením se přeskočí velké a složité opakování; zvyšte hodnotu, má-li hledaný symbol více dílů. Výchozí hodnota je 64.'
+    },
+    groups: 'Skupiny opakujících se objektů: {count}',
+    none: 'Nebyly nalezeny žádné opakující se objekty.',
+    selectAll: 'Vybrat vše',
+    instances: '{count} instancí × {objects} objektů',
+    layers: 'Hladiny: {layers}',
+    attributes: 'Atributy',
+    attributesHint: 'Texty, které se mezi instancemi liší, se stanou atributy',
+    blockName: 'Název bloku',
+    review: 'Zkontrolovat a převést tuto skupinu…',
+    convertSelected: 'Převést vybrané ({count})',
+    close: 'Zavřít',
+    pickPrompt: 'Klepněte na objekt pro zobrazení jeho skupiny, nebo',
+    summary: 'Převedené skupiny: {groups}, vytvořené reference bloků: {count}',
+    nameDuplicate: 'Název bloku „{name}“ používá jiná vybraná skupina'
   },
   verticalToolbar: {
     measure: {
@@ -735,6 +807,13 @@ export default {
       toolbar: 'Panel nástrojů',
       stats: 'Statistiky'
     },
+    cannoscale: {
+      tooltip: 'Měřítko anotací (CANNOSCALE)'
+    },
+    annoallvisible: {
+      on: 'Skrýt anotační objekty nepodporující aktuální měřítko',
+      off: 'Zobrazit všechny anotační objekty (ANNOALLVISIBLE)'
+    },
     osnap: {
       tooltip: 'Uchopení objektů',
       endpoint: 'Koncový bod',
@@ -882,6 +961,14 @@ export default {
         leader: 'Odkaz',
         table: 'Tabulka'
       }
+    },
+    bdetect: {
+      tab: 'Detekce',
+      title: 'Detekovat a převést'
+    },
+    bsearch: {
+      tab: 'Hledání',
+      title: 'Vyhledat a převést'
     },
     countList: {
       tab: 'Počet',

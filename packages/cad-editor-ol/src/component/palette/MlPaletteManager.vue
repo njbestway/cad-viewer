@@ -82,6 +82,18 @@
           <ml-blocks-palette />
         </div>
         <div
+          v-else-if="store.dialogs.activePaletteTab === 'bdetect'"
+          class="ml-bdetect-palette-wrapper"
+        >
+          <ml-b-detect-palette />
+        </div>
+        <div
+          v-else-if="store.dialogs.activePaletteTab === 'bsearch'"
+          class="ml-bsearch-palette-wrapper"
+        >
+          <ml-b-search-palette />
+        </div>
+        <div
           v-else-if="
             store.features.scriptPlugin &&
             store.dialogs.activePaletteTab === 'cadScript'
@@ -124,7 +136,9 @@ import {
   useViewerRect
 } from '../../composable'
 import { toolPaletteTabName, toolPaletteTitle } from '../../locale'
+import MlBDetectPalette from './MlBDetectPalette.vue'
 import MlBlocksPalette from './MlBlocksPalette.vue'
+import MlBSearchPalette from './MlBSearchPalette.vue'
 import MlCadScriptPanel from './MlCadScriptPanel.vue'
 import MlCountList from './MlCountList.vue'
 import MlDesignReviewPalette from './MlDesignReviewPalette.vue'
@@ -248,6 +262,14 @@ const tabNames = computed((): readonly string[] => {
   // Revealed by OPENPERF only — keep out of the default palette chrome.
   if (store.dialogs.openFileProfileTabVisible) {
     names.push('openFileProfile')
+  }
+  // Only while BDETECT runs: the list belongs to that command.
+  if (store.dialogs.bdetectTabVisible) {
+    names.push('bdetect')
+  }
+  // Only while BSEARCH reviews its instances.
+  if (store.dialogs.bsearchTabVisible) {
+    names.push('bsearch')
   }
   if (store.features.scriptPlugin) {
     names.push('cadScript')
@@ -522,6 +544,8 @@ function handleUpdateProperty(payload: {
   z-index: 7;
 }
 
+.ml-bdetect-palette-wrapper,
+.ml-bsearch-palette-wrapper,
 .ml-layer-list-wrapper {
   overflow: hidden;
   width: 100%;

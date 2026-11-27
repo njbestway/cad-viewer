@@ -9,6 +9,8 @@ import { markRaw } from 'vue'
 import {
   AcApAttDefCmd,
   AcApAttEditCmd,
+  AcApBDetectCmd,
+  AcApBSearchCmd,
   AcApClassicGroupCmd,
   AcApCountListCmd,
   AcApDimStyleCmd,
@@ -37,6 +39,7 @@ import {
   createMlColorIndexPickerToolbarFactory,
   MlAttDefDlg,
   MlAttEditDlg,
+  MlBConvertDlg,
   MlClassicGroupDlg,
   MlDimStyleDlg,
   MlDrawingUnitsDlg,
@@ -220,6 +223,19 @@ export const registerCmds = () => {
       new AcApUcsManCmd(),
       'dducs'
     )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'bsearch',
+      'bsearch',
+      new AcApBSearchCmd(),
+      'bconvert'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'bdetect',
+      'bdetect',
+      new AcApBDetectCmd()
+    )
     isCommandRegistered = true
   }
 }
@@ -271,6 +287,11 @@ export const registerDialogs = () => {
     registerDialog({
       name: 'MLeaderStyleDlg',
       component: markRaw(MlMLeaderStyleDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'BConvertDlg',
+      component: markRaw(MlBConvertDlg),
       props: {}
     })
     registerDialog({

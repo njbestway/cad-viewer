@@ -1,6 +1,8 @@
 export { default as arc } from './arc.svg'
 export { default as attachDwg } from './attachDwg.svg'
 export { default as attachImage } from './attachImage.svg'
+export { default as bdetect } from './bdetect.svg'
+export { default as bsearch } from './bsearch.svg'
 export { default as chamfer } from './chamfer.svg'
 export { default as circle } from './circle.svg'
 export { default as color } from './color.svg'

@@ -1,5 +1,18 @@
 export default {
   ACAD: {
+    bsearch: {
+      description: 'Smart Blocks: finds identical geometry and converts it into blocks',
+      prompt: 'Select objects to search for'
+    },
+    bdetect: {
+      description: 'Smart Blocks: finds repeated objects in the drawing and converts them into blocks'
+    },
+    mleaderstyle: {
+      description: 'Creates and modifies multileader styles for multileader objects'
+    },
+    classicgroup: {
+      description: 'Opens the Object Grouping dialog to create and manage groups'
+    },
     hatch: {
       description: 'Creates hatch fills with a ribbon-based contextual workflow'
     },

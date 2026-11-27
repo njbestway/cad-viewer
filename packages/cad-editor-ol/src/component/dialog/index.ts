@@ -1,5 +1,6 @@
 export { default as MlAttDefDlg } from './MlAttDefDlg.vue'
 export { default as MlAttEditDlg } from './MlAttEditDlg.vue'
+export { default as MlBConvertDlg } from './MlBConvertDlg.vue'
 export { default as MlClassicGroupDlg } from './MlClassicGroupDlg.vue'
 export { default as MlDrawingUnitsDlg } from './MlDrawingUnitsDlg.vue'
 export { default as MlColorPickerDlg } from './MlColorPickerDlg.vue'

@@ -1,5 +1,18 @@
 export default {
   ACAD: {
+    bsearch: {
+      description: 'Chytré bloky: vyhledá shodnou geometrii a převede ji na bloky',
+      prompt: 'Vyberte objekty k vyhledání'
+    },
+    bdetect: {
+      description: 'Chytré bloky: vyhledá opakující se objekty ve výkresu a převede je na bloky'
+    },
+    mleaderstyle: {
+      description: 'Vytváří a upravuje styly multiodkazů pro objekty multiodkazů'
+    },
+    classicgroup: {
+      description: 'Otevře dialog Seskupování objektů pro vytváření a správu skupin'
+    },
     hatch: {
       description: 'Vytváří šrafování pomocí kontextového pásu karet'
     },

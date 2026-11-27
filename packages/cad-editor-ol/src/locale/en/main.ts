@@ -277,6 +277,8 @@ export default {
       arc: 'Elliptical Arc'
     },
     tooltip: {
+      searchConvert: 'Find all copies of the selected objects and convert them into blocks (BSEARCH).',
+      detectConvert: 'Find repeated objects anywhere in the drawing and convert them into blocks (BDETECT).',
       ucs: 'Sets the origin and orientation of the current user coordinate system.',
       namedUcs: 'Manages named UCS definitions and UCS icon settings.',
       ucsWorld: 'Sets the UCS to the world coordinate system.',
@@ -458,6 +460,8 @@ export default {
       path: 'Path Array'
     },
     command: {
+      searchConvert: 'Search and\nConvert',
+      detectConvert: 'Detect and\nConvert',
       ucs: 'UCS',
       namedUcs: 'Named\nUCS',
       ucsWorld: 'World',
@@ -553,6 +557,73 @@ export default {
       zoomSmart: 'Smart',
       agent: 'CAD\nAgent'
     }
+  },
+  bsearch: {
+    found: '{count} instances found, {included} included',
+    previous: 'Previous instance',
+    next: 'Next instance',
+    convert: 'Convert to block…',
+    cancel: 'Cancel',
+    rotation: 'Rotated',
+    mirror: 'Mirrored',
+    scale: 'Scaled',
+    sameLayer: 'Same layer',
+    existingBlocks: 'Existing blocks',
+    textVariations: 'Text variations',
+    pickPrompt: 'Click an instance to include or exclude it, or',
+    source: 'Selected objects: {count}',
+    options: 'Search options',
+    none: 'No other instances were found. Change the search options, or convert the selection alone.',
+    includeAll: 'Include all',
+    include: 'Include this instance',
+    instance: 'Instance {index}',
+    blockReference: 'Block reference',
+    rotatedBy: 'Rotated {angle}°',
+    mirrored: 'Mirrored',
+    scaledBy: 'Scale {scale}',
+    hint: 'Click a row to zoom to the instance. Click an instance in the drawing to include or exclude it.'
+  },
+  bdetect: {
+    detecting: 'Searching the drawing for repeated objects…',
+    foundSoFar: '{count} groups found so far',
+    stop: 'Stop',
+    ready: 'Adjust the options, then click Detect.',
+    detect: 'Detect',
+    detectAgain: 'Detect again',
+    options: 'Detection options',
+    explain: 'Details for {option}',
+    rotation: 'Rotated',
+    mirror: 'Mirrored',
+    scale: 'Scaled',
+    sameLayer: 'Same layer',
+    textVariations: 'Text variations',
+    minInstances: 'Min. instances',
+    minSavings: 'Min. savings',
+    maxEntities: 'Max. objects',
+    help: {
+      rotation: 'Rotated copies still count as the same object, at any angle. Turn this off to group only copies that face the same way.',
+      mirror: 'Mirrored copies still count as the same object, such as a door that swings the other way. Turn this off to leave flipped copies out.',
+      scale: 'Copies that are uniformly larger or smaller still count as the same object. Turn this off to group only copies of the same size. Stretched or skewed shapes are never matched.',
+      sameLayer: 'Each shape in a copy must lie on the same layer as the matching shape. Turn this off when one symbol is split across layers, which is common after a PDF import that assigns layers by color.',
+      textVariations: 'Copies may contain different single-line text, such as room numbers. Those texts become block attributes when the group is converted. Turn this off to require the text to read exactly the same. Multiline text always has to match and does not become an attribute.',
+      minInstances: 'A group is listed only when at least this many copies are found, including the original. The smallest value is 2. Raise it to ignore pairs and keep only objects that repeat more often.',
+      minSavings: 'A group is kept only when converting it would remove at least this many objects. The saving is the number of copies times one less than the objects in a copy: one copy becomes the block, and each other copy is replaced by a single block reference. For example, 5 copies of a 3-object symbol save 10 objects. Raise this to hide small groups, or set it to 0 to list every repeat.',
+      maxEntities: 'The most objects one copy may contain. Detection stops adding pieces once a group reaches this size, so a symbol with more pieces is only partly included. Lower it to skip large, complicated repeats, and raise it when a symbol you want has more pieces. The default is 64.'
+    },
+    groups: '{count} groups of repeated objects',
+    none: 'No repeated objects were found.',
+    selectAll: 'Select all',
+    instances: '{count} instances × {objects} objects',
+    layers: 'Layers: {layers}',
+    attributes: 'Attributes',
+    attributesHint: 'Texts that differ between instances become attributes',
+    blockName: 'Block name',
+    review: 'Review and convert this group…',
+    convertSelected: 'Convert selected ({count})',
+    close: 'Close',
+    pickPrompt: 'Click an object to show its group, or',
+    summary: 'Converted {groups} groups into {count} block references',
+    nameDuplicate: 'Block name "{name}" is used by another selected group'
   },
   verticalToolbar: {
     measure: {
@@ -749,6 +820,13 @@ export default {
       toolbar: 'Toolbar',
       stats: 'Statistics'
     },
+    cannoscale: {
+      tooltip: 'Annotation scale (CANNOSCALE)'
+    },
+    annoallvisible: {
+      on: 'Hide annotative objects that do not support the current scale',
+      off: 'Show all annotative objects (ANNOALLVISIBLE)'
+    },
     osnap: {
       tooltip: 'Object Snap',
       endpoint: 'Endpoint',
@@ -896,6 +974,14 @@ export default {
         leader: 'Leader',
         table: 'Table'
       }
+    },
+    bdetect: {
+      tab: 'Detection',
+      title: 'Detect and Convert'
+    },
+    bsearch: {
+      tab: 'Search',
+      title: 'Search and Convert'
     },
     countList: {
       tab: 'Count',

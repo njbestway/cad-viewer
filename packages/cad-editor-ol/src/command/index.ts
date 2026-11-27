@@ -1,5 +1,7 @@
 export * from './AcApAttDefCmd'
 export * from './AcApAttEditCmd'
+export * from './AcApBDetectCmd'
+export * from './AcApBSearchCmd'
 export * from './AcApClassicGroupCmd'
 export * from './AcApCountListCmd'
 export * from './AcApDimStyleCmd'

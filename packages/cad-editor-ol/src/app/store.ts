@@ -11,6 +11,16 @@ export const store = reactive({
      * does not clutter the palette for ordinary users.
      */
     openFileProfileTabVisible: false,
+    /**
+     * Detect and Convert tab. Shown only while BDETECT runs, since its list
+     * belongs to that command.
+     */
+    bdetectTabVisible: false,
+    /**
+     * Search and Convert tab. Shown only while BSEARCH reviews its found
+     * instances (also when BDETECT reviews one group).
+     */
+    bsearchTabVisible: false,
     /** Bumped by the FIND command so the Find palette focuses its query field. */
     findFocusTick: 0
   },

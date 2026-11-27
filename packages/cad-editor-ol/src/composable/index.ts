@@ -1,4 +1,6 @@
 export * from './useAttEdit'
+export * from './useBDetect'
+export * from './useBSearch'
 export * from './useCommands'
 export * from './useCurrentPos'
 export * from './useDark'

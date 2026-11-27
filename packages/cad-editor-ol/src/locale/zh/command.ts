@@ -1,5 +1,18 @@
 export default {
   ACAD: {
+    bsearch: {
+      description: '智能块：查找相同的几何图形并将其转换为块',
+      prompt: '选择要搜索的对象'
+    },
+    bdetect: {
+      description: '智能块：查找图形中的重复对象并将其转换为块'
+    },
+    mleaderstyle: {
+      description: '创建和修改多重引线对象的多重引线样式'
+    },
+    classicgroup: {
+      description: '打开对象编组对话框以创建和管理编组'
+    },
     hatch: {
       description: '通过 Ribbon 上下文标签创建填充图案'
     },

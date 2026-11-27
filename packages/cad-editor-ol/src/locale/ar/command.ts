@@ -5,6 +5,19 @@ export default {
 
   ACAD: {
     ...enCommand.ACAD,
+    bsearch: {
+      description: 'الكتل الذكية: يبحث عن الأشكال المتطابقة ويحولها إلى كتل',
+      prompt: 'حدد الكائنات المراد البحث عنها'
+    },
+    bdetect: {
+      description: 'الكتل الذكية: يبحث عن الكائنات المتكررة في الرسم ويحولها إلى كتل'
+    },
+    mleaderstyle: {
+      description: 'إنشاء وتعديل أنماط الخطوط المتعددة للبيانات'
+    },
+    classicgroup: {
+      description: 'فتح مربع حوار تجميع الكائنات لإنشاء المجموعات وإدارتها'
+    },
 
     hatch: {
       ...enCommand.ACAD.hatch,

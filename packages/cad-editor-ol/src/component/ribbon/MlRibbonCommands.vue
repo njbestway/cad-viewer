@@ -113,6 +113,8 @@ import {
   arcThreePoints,
   attachDwg,
   attachImage,
+  bdetect,
+  bsearch,
   chamfer,
   circleCenterDiameter,
   circleCenterRadius,
@@ -1347,6 +1349,8 @@ const buildBaseTabs = (
     insert: t('main.ribbon.tooltip.insert'),
     editAttributes: t('main.ribbon.tooltip.editAttributes'),
     defineAttribute: t('main.ribbon.tooltip.defineAttribute'),
+    searchConvert: t('main.ribbon.tooltip.searchConvert'),
+    detectConvert: t('main.ribbon.tooltip.detectConvert'),
     pan: t('main.ribbon.tooltip.pan'),
     zoom: t('main.ribbon.tooltip.zoom'),
     zoomExtents: t('main.ribbon.tooltip.zoomExtents'),
@@ -3002,6 +3006,30 @@ const buildBaseTabs = (
                     labelWrapLines: 2,
                     labelWrapWidth: 'max-content'
                   }
+                },
+                {
+                  id: 'cmd-bsearch',
+                  type: 'button',
+                  label: t('main.ribbon.command.searchConvert'),
+                  tooltip: ribbonTooltips.searchConvert,
+                  size: 'large',
+                  props: {
+                    icon: bsearch,
+                    labelWrapLines: 2,
+                    labelWrapWidth: 'max-content'
+                  }
+                },
+                {
+                  id: 'cmd-bdetect',
+                  type: 'button',
+                  label: t('main.ribbon.command.detectConvert'),
+                  tooltip: ribbonTooltips.detectConvert,
+                  size: 'large',
+                  props: {
+                    icon: bdetect,
+                    labelWrapLines: 2,
+                    labelWrapWidth: 'max-content'
+                  }
                 }
               ]
             }
@@ -3477,6 +3505,8 @@ const ribbonData = computed(() => {
   commandByItemId.set('cmd-imageattach', 'imageattach')
   commandByItemId.set('cmd-attedit', 'attedit')
   commandByItemId.set('cmd-attdef', 'attdef')
+  commandByItemId.set('cmd-bsearch', 'bsearch')
+  commandByItemId.set('cmd-bdetect', 'bdetect')
   commandByItemId.set('cmd-tool-markup-panel', 'markuppanel')
   commandByItemId.set('cmd-tool-markup-text', 'markuptext')
   commandByItemId.set('cmd-tool-markup-cloud', 'markupcloud')
