@@ -21,12 +21,15 @@ import {
   AcApMemCmd,
   AcApMissedDataCmd,
   AcApMLeaderStyleCmd,
+  AcApNewViewCmd,
   AcApOpenPerfCmd,
   AcApPointStyleCmd,
   AcApPropertiesCmd,
   AcApQSelectCmd,
   AcApSaveDwgCmd,
   AcApTextStyleCmd,
+  AcApUcsManCmd,
+  AcApViewCmd,
   AcApXrefCmd,
   hatchRibbonCommand
 } from '../command'
@@ -38,9 +41,12 @@ import {
   MlDimStyleDlg,
   MlDrawingUnitsDlg,
   MlMLeaderStyleDlg,
+  MlNewViewDlg,
   MlPointStyleDlg,
   MlQuickSelectDlg,
-  MlTextStyleDlg
+  MlTextStyleDlg,
+  MlUcsManagerDlg,
+  MlViewManagerDlg
 } from '../component'
 import { useDialogManager } from '../composable'
 import { i18n } from '../locale'
@@ -194,6 +200,26 @@ export const registerCmds = () => {
       new AcApMLeaderStyleCmd(),
       'mls'
     )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'view',
+      'view',
+      new AcApViewCmd(),
+      'ddview'
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'newview',
+      'newview',
+      new AcApNewViewCmd()
+    )
+    register.addCommand(
+      AcEdCommandStack.SYSTEMT_COMMAND_GROUP_NAME,
+      'ucsman',
+      'ucsman',
+      new AcApUcsManCmd(),
+      'dducs'
+    )
     isCommandRegistered = true
   }
 }
@@ -245,6 +271,21 @@ export const registerDialogs = () => {
     registerDialog({
       name: 'MLeaderStyleDlg',
       component: markRaw(MlMLeaderStyleDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'ViewManagerDlg',
+      component: markRaw(MlViewManagerDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'NewViewDlg',
+      component: markRaw(MlNewViewDlg),
+      props: {}
+    })
+    registerDialog({
+      name: 'UcsManagerDlg',
+      component: markRaw(MlUcsManagerDlg),
       props: {}
     })
     isDialogRegistered = true

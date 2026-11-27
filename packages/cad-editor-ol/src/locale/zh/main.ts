@@ -207,6 +207,8 @@ export default {
       }
     },
     group: {
+      coordinates: '坐标',
+      namedViews: '命名视图',
       groups: '编组',
       clipboard: '剪贴板',
       navigate: '导航',
@@ -272,6 +274,19 @@ export default {
       arc: '椭圆弧'
     },
     tooltip: {
+      ucs: '设置当前用户坐标系的原点和方向。',
+      namedUcs: '管理命名 UCS 定义和 UCS 图标设置。',
+      ucsWorld: '将 UCS 设置为世界坐标系。',
+      ucsOrigin: '定义新的 UCS 原点。',
+      ucsX: '绕 X 轴旋转 UCS。',
+      ucsY: '绕 Y 轴旋转 UCS。',
+      ucsZ: '绕 Z 轴旋转 UCS。',
+      ucsZAxis: '通过指定 Z 轴定义 UCS。',
+      ucsView: '将 UCS 与当前视图对齐。',
+      ucsObject: '将 UCS 与选定对象对齐。',
+      newView: '根据当前显示或窗口创建命名视图。',
+      viewManager: '打开视图管理器以创建、恢复和删除命名视图。',
+      restoreView: '恢复图形中保存的命名视图。',
       textStyle: '打开文字样式管理器。',
       dimstyle: '打开标注样式管理器。',
       mleaderStyle: '打开多重引线样式管理器。',
@@ -406,6 +421,19 @@ export default {
       path: '路径阵列'
     },
     command: {
+      ucs: 'UCS',
+      namedUcs: '命名\nUCS',
+      ucsWorld: '世界',
+      ucsOrigin: '原点',
+      ucsX: 'X',
+      ucsY: 'Y',
+      ucsZ: 'Z',
+      ucsZAxis: 'Z 轴',
+      ucsView: '视图',
+      ucsObject: '对象',
+      newView: '新建视图',
+      viewManager: '视图管理器',
+      restoreView: '恢复视图',
       textStyle: '文字样式',
       dimstyle: '标注样式',
       mleaderStyle: '多重引线样式',

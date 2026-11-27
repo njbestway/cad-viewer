@@ -211,6 +211,8 @@ export default {
       }
     },
     group: {
+      coordinates: 'Koordinatlar',
+      namedViews: 'Adlı Görünümler',
       groups: 'Gruplar',
       clipboard: 'Pano',
       navigate: 'Gezinme',
@@ -276,6 +278,19 @@ export default {
       arc: 'Eliptik Yay'
     },
     tooltip: {
+      ucs: 'Geçerli kullanıcı koordinat sisteminin orijinini ve yönünü ayarlar.',
+      namedUcs: 'Adlı UCS tanımlarını ve UCS simgesi ayarlarını yönetir.',
+      ucsWorld: 'UCS\'yi dünya koordinat sistemine ayarlar.',
+      ucsOrigin: 'Yeni bir UCS orijini tanımlar.',
+      ucsX: 'UCS\'yi X ekseni etrafında döndürür.',
+      ucsY: 'UCS\'yi Y ekseni etrafında döndürür.',
+      ucsZ: 'UCS\'yi Z ekseni etrafında döndürür.',
+      ucsZAxis: 'Z eksenini belirterek bir UCS tanımlar.',
+      ucsView: 'UCS\'yi geçerli görünümle hizalar.',
+      ucsObject: 'UCS\'yi seçilen bir nesneye hizalar.',
+      newView: 'Geçerli görüntüden veya bir pencereden yeni bir adlı görünüm oluşturur.',
+      viewManager: 'Adlı görünümleri oluşturmak, geri yüklemek ve silmek için Görünüm Yöneticisi\'ni açar.',
+      restoreView: 'Çizimde kayıtlı adlı bir görünümü geri yükler.',
       textStyle: 'Yazı stili yöneticisini açın.',
       dimstyle: 'Ölçü stili yöneticisini açın.',
       mleaderStyle: 'Çoklu önder stili yöneticisini açın.',
@@ -448,6 +463,19 @@ export default {
       path: 'Yol Dizisi'
     },
     command: {
+      ucs: 'UCS',
+      namedUcs: 'Adlı\nUCS',
+      ucsWorld: 'Dünya',
+      ucsOrigin: 'Orijin',
+      ucsX: 'X',
+      ucsY: 'Y',
+      ucsZ: 'Z',
+      ucsZAxis: 'Z Ekseni',
+      ucsView: 'Görünüm',
+      ucsObject: 'Nesne',
+      newView: 'Yeni\nGörünüm',
+      viewManager: 'Görünüm\nYöneticisi',
+      restoreView: 'Görünümü\nGeri Yükle',
       textStyle: 'Yazı Stili',
       dimstyle: 'Ölçü Stili',
       mleaderStyle: 'Çoklu Önder Stili',

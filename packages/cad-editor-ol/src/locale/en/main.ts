@@ -210,6 +210,8 @@ export default {
       }
     },
     group: {
+      coordinates: 'Coordinates',
+      namedViews: 'Named Views',
       groups: 'Groups',
       clipboard: 'Clipboard',
       navigate: 'Navigate',
@@ -275,6 +277,19 @@ export default {
       arc: 'Elliptical Arc'
     },
     tooltip: {
+      ucs: 'Sets the origin and orientation of the current user coordinate system.',
+      namedUcs: 'Manages named UCS definitions and UCS icon settings.',
+      ucsWorld: 'Sets the UCS to the world coordinate system.',
+      ucsOrigin: 'Defines a new UCS origin.',
+      ucsX: 'Rotates the UCS about the X axis.',
+      ucsY: 'Rotates the UCS about the Y axis.',
+      ucsZ: 'Rotates the UCS about the Z axis.',
+      ucsZAxis: 'Defines a UCS by specifying the Z axis.',
+      ucsView: 'Aligns the UCS with the current view.',
+      ucsObject: 'Aligns the UCS to a selected object.',
+      newView: 'Creates a new named view from the current display or a window.',
+      viewManager: 'Opens the View Manager to create, restore, and delete named views.',
+      restoreView: 'Restores a named view saved in the drawing.',
       textStyle: 'Open the Text Style Manager.',
       dimstyle: 'Open the Dimension Style Manager.',
       mleaderStyle: 'Open the Multileader Style Manager.',
@@ -443,6 +458,19 @@ export default {
       path: 'Path Array'
     },
     command: {
+      ucs: 'UCS',
+      namedUcs: 'Named\nUCS',
+      ucsWorld: 'World',
+      ucsOrigin: 'Origin',
+      ucsX: 'X',
+      ucsY: 'Y',
+      ucsZ: 'Z',
+      ucsZAxis: 'Z Axis',
+      ucsView: 'View',
+      ucsObject: 'Object',
+      newView: 'New\nView',
+      viewManager: 'View\nManager',
+      restoreView: 'Restore\nView',
       textStyle: 'Text Style',
       dimstyle: 'Dim Style',
       mleaderStyle: 'Multileader Style',

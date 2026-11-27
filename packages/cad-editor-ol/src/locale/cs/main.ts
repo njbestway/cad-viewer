@@ -210,6 +210,8 @@ export default {
       }
     },
     group: {
+      coordinates: 'Souřadnice',
+      namedViews: 'Pojmenované pohledy',
       groups: 'Skupiny',
       clipboard: 'Schránka',
       navigate: 'Navigace',
@@ -275,6 +277,19 @@ export default {
       arc: 'Eliptický oblouk'
     },
     tooltip: {
+      ucs: 'Nastaví počátek a orientaci aktuálního uživatelského souřadnicového systému.',
+      namedUcs: 'Spravuje pojmenované definice USS a nastavení ikony USS.',
+      ucsWorld: 'Nastaví USS na globální souřadnicový systém.',
+      ucsOrigin: 'Definuje nový počátek USS.',
+      ucsX: 'Otočí USS kolem osy X.',
+      ucsY: 'Otočí USS kolem osy Y.',
+      ucsZ: 'Otočí USS kolem osy Z.',
+      ucsZAxis: 'Definuje USS zadáním osy Z.',
+      ucsView: 'Zarovná USS s aktuálním pohledem.',
+      ucsObject: 'Zarovná USS s vybraným objektem.',
+      newView: 'Vytvoří nový pojmenovaný pohled z aktuálního zobrazení nebo okna.',
+      viewManager: 'Otevře Správce pohledů pro vytváření, obnovení a odstraňování pojmenovaných pohledů.',
+      restoreView: 'Obnoví pojmenovaný pohled uložený ve výkresu.',
       textStyle: 'Otevře správce textových stylů.',
       dimstyle: 'Otevře správce stylů kót.',
       mleaderStyle: 'Otevře správce stylů vícenásobných odkazových čar.',
@@ -436,6 +451,19 @@ export default {
       path: 'Pole na trajektorii'
     },
     command: {
+      ucs: 'USS',
+      namedUcs: 'Pojmenované\nUSS',
+      ucsWorld: 'Globální',
+      ucsOrigin: 'Počátek',
+      ucsX: 'X',
+      ucsY: 'Y',
+      ucsZ: 'Z',
+      ucsZAxis: 'Osa Z',
+      ucsView: 'Pohled',
+      ucsObject: 'Objekt',
+      newView: 'Nový\npohled',
+      viewManager: 'Správce\npohledů',
+      restoreView: 'Obnovit\npohled',
       textStyle: 'Textový styl',
       dimstyle: 'Styl kót',
       mleaderStyle: 'Styl vícenásobné odkazové čáry',

@@ -25,6 +25,7 @@ import {
   acapGetMeasurementFontSize,
   acapGetMeasurementTextHeightMode,
   AcApLayerService,
+  AcApNamedViewService,
   AcApOpenCmd,
   AcApQNewCmd,
   acapRunDatabaseEdit,
@@ -94,6 +95,10 @@ import {
   useUndoRedo
 } from '../../composable'
 import { markComponentConfigRaw } from '../../composable/markComponentConfigRaw'
+import {
+  bumpNamedViewsRevision,
+  namedViewsRevision
+} from '../../composable/namedViewsRevision'
 import { getDwgSaveJournal } from '../../save'
 import {
   arcCenterStartAngle,
@@ -160,6 +165,8 @@ import {
   move,
   mtext,
   multiPoints,
+  namedUcs,
+  newView,
   offset,
   pasteBlock,
   pasteClip,
@@ -177,7 +184,17 @@ import {
   stretch,
   textStyle,
   trim,
+  ucs,
+  ucsObject,
+  ucsOrigin,
+  ucsView,
+  ucsWorld,
+  ucsX,
+  ucsY,
+  ucsZ,
+  ucsZAxis,
   ungroup,
+  viewManager,
   xline
 } from '../../svg'
 import {
@@ -200,6 +217,7 @@ import {
   revCloud,
   revRect,
   revText,
+  zoomToBox,
   zoomToExtent
 } from '../../svg/toolbarIcons'
 import MlBlockInsertGallery from '../common/MlBlockInsertGallery.vue'
@@ -630,6 +648,7 @@ const handleDocumentActivated = () => {
   syncRibbonProperties(AcApDocManager.instance?.curDocument?.database)
   syncHatchSelectionContext(AcApDocManager.instance?.curDocument?.database)
   syncPickstyleGroupOn(AcApDocManager.instance?.curDocument?.database)
+  bumpNamedViewsRevision()
 }
 
 /**
@@ -1239,7 +1258,8 @@ const applyOpenModeTabVisibility = (
 const buildBaseTabs = (
   openMode: AcEdOpenMode,
   markupVisible: boolean,
-  measurementVisible: boolean
+  measurementVisible: boolean,
+  namedViewNames: string[] = []
 ): RibbonTabModel[] => {
   const ribbonTooltips = {
     line: t('main.ribbon.tooltip.line'),
@@ -1302,6 +1322,19 @@ const buildBaseTabs = (
     mleader: t('main.ribbon.tooltip.mleader'),
     mleaderAdd: t('main.ribbon.tooltip.mleaderAdd'),
     mleaderRemove: t('main.ribbon.tooltip.mleaderRemove'),
+    newView: t('main.ribbon.tooltip.newView'),
+    viewManager: t('main.ribbon.tooltip.viewManager'),
+    ucs: t('main.ribbon.tooltip.ucs'),
+    namedUcs: t('main.ribbon.tooltip.namedUcs'),
+    ucsWorld: t('main.ribbon.tooltip.ucsWorld'),
+    ucsOrigin: t('main.ribbon.tooltip.ucsOrigin'),
+    ucsX: t('main.ribbon.tooltip.ucsX'),
+    ucsY: t('main.ribbon.tooltip.ucsY'),
+    ucsZ: t('main.ribbon.tooltip.ucsZ'),
+    ucsZAxis: t('main.ribbon.tooltip.ucsZAxis'),
+    ucsView: t('main.ribbon.tooltip.ucsView'),
+    ucsObject: t('main.ribbon.tooltip.ucsObject'),
+    restoreView: t('main.ribbon.tooltip.restoreView'),
     undo: t('main.ribbon.tooltip.undo'),
     redo: t('main.ribbon.tooltip.redo'),
     properties: t('main.ribbon.tooltip.properties'),
@@ -3015,6 +3048,23 @@ const buildBaseTabs = (
     }
   ]
 
+  const canWriteViews = openMode === AcEdOpenMode.Write
+  const restoreViewOptions =
+    namedViewNames.length > 0
+      ? namedViewNames.map(name => ({
+          id: `named-view:${name}`,
+          label: name,
+          value: `named-view:${name}`
+        }))
+      : [
+          {
+            id: 'named-view-empty',
+            label: t('main.ribbon.command.restoreView'),
+            value: 'named-view-empty',
+            disabled: true
+          }
+        ]
+
   tabs.push({
     id: 'view',
     title: t('main.ribbon.tab.view'),
@@ -3082,6 +3132,190 @@ const buildBaseTabs = (
                       tooltip: ribbonTooltips.zoomSmart
                     }
                   ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'view-coordinates',
+        title: t('main.ribbon.group.coordinates'),
+        orientation: 'row',
+        collections: [
+          {
+            id: 'view-coordinates-main',
+            layout: 'row',
+            items: [
+              {
+                id: 'cmd-ucs',
+                type: 'button',
+                label: t('main.ribbon.command.ucs'),
+                tooltip: ribbonTooltips.ucs,
+                size: 'large',
+                props: {
+                  icon: ucs,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucsman',
+                type: 'button',
+                label: t('main.ribbon.command.namedUcs'),
+                tooltip: ribbonTooltips.namedUcs,
+                size: 'large',
+                props: {
+                  icon: namedUcs,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-world',
+                type: 'button',
+                label: t('main.ribbon.command.ucsWorld'),
+                tooltip: ribbonTooltips.ucsWorld,
+                size: 'large',
+                props: {
+                  icon: ucsWorld,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-origin',
+                type: 'button',
+                label: t('main.ribbon.command.ucsOrigin'),
+                tooltip: ribbonTooltips.ucsOrigin,
+                size: 'large',
+                props: {
+                  icon: ucsOrigin,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-x',
+                type: 'button',
+                label: t('main.ribbon.command.ucsX'),
+                tooltip: ribbonTooltips.ucsX,
+                size: 'large',
+                props: {
+                  icon: ucsX,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-y',
+                type: 'button',
+                label: t('main.ribbon.command.ucsY'),
+                tooltip: ribbonTooltips.ucsY,
+                size: 'large',
+                props: {
+                  icon: ucsY,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-z',
+                type: 'button',
+                label: t('main.ribbon.command.ucsZ'),
+                tooltip: ribbonTooltips.ucsZ,
+                size: 'large',
+                props: {
+                  icon: ucsZ,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-zaxis',
+                type: 'button',
+                label: t('main.ribbon.command.ucsZAxis'),
+                tooltip: ribbonTooltips.ucsZAxis,
+                size: 'large',
+                props: {
+                  icon: ucsZAxis,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-view',
+                type: 'button',
+                label: t('main.ribbon.command.ucsView'),
+                tooltip: ribbonTooltips.ucsView,
+                size: 'large',
+                props: {
+                  icon: ucsView,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-ucs-object',
+                type: 'button',
+                label: t('main.ribbon.command.ucsObject'),
+                tooltip: ribbonTooltips.ucsObject,
+                size: 'large',
+                props: {
+                  icon: ucsObject,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'view-named-views',
+        title: t('main.ribbon.group.namedViews'),
+        orientation: 'row',
+        collections: [
+          {
+            id: 'view-named-views-main',
+            layout: 'row',
+            items: [
+              {
+                id: 'cmd-newview',
+                type: 'button',
+                label: t('main.ribbon.command.newView'),
+                tooltip: ribbonTooltips.newView,
+                size: 'large',
+                disabled: !canWriteViews,
+                props: {
+                  icon: newView,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-view',
+                type: 'button',
+                label: t('main.ribbon.command.viewManager'),
+                tooltip: ribbonTooltips.viewManager,
+                size: 'large',
+                props: {
+                  icon: viewManager,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content'
+                }
+              },
+              {
+                id: 'cmd-restore-view',
+                type: 'dropdown',
+                label: t('main.ribbon.command.restoreView'),
+                tooltip: ribbonTooltips.restoreView,
+                size: 'large',
+                props: {
+                  icon: zoomToBox,
+                  labelWrapLines: 2,
+                  labelWrapWidth: 'max-content',
+                  options: restoreViewOptions
                 }
               }
             ]
@@ -3221,6 +3455,18 @@ const ribbonData = computed(() => {
   commandByItemId.set('mleader', 'mleader')
   commandByItemId.set('mleader-add', 'mleaderedit')
   commandByItemId.set('mleader-remove', 'mleadereditremove')
+  commandByItemId.set('cmd-newview', 'newview')
+  commandByItemId.set('cmd-view', 'view')
+  commandByItemId.set('cmd-ucs', 'ucs')
+  commandByItemId.set('cmd-ucsman', 'ucsman')
+  commandByItemId.set('cmd-ucs-world', 'ucs\\nWorld')
+  commandByItemId.set('cmd-ucs-origin', 'ucs')
+  commandByItemId.set('cmd-ucs-x', 'ucs\\nX')
+  commandByItemId.set('cmd-ucs-y', 'ucs\\nY')
+  commandByItemId.set('cmd-ucs-z', 'ucs\\nZ')
+  commandByItemId.set('cmd-ucs-zaxis', 'ucs\\nZAxis')
+  commandByItemId.set('cmd-ucs-view', 'ucs\\nView')
+  commandByItemId.set('cmd-ucs-object', 'ucs\\nObject')
   commandByItemId.set('cmd-layer', 'layer')
   commandByItemId.set('cmd-properties', 'properties')
   commandByItemId.set('cmd-qselect', 'qselect')
@@ -3273,10 +3519,23 @@ const ribbonData = computed(() => {
   commandByItemId.set('zoom-saved', 'zoom\\nsaved')
   commandByItemId.set('zoom-smart', 'zoom\\nsmart')
 
+  namedViewsRevision.value
+  let namedViewNames: string[] = []
+  try {
+    namedViewNames = AcApNamedViewService.listViews(
+      AcApDocManager.instance.curDocument.database
+    ).map(item => item.name)
+  } catch {
+    namedViewNames = []
+  }
+  // Named-view restore is handled in handleRibbonItemClick (not scripted
+  // `viewrestore\\n…`) so names with spaces stay intact.
+
   const tabs: RibbonTabModel[] = buildBaseTabs(
     openMode,
     markupVisible,
-    measurementVisible
+    measurementVisible,
+    namedViewNames
   )
   return {
     tabs,
@@ -3397,6 +3656,23 @@ const handleRibbonItemClick = (payload: {
   if (handleMTextItem(payload.itemId)) return
   if (payload.itemId === 'cmd-group-select') {
     togglePickstyleGroupSelection()
+    return
+  }
+  if (payload.itemId.startsWith('named-view:')) {
+    const viewName = payload.itemId.slice('named-view:'.length)
+    if (!viewName || viewName === 'empty') return
+    const docManager = AcApDocManager.instance
+    const doc = docManager.curDocument
+    const applyLayers = doc.openMode >= AcEdOpenMode.Write
+    if (applyLayers) {
+      doc.captureLayerPreviousState()
+    }
+    AcApNamedViewService.restoreView(
+      doc.database,
+      docManager.curView,
+      viewName,
+      applyLayers
+    )
     return
   }
   if (
