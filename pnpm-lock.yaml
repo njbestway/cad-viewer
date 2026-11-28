@@ -5,9 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@mlightcad/data-model': file:./vendor/njbestway-data-model-1.16.5.tgz
+  '@mlightcad/data-model': file:./vendor/njbestway-data-model-1.16.6.tgz
   '@njbestway/acad-rust-converter': workspace:*
-  '@mlightcad/libredwg-converter': 3.16.5
+  '@mlightcad/libredwg-converter': 3.16.6
   '@mlightcad/mtext-input-box': 0.3.10
   '@mlightcad/mtext-parser': 1.5.7
   '@mlightcad/mtext-renderer': 0.13.10
@@ -126,8 +126,8 @@ importers:
   packages/acad-rust-converter:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -154,8 +154,8 @@ importers:
   packages/cad-agent-core:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-html-plugin':
         specifier: workspace:*
@@ -185,8 +185,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.208(vue@3.5.31(typescript@5.9.3))(zod@3.25.76)
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       ai:
         specifier: ^5.0.0
         version: 5.0.208(zod@3.25.76)
@@ -246,8 +246,8 @@ importers:
   packages/cad-diff-viewer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -262,11 +262,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -286,8 +286,8 @@ importers:
   packages/cad-editor:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
@@ -443,11 +443,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-converter
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -501,8 +501,8 @@ importers:
   packages/cad-editor-ol:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
@@ -514,8 +514,8 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/ribbon':
-        specifier: 0.1.17
-        version: 0.1.17(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
+        specifier: 0.1.18
+        version: 0.1.18(@element-plus/icons-vue@2.3.2(vue@3.5.31(typescript@5.9.3)))(element-plus@2.13.6(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(vue@3.5.31(typescript@5.9.3))
       '@mlightcad/three-renderer':
         specifier: workspace:*
         version: link:../three-renderer
@@ -580,8 +580,8 @@ importers:
   packages/cad-google-drive-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -599,8 +599,8 @@ importers:
   packages/cad-html-core:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       fflate:
         specifier: ^0.8.2
         version: 0.8.2
@@ -624,11 +624,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-html-core
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/libredwg-web':
         specifier: 0.8.2
         version: 0.8.2
@@ -664,8 +664,8 @@ importers:
   packages/cad-html-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-html-core':
         specifier: workspace:*
@@ -732,11 +732,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-simple-viewer
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -778,8 +778,8 @@ importers:
         specifier: ^4.12.0
         version: 4.12.0
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -804,8 +804,8 @@ importers:
   packages/cad-pdf-core:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
@@ -823,11 +823,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-pdf-core
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/libredwg-web':
         specifier: 0.8.2
         version: 0.8.2
@@ -860,8 +860,8 @@ importers:
   packages/cad-pdf-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-pdf-core':
         specifier: workspace:*
@@ -888,8 +888,8 @@ importers:
         specifier: workspace:*
         version: link:../cad-pdf-core
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       acorn:
         specifier: ^8.15.0
         version: 8.16.0
@@ -931,8 +931,8 @@ importers:
         specifier: ^6.43.14
         version: 6.43.14
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
@@ -956,8 +956,8 @@ importers:
   packages/cad-simple-viewer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/mtext-input-box':
         specifier: 0.3.10
@@ -1011,11 +1011,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-plugin
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -1093,11 +1093,11 @@ importers:
         specifier: workspace:*
         version: link:../cad-svg-plugin
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-converter':
-        specifier: 3.16.5
-        version: 3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)
+        specifier: 3.16.6
+        version: 3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)
       '@mlightcad/mtext-parser':
         specifier: 1.5.7
         version: 1.5.7
@@ -1136,8 +1136,8 @@ importers:
   packages/cad-svg-converter:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       svg-parser:
         specifier: 2.1.0
         version: 2.1.0
@@ -1149,8 +1149,8 @@ importers:
   packages/cad-svg-plugin:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
     devDependencies:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
@@ -1165,8 +1165,8 @@ importers:
   packages/pdf-renderer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@pdf-lib/fontkit':
         specifier: ^1.1.1
         version: 1.1.1
@@ -1187,8 +1187,8 @@ importers:
   packages/three-renderer:
     dependencies:
       '@mlightcad/data-model':
-        specifier: file:../../vendor/njbestway-data-model-1.16.5.tgz
-        version: file:vendor/njbestway-data-model-1.16.5.tgz
+        specifier: file:../../vendor/njbestway-data-model-1.16.6.tgz
+        version: file:vendor/njbestway-data-model-1.16.6.tgz
       '@velipso/polybool':
         specifier: ^1.1.1
         version: 1.1.1
@@ -2817,32 +2817,32 @@ packages:
   '@microsoft/tsdoc@0.16.0':
     resolution: {integrity: sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==}
 
-  '@mlightcad/common@1.16.5':
-    resolution: {integrity: sha512-DuDT5AN28khFORwyxtL/OGAdD2VFUWAmZL5WMiWvBslVsFShFw0tbArnx/07fk54Km7RCnGbMYSukG+FOjTfMg==}
+  '@mlightcad/common@1.16.6':
+    resolution: {integrity: sha512-PuVlWq3R/fciwrF5LpjmUbIcml99NQDQngW83o1gwQoRToGKDYBFl4FW9MkNAK7rWSq4nmTGUnok9AxDdMvpXA==}
 
-  '@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz':
-    resolution: {integrity: sha512-PzOrmTD8l+aqBne8may/ctbDtZJrc85cL/glxSTE1KYrUENeccLmF22FP5958+itiTAwyQTTGpNd0/dx6AWYhA==, tarball: file:vendor/njbestway-data-model-1.16.5.tgz}
-    version: 1.16.5
+  '@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz':
+    resolution: {integrity: sha512-fSOEpwX8njTmRcsk2TosLqzfmhxv8R55WefiY4RZIiKPzgQElD08WKXs1Xx34AynhJr0Rw1hDqF8P5ogAGyuZw==, tarball: file:vendor/njbestway-data-model-1.16.6.tgz}
+    version: 1.16.6
 
-  '@mlightcad/emf-converter@1.16.5':
-    resolution: {integrity: sha512-XKxngyPC8qkbOUfBbWFZVPvcGmdROxg5IH5FhxLOC6VzbMsFBnj7qrp7IiOKLjlTbd+8zXKDNTUMR1ldUfeklg==}
+  '@mlightcad/emf-converter@1.16.6':
+    resolution: {integrity: sha512-aVN0U6RQCcHuKbfdAlyl0CNw4t+J3r2HmT+bAXt4zYJCHvanGK4QJhENnOdZmcAAJynccQcEk7kQVQBeUjZzHQ==}
 
-  '@mlightcad/geometry-engine@3.16.5':
-    resolution: {integrity: sha512-aED1ofFeYBTIjckRWK7WIddwyqVt81SIGAntqi6sQehoxomxqh3nNkLVn4Z5QpKlm5/aHkSSTi7fM4ZcpTm7BA==}
+  '@mlightcad/geometry-engine@3.16.6':
+    resolution: {integrity: sha512-6gecQkyhhuGYU+iS/9T9BU/F9itEvaQUuS2/Q52bI9m2RmrjkVGqFr1pXHg/osoyzr5kDagWmrsLy7pUhtE4ZQ==}
     peerDependencies:
-      '@mlightcad/common': ^1.16.5
+      '@mlightcad/common': ^1.16.6
 
-  '@mlightcad/graphic-interface@3.16.5':
-    resolution: {integrity: sha512-r71XKTZ4foYpYiobWGgwBZYzUEW4dlgUT9JKnc8OU0SY8lSLsz5OyUbp4nkEgbOggOdhY1tIo7lw3Nd7CFD5lw==}
+  '@mlightcad/graphic-interface@3.16.6':
+    resolution: {integrity: sha512-vvrjqB6EaCkiVYIPu6s6plm2HWUbOz58670hmyi6G6iMdI5TzKoRu+x6jeFni1NFAyEoDz27KHEftOzWys2ULA==}
     peerDependencies:
-      '@mlightcad/common': ^1.16.5
-      '@mlightcad/geometry-engine': ^3.16.5
+      '@mlightcad/common': ^1.16.6
+      '@mlightcad/geometry-engine': ^3.16.6
 
-  '@mlightcad/libredwg-converter@3.16.5':
-    resolution: {integrity: sha512-S+iRg6LjhvTy7Ug3oguyexjWddW5zXOeIr/kIvmoPORI6S9YTbAhIck5fseoBlrKErwENd1kOK2UllKeOw5V2g==}
-    version: 3.16.5
+  '@mlightcad/libredwg-converter@3.16.6':
+    resolution: {integrity: sha512-hkglWP7aRNADMG3s43sjXtmwxcEZSn0E37NU5/ZjjXZ+0ApEJzp6e87ehIGbzKfPPhtA4jzEoM/gjjEDNVKV+A==}
+    version: 3.16.6
     peerDependencies:
-      '@mlightcad/data-model': ^1.16.5
+      '@mlightcad/data-model': ^1.16.6
 
   '@mlightcad/libredwg-web@0.8.2':
     resolution: {integrity: sha512-0iX1lbASPEWwhljHAmaB6/mNHAPObCMmlDIza1a6B0egpm0DGfaMjXimwWmVSPE+FNEMhQxB3Tw0mupDwkWHIQ==}
@@ -9213,7 +9213,7 @@ snapshots:
   '@jest/console@30.4.1':
     dependencies:
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       jest-message-util: 30.4.1
       jest-util: 30.4.1
@@ -9227,7 +9227,7 @@ snapshots:
       '@jest/test-result': 30.4.1
       '@jest/transform': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 4.4.0
@@ -9235,7 +9235,7 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       graceful-fs: 4.2.11
       jest-changed-files: 30.4.1
-      jest-config: 30.4.2(@types/node@24.12.4)(ts-node@10.9.1(@types/node@24.12.4)(typescript@5.9.3))
+      jest-config: 30.4.2(@types/node@20.19.37)(ts-node@10.9.1(@types/node@24.12.4)(typescript@5.9.3))
       jest-haste-map: 30.4.1
       jest-message-util: 30.4.1
       jest-regex-util: 30.4.0
@@ -9263,7 +9263,7 @@ snapshots:
       '@jest/fake-timers': 30.4.1
       '@jest/types': 30.4.1
       '@types/jsdom': 21.1.7
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       jest-mock: 30.4.1
       jest-util: 30.4.1
       jsdom: 30.1.3
@@ -9272,7 +9272,7 @@ snapshots:
     dependencies:
       '@jest/fake-timers': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       jest-mock: 30.4.1
 
   '@jest/expect-utils@29.7.0':
@@ -9294,7 +9294,7 @@ snapshots:
     dependencies:
       '@jest/types': 30.4.1
       '@sinonjs/fake-timers': 15.4.0
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       jest-message-util: 30.4.1
       jest-mock: 30.4.1
       jest-util: 30.4.1
@@ -9312,7 +9312,7 @@ snapshots:
 
   '@jest/pattern@30.4.0':
     dependencies:
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       jest-regex-util: 30.4.0
 
   '@jest/reporters@30.4.1':
@@ -9323,7 +9323,7 @@ snapshots:
       '@jest/transform': 30.4.1
       '@jest/types': 30.4.1
       '@jridgewell/trace-mapping': 0.3.31
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit-x: 0.2.2
@@ -9402,7 +9402,7 @@ snapshots:
       '@jest/schemas': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -9412,7 +9412,7 @@ snapshots:
       '@jest/schemas': 30.4.1
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -9537,32 +9537,32 @@ snapshots:
 
   '@microsoft/tsdoc@0.16.0': {}
 
-  '@mlightcad/common@1.16.5':
+  '@mlightcad/common@1.16.6':
     dependencies:
       loglevel: 1.9.2
 
-  '@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz':
+  '@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz':
     dependencies:
-      '@mlightcad/common': 1.16.5
-      '@mlightcad/emf-converter': 1.16.5
-      '@mlightcad/geometry-engine': 3.16.5(@mlightcad/common@1.16.5)
-      '@mlightcad/graphic-interface': 3.16.5(@mlightcad/common@1.16.5)(@mlightcad/geometry-engine@3.16.5(@mlightcad/common@1.16.5))
+      '@mlightcad/common': 1.16.6
+      '@mlightcad/emf-converter': 1.16.6
+      '@mlightcad/geometry-engine': 3.16.6(@mlightcad/common@1.16.6)
+      '@mlightcad/graphic-interface': 3.16.6(@mlightcad/common@1.16.6)(@mlightcad/geometry-engine@3.16.6(@mlightcad/common@1.16.6))
       uid: 2.0.2
 
-  '@mlightcad/emf-converter@1.16.5': {}
+  '@mlightcad/emf-converter@1.16.6': {}
 
-  '@mlightcad/geometry-engine@3.16.5(@mlightcad/common@1.16.5)':
+  '@mlightcad/geometry-engine@3.16.6(@mlightcad/common@1.16.6)':
     dependencies:
-      '@mlightcad/common': 1.16.5
+      '@mlightcad/common': 1.16.6
 
-  '@mlightcad/graphic-interface@3.16.5(@mlightcad/common@1.16.5)(@mlightcad/geometry-engine@3.16.5(@mlightcad/common@1.16.5))':
+  '@mlightcad/graphic-interface@3.16.6(@mlightcad/common@1.16.6)(@mlightcad/geometry-engine@3.16.6(@mlightcad/common@1.16.6))':
     dependencies:
-      '@mlightcad/common': 1.16.5
-      '@mlightcad/geometry-engine': 3.16.5(@mlightcad/common@1.16.5)
+      '@mlightcad/common': 1.16.6
+      '@mlightcad/geometry-engine': 3.16.6(@mlightcad/common@1.16.6)
 
-  '@mlightcad/libredwg-converter@3.16.5(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.5.tgz)':
+  '@mlightcad/libredwg-converter@3.16.6(@mlightcad/data-model@file:vendor/njbestway-data-model-1.16.6.tgz)':
     dependencies:
-      '@mlightcad/data-model': file:vendor/njbestway-data-model-1.16.5.tgz
+      '@mlightcad/data-model': file:vendor/njbestway-data-model-1.16.6.tgz
       '@mlightcad/libredwg-web': 0.9.4
 
   '@mlightcad/libredwg-web@0.8.2': {}
@@ -10275,7 +10275,7 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
 
   '@types/gapi.client.discovery-v1@0.0.4':
     dependencies:
@@ -10319,7 +10319,7 @@ snapshots:
 
   '@types/jsdom@21.1.7':
     dependencies:
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       '@types/tough-cookie': 4.0.5
       parse5: 7.3.0
 
@@ -10327,7 +10327,7 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
 
   '@types/linkify-it@5.0.0': {}
 
@@ -10364,7 +10364,7 @@ snapshots:
 
   '@types/pngjs@6.0.5':
     dependencies:
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
 
   '@types/rbush@3.0.4': {}
 
@@ -12481,7 +12481,7 @@ snapshots:
       '@jest/expect': 30.4.1
       '@jest/test-result': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.7.2
@@ -12519,6 +12519,38 @@ snapshots:
       - esbuild-register
       - supports-color
       - ts-node
+
+  jest-config@30.4.2(@types/node@20.19.37)(ts-node@10.9.1(@types/node@24.12.4)(typescript@5.9.3)):
+    dependencies:
+      '@babel/core': 7.29.0
+      '@jest/get-type': 30.1.0
+      '@jest/pattern': 30.4.0
+      '@jest/test-sequencer': 30.4.1
+      '@jest/types': 30.4.1
+      babel-jest: 30.4.1(@babel/core@7.29.0)
+      chalk: 4.1.2
+      ci-info: 4.4.0
+      deepmerge: 4.3.1
+      glob: 13.0.6
+      graceful-fs: 4.2.11
+      jest-circus: 30.4.2
+      jest-docblock: 30.4.0
+      jest-environment-node: 30.4.1
+      jest-regex-util: 30.4.0
+      jest-resolve: 30.4.1
+      jest-runner: 30.4.2
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      parse-json: 5.2.0
+      pretty-format: 30.4.1
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 20.19.37
+      ts-node: 10.9.1(@types/node@24.12.4)(typescript@5.9.3)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
 
   jest-config@30.4.2(@types/node@24.12.4)(ts-node@10.9.1(@types/node@24.12.4)(typescript@5.9.3)):
     dependencies:
@@ -12591,7 +12623,7 @@ snapshots:
       '@jest/environment': 30.4.1
       '@jest/fake-timers': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       jest-mock: 30.4.1
       jest-util: 30.4.1
       jest-validate: 30.4.1
@@ -12601,7 +12633,7 @@ snapshots:
   jest-haste-map@30.4.1:
     dependencies:
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -12660,7 +12692,7 @@ snapshots:
   jest-mock@30.4.1:
     dependencies:
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       jest-util: 30.4.1
 
   jest-pnp-resolver@1.2.3(jest-resolve@30.4.1):
@@ -12694,7 +12726,7 @@ snapshots:
       '@jest/test-result': 30.4.1
       '@jest/transform': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       emittery: 0.13.1
       exit-x: 0.2.2
@@ -12723,7 +12755,7 @@ snapshots:
       '@jest/test-result': 30.4.1
       '@jest/transform': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       cjs-module-lexer: 2.2.0
       collect-v8-coverage: 1.0.3
@@ -12770,7 +12802,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -12779,7 +12811,7 @@ snapshots:
   jest-util@30.4.1:
     dependencies:
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       chalk: 4.1.2
       ci-info: 4.4.0
       graceful-fs: 4.2.11
@@ -12798,7 +12830,7 @@ snapshots:
     dependencies:
       '@jest/test-result': 30.4.1
       '@jest/types': 30.4.1
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.13.1
@@ -12807,7 +12839,7 @@ snapshots:
 
   jest-worker@30.4.1:
     dependencies:
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       '@ungap/structured-clone': 1.3.1
       jest-util: 30.4.1
       merge-stream: 2.0.0
@@ -13575,7 +13607,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.2
-      '@types/node': 24.12.4
+      '@types/node': 20.19.37
       long: 5.3.2
 
   proxy-addr@2.0.8:

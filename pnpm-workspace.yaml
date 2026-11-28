@@ -19,14 +19,14 @@ overrides:
   # NOTE: this override is intentionally workspace-wide: data-model is a shared
   # peer of every @mlightcad package and a second copy would split the single
   # workingDatabase / instanceof identity. Keep it until upstream absorbs dwgHandle.
-  '@mlightcad/data-model': 'file:./vendor/njbestway-data-model-1.16.5.tgz'
+  '@mlightcad/data-model': 'file:./vendor/njbestway-data-model-1.16.6.tgz'
   # acad-rust-converter is back in the workspace (packages/acad-rust-converter)
   # and marked private: it is never published from this repo (npm 0.1.0 from the
   # archived standalone repo stays the published line). The CLI declares 0.1.0
   # so its published artifact resolves on npm; this workspace override keeps
   # every local consumer (incl. the CLI) linked to the in-tree 0.2.0 sources.
   '@njbestway/acad-rust-converter': 'workspace:*'
-  '@mlightcad/libredwg-converter': '3.16.5'
+  '@mlightcad/libredwg-converter': '3.16.6'
   '@mlightcad/mtext-input-box': '0.3.10'
   '@mlightcad/mtext-parser': '1.5.7'
   '@mlightcad/mtext-renderer': '0.13.10'
