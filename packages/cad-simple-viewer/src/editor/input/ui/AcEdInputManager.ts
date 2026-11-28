@@ -75,7 +75,11 @@ import {
 } from './AcEdFloatingInputTypes.js'
 import { AcEdFloatingMessage } from './AcEdFloatingMessage.js'
 import { acedInteractionStrategy } from './AcEdInteractionStrategy.js'
-import { acedIsConfirmKey } from './AcEdKeyboardUtil.js'
+import {
+  acedIsConfirmKey,
+  acedIsSpaceActivatedTarget,
+  acedIsTextEntryTarget
+} from './AcEdKeyboardUtil.js'
 import { AcEdMessageType } from './AcEdMessageType.js'
 import { acedAttachMobileBoxGesture } from './AcEdMobileBoxGesture.js'
 import {
@@ -2970,6 +2974,7 @@ export class AcEdInputManager {
         options.cleanup?.()
         promptDefaults.jig?.end()
         document.removeEventListener('keydown', escHandler)
+        document.removeEventListener('keydown', confirmHandler)
         document.removeEventListener('keydown', modifierHandler)
         document.removeEventListener('keyup', modifierHandler)
         this.view.canvas.removeEventListener('contextmenu', contextMenuHandler)
@@ -3043,6 +3048,28 @@ export class AcEdInputManager {
           rejector()
         }
       }
+      // Bare Enter/Space on the canvas confirms the prompt exactly like the
+      // session-panel confirm button; without this a desktop user whose focus
+      // is not in a text field could not end e.g. LINE with Enter. Text fields
+      // and controls keep their own Enter/Space (command line, floating input
+      // boxes, session panel, dialogs, toolbar buttons).
+      const confirmHandler = (e: KeyboardEvent) => {
+        if (e.repeat || !acedIsConfirmKey(e)) return
+        if (
+          acedIsTextEntryTarget(e.target) ||
+          acedIsSpaceActivatedTarget(e.target)
+        ) {
+          return
+        }
+        const el = e.target instanceof HTMLElement ? e.target : null
+        if (el?.closest('.ml-ui-dialog-backdrop, [aria-modal="true"]')) return
+        e.preventDefault()
+        if (showStringInput) {
+          commitMobileString()
+        } else {
+          noneRejector()
+        }
+      }
       const modifierHandler = (e: KeyboardEvent) => {
         const toggled = this.handleCtrlToggleKey(e)
         const changed = this.updateModifierStateFromEvent(e)
@@ -3066,6 +3093,7 @@ export class AcEdInputManager {
         noneRejector()
       }
       document.addEventListener('keydown', escHandler)
+      document.addEventListener('keydown', confirmHandler)
       document.addEventListener('keydown', modifierHandler)
       document.addEventListener('keyup', modifierHandler)
       this.view.canvas.addEventListener('contextmenu', contextMenuHandler)

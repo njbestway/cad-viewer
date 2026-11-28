@@ -1037,6 +1037,11 @@ export class AcEdCommandLine {
 
     this._onCommandWillStart = () => {
       this.cancelRecentAutoHide()
+      // A new command starts with a clean strip: replaying the previous
+      // command's prompts here reads as stale "command memory" (LINE hints
+      // flashing again when a toolbar button starts SELECT or PAN).
+      this.recentMessages.length = 0
+      this.renderRecentMessages()
       this.showRecentPanel()
     }
     this._onCommandEnded = () => {

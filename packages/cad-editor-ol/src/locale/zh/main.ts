@@ -642,7 +642,7 @@ export default {
       description: '管理图层'
     },
     pan: {
-      text: '移动',
+      text: '平移',
       description: '平移视图'
     },
     markupPanel: {
